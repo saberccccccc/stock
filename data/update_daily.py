@@ -1,4 +1,4 @@
-# update_daily_data.py 鈥?涓?偂鏃ョ嚎鏅鸿兘澧為噺鏇存柊锛堟柇鐐圭画浼犵増锛?# 鐢ㄦ硶: python update_daily_data.py [--workers 2]
+# update_daily_data.py 鈥?涓?偂鏃ョ嚎鏅鸿兘澧為噺鏇存柊锛堟柇鐐圭画浼犵増锛?# 用法: python update_daily_data.py [--workers 2]
 # 鍙?殢鏃?Ctrl+C 涓?柇锛岄噸鏂拌繍琛屼細鑷?姩璺宠繃宸叉洿鏂扮殑鑲$エ
 
 import os, sys, time, random, argparse, json
@@ -11,10 +11,10 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-# ==================== 閰嶇疆 ====================
+# ==================== 配置 ====================
 DATA_DIR = "data/raw"
 START_DATE = "20100101"
-MIN_INTERVAL = 1.5       # API鏈EUR灏忛棿闅旓紙绉掞級
+MIN_INTERVAL = 1.5       # API鏈EUR小间隔（秒）
 BATCH_SLEEP = 60         # 鎵规?闂翠紤鎭?紙绉掞級
 
 PROGRESS_FILE = os.path.join(DATA_DIR, "_update_progress.json")
@@ -24,10 +24,10 @@ os.makedirs(DATA_DIR, exist_ok=True)
 def resolve_tushare_token(token=None):
     resolved = token or os.getenv('TUSHARE_TOKEN')
     if not resolved:
-        raise ValueError('缂哄皯 TUSHARE_TOKEN锛岃?璁剧疆鐜??鍙橀噺鎴栭EUR氳繃 --token 浼犲叆')
+        raise ValueError('缺少 TUSHARE_TOKEN锛岃?璁剧疆鐜??鍙橀噺鎴栭EUR氳繃 --token 传入')
     return resolved
 
-# ==================== 瀹夊叏闄愭祦璋冪敤 ====================
+# ==================== 安全限流调用 ====================
 _last_request_time = 0
 
 def safe_call(func, *args, **kwargs):
@@ -42,7 +42,7 @@ def safe_call(func, *args, **kwargs):
             return func(*args, **kwargs)
         except Exception as e:
             wait = 4 * (attempt + 1)
-            print(f"  閲嶈瘯{attempt+1}/3: {e}, 绛夊緟{wait}s")
+            print(f"  重试{attempt+1}/3: {e}, 等待{wait}s")
             time.sleep(wait)
     return None
 
@@ -66,7 +66,7 @@ def fetch_one_stock(pro, ts_code, start_date, end_date):
 
 
 def needs_update(ts_code):
-    """妫EUR鏌ヨ偂绁ㄦ槸鍚﹂渶瑕佹洿鏂帮紙2010~2025鐨勬暟鎹?笉婊¤冻瑕佹眰锛?"""
+    """妫EUR查股票是否需要更新（2010~2025鐨勬暟鎹?笉婊¤冻瑕佹眰锛?"""
     csv_path = os.path.join(DATA_DIR, f"{ts_code}.csv")
     if not os.path.exists(csv_path):
         return True, 'no_file'
@@ -80,13 +80,13 @@ def needs_update(ts_code):
         last_date = df.index.max()
         days_behind = (datetime.today() - last_date).days
 
-        # 宸叉湁2010鏁版嵁 + 鏈EUR鏂?鈫?璺宠繃
+        # 已有2010数据 + 鏈EUR鏂?鈫?跳过
         if first_date.year <= 2010 and days_behind <= 2:
             return False, f'skip ({first_date.date()}~{last_date.date()})'
-        # 宸叉湁2010鏁版嵁浣嗚惤鍚?鈫?澧為噺
+        # 已有2010鏁版嵁浣嗚惤鍚?鈫?增量
         if first_date.year <= 2010:
             return True, f'incremental (behind {days_behind}d)'
-        # 鍙?湁2017+鏁版嵁 鈫?鍏ㄩ噺
+        # 鍙?湁2017+数据 鈫?全量
         return True, f'full ({first_date.date()}~{last_date.date()})'
     except Exception:
         return True, 'read_error'
@@ -114,7 +114,7 @@ def update_one(pro, ts_code):
             return ts_code, 'incremental', len(new_df)
         return ts_code, 'skip', 0
     else:
-        # 鍏ㄩ噺閲嶆媺
+        # 全量重拉
         df = fetch_one_stock(pro, ts_code, START_DATE, end_date)
         if df is not None and not df.empty:
             df.to_csv(csv_path)
@@ -138,7 +138,7 @@ def get_stock_list(pro):
     cache_path = os.path.join(DATA_DIR, 'stable_stocks.csv')
     if os.path.exists(cache_path):
         df = pd.read_csv(cache_path, dtype=str)
-        print(f"鑲$エ鍒楄〃(缂撳瓨): {len(df)} 鍙?")
+        print(f"鑲$エ鍒楄〃(缓存): {len(df)} 鍙?")
         return df['ts_code'].tolist()
 
     print("棣栨?鑾峰彇鑲$エ鍒楄〃...")
@@ -159,7 +159,7 @@ def main():
     parser.add_argument('--batch', type=int, default=30)
     parser.add_argument('--test', type=int, default=0)
     parser.add_argument('--token', type=str, default=None,
-                        help='Tushare token锛涙湭浼犲叆鏃惰?鍙?TUSHARE_TOKEN 鐜??鍙橀噺')
+                        help='Tushare token锛涙湭浼犲叆鏃惰?鍙?TUSHARE_TOKEN 鐜??变量')
     args = parser.parse_args()
     token = resolve_tushare_token(args.token)
 
@@ -182,7 +182,7 @@ def main():
 
     if total == 0:
         print("鍏ㄩ儴鑲$エ宸叉洿鏂板畬鎴愶紒")
-        print(f"缁熻?: 鍏ㄩ噺{stats['full']} | 澧為噺{stats['incremental']} | 璺宠繃{stats['skip']} | 澶辫触{stats['fail']}")
+        print(f"缁熻?: 全量{stats['full']} | 增量{stats['incremental']} | 跳过{stats['skip']} | 失败{stats['fail']}")
         return
 
     print(f"寰呮洿鏂? {total} 鍙?(鍏?{len(stocks)} 鍙?")
@@ -197,36 +197,36 @@ def main():
         batch_updated = []
         with ThreadPoolExecutor(max_workers=args.workers) as executor:
             futures = {executor.submit(update_one, pro, code): code for code in batch}
-            for future in tqdm(as_completed(futures), total=len(batch), desc=f"杩涘害"):
+            for future in tqdm(as_completed(futures), total=len(batch), desc=f"进度"):
                 try:
                     code, status, n_rows = future.result()
                     stats[status] = stats.get(status, 0) + 1
                     if status != 'fail':
                         batch_updated.append(code)
                 except Exception as e:
-                    print(f"  寮傚父: {e}")
+                    print(f"  异常: {e}")
                     stats['fail'] += 1
 
-        # 淇濆瓨杩涘害
+        # 保存进度
         updated_set.update(batch_updated)
         progress['updated'] = list(updated_set)
         progress['batch'] = start_batch + bi + 1
         progress['stats'] = stats
         save_progress(progress)
 
-        print(f"  鍏ㄩ噺:{stats['full']} | 澧為噺:{stats['incremental']} | "
-              f"璺宠繃:{stats['skip']} | 澶辫触:{stats['fail']}")
+        print(f"  全量:{stats['full']} | 增量:{stats['incremental']} | "
+              f"跳过:{stats['skip']} | 失败:{stats['fail']}")
 
         if bi < batch_count - 1:
-            print(f"  浼戞伅 {BATCH_SLEEP}s ...")
+            print(f"  休息 {BATCH_SLEEP}s ...")
             time.sleep(BATCH_SLEEP)
 
     print(f"\n{'=' * 55}")
-    print("鏇存柊瀹屾垚!")
-    print(f"  鍏ㄩ噺涓嬭浇: {stats['full']} | 澧為噺鏇存柊: {stats['incremental']}")
-    print(f"  璺宠繃: {stats['skip']} | 澶辫触: {stats['fail']}")
+    print("更新完成!")
+    print(f"  全量下载: {stats['full']} | 增量更新: {stats['incremental']}")
+    print(f"  跳过: {stats['skip']} | 失败: {stats['fail']}")
 
-    # 娓呯悊杩涘害鏂囦欢
+    # 清理进度文件
     if os.path.exists(PROGRESS_FILE):
         os.remove(PROGRESS_FILE)
 

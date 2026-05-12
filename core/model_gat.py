@@ -5,12 +5,12 @@ import torch.nn.functional as F
 from torch_geometric.nn import GATConv, global_mean_pool
 
 
-# ==================== 琛屼笟鍥捐氨鏋勫缓 ====================
+# ==================== 行业图谱构建 ====================
 def build_industry_graph(industry_dict, codes):
     """
     鍩轰簬琛屼笟鍒嗙被鏋勯€犻偦鎺ョ煩闃?
     Args:
-        industry_dict: {code: industry_name} 鏄犲皠
+        industry_dict: {code: industry_name} 映射
         codes: 褰撳墠鎴?潰鑲＄エ浠ｇ爜鍒楄〃
     Returns:
         edge_index: torch.LongTensor shape (2, num_edges)
@@ -34,7 +34,7 @@ def build_industry_graph(industry_dict, codes):
                 edges_src.append(idx_a)
                 edges_dst.append(idx_b)
                 edges_w.append(1.0)
-                # 鍙屽悜
+                # 双向
                 edges_src.append(idx_b)
                 edges_dst.append(idx_a)
                 edges_w.append(1.0)
@@ -53,10 +53,10 @@ def build_industry_graph(industry_dict, codes):
 
 def build_correlation_edges(X, top_k=5):
     """
-    鍩轰簬鐗瑰緛鐩镐技搴﹁ˉ鍏呰法琛屼笟杩炶竟锛堝彲閫夛級
+    鍩轰簬鐗瑰緛鐩镐技搴﹁ˉ充跨行业连边（可选）
 
     Args:
-        X: (N, F) 鐗瑰緛鐭╅樀
+        X: (N, F) 特征矩阵
         top_k: 姣忓彧鑲＄エ杩炴帴鏈€鐩镐技鐨?K 涓?偦灞?    Returns:
         edge_index, edge_weight
     """
@@ -79,7 +79,7 @@ def build_correlation_edges(X, top_k=5):
     return edge_index, edge_weight
 
 
-# ==================== GAT 棰勬祴妯″瀷 ====================
+# ==================== GAT 预测模型 ====================
 class GATPredictor(nn.Module):
     """GAT frontend predictor"""
 
@@ -112,7 +112,7 @@ class GATPredictor(nn.Module):
         batch: (N,) batch index
         """
         h = self.input_proj(X)
-        h_res = h  # 娈嬪樊杩炴帴璧风偣
+        h_res = h  # 残差连接起点
 
         for gat in self.gat_layers:
             h_new = gat(h, edge_index, edge_weight)
@@ -120,13 +120,13 @@ class GATPredictor(nn.Module):
             h_new = self.dropout(h_new)
             h = h_new
 
-        # 鎷兼帴鍘熷?鐗瑰緛鎶曞奖 + GAT杈撳嚭
+        # 鎷兼帴鍘熷?特征投影 + GAT输出
         h_out = torch.cat([h, h_res], dim=-1)
         pred = self.pred_head(h_out).squeeze(-1)
         return pred
 
 
-# ==================== GAT 鎹熷け鍑芥暟 ====================
+# ==================== GAT 损失函数 ====================
 def gat_rank_loss(pred, target):
     """Spearman rank loss"""
     if pred.numel() < 5:
@@ -138,30 +138,30 @@ def gat_rank_loss(pred, target):
 
 # ==================== 鐙?珛娴嬭瘯 ====================
 if __name__ == "__main__":
-    print("=== GAT 妯″瀷娴嬭瘯 ===\n")
+    print("=== GAT 模型测试 ===\n")
 
-    # 妯℃嫙鏁版嵁
+    # 模拟数据
     N = 100
     F = 74
     X = torch.randn(N, F)
 
-    # 妯℃嫙琛屼笟
+    # 模拟行业
     codes = [f"{600000 + i}" for i in range(N)]
-    industries = ['閾惰?'] * 20 + ['鐧介厭'] * 15 + ['鍖昏嵂'] * 25 + ['鍦颁骇'] * 20 + ['鐢靛姏'] * 20
+    industries = ['閾惰?'] * 20 + ['白酒'] * 15 + ['医药'] * 25 + ['地产'] * 20 + ['电力'] * 20
     industry_dict = {code: industries[i] for i, code in enumerate(codes)}
 
     print(f"industry graph: {N} nodes, {edge_index.shape[1]} edges")
     print(f"industry graph: {N} nodes, {edge_index.shape[1]} edges")
 
-    # 妯″瀷鍓嶅悜
+    # 模型前向
     model = GATPredictor(input_dim=F, hidden_dim=128, n_heads=4, n_layers=2)
     pred = model(X, edge_index, edge_weight)
-    print(f"棰勬祴杈撳嚭: {pred.shape}")
+    print(f"预测输出: {pred.shape}")
 
-    # 鎹熷け璁＄畻
+    # 损失计算
     y = torch.randn(N)
     loss = gat_rank_loss(pred, y)
     print(f"Loss: {loss.item():.4f}")
 
     # 鍙傛暟閲?    n_params = sum(p.numel() for p in model.parameters())
-    print(f"鍙傛暟鎬婚噺: {n_params:,}")
+    print(f"参数总量: {n_params:,}")

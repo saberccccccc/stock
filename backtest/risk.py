@@ -1,10 +1,10 @@
-# risk_controller.py 鈥?鍔ㄦ€侀?闄╅?绠椾笌椋庢帶
+# risk_controller.py 鈥?鍔ㄦ€侀?闄╅?算与风控
 import numpy as np
 
 
 class DynamicRiskBudget:
     """
-    鍔ㄦ€侀?闄╅?绠楁帶鍒跺櫒
+    鍔ㄦ€侀?闄╅?算控制器
     - 娉㈠姩鐜囪嚜閫傚簲鐩?爣娉㈠姩鐜?    - 鍥炴挙鎺у埗鑷?姩闄嶆潬鏉?    - IC琛板噺鍔ㄦ€佽皟浠撻?鐜?    """
 
     def __init__(self, base_target_vol=0.15, max_dd_limit=0.15, vol_lookback=60,
@@ -16,7 +16,7 @@ class DynamicRiskBudget:
         self.min_target_vol = min_target_vol
         self.max_target_vol = max_target_vol
 
-        # 鐘舵€佽拷韪?        self.mu_vol = base_target_vol         # 闀挎湡娉㈠姩鐜囧潎鍊硷紙EMA鏇存柊锛?        self.current_dd = 0.0
+        # 鐘舵€佽拷韪?        self.mu_vol = base_target_vol         # 长期波动率均值（EMA鏇存柊锛?        self.current_dd = 0.0
         self.vol_ema = base_target_vol
         self.ema_decay = 0.94
 
@@ -27,7 +27,7 @@ class DynamicRiskBudget:
         if len(daily_returns) < 5:
             return
 
-        # 鏇存柊娉㈠姩鐜嘐MA
+        # 更新波动率EMA
         realized_vol = np.std(daily_returns) * np.sqrt(252)
         if np.isfinite(realized_vol):
             self.vol_ema = (self.ema_decay * self.vol_ema +
@@ -42,8 +42,8 @@ class DynamicRiskBudget:
     def get_target_vol(self):
         """
         娉㈠姩鐜囪嚜閫傚簲鐩?爣娉㈠姩鐜囷細
-        瀹為檯娉㈠姩鐜?< 鍩哄噯 鈫?閫傚害鎻愬崌鐩?爣锛堜絾涓嶈秴杩囦笂闄愶級
-        瀹為檯娉㈠姩鐜?> 鍩哄噯 鈫?闄嶄綆鐩?爣娉㈠姩鐜?        """
+        瀹為檯娉㈠姩鐜?< 基准 鈫?閫傚害鎻愬崌鐩?爣锛堜絾涓嶈秴杩囦笂闄愶級
+        瀹為檯娉㈠姩鐜?> 基准 鈫?闄嶄綆鐩?爣娉㈠姩鐜?        """
         if self.vol_ema > 0:
             ratio = self.base_target_vol / self.vol_ema
             # ratio > 1 鈫?甯傚満姣旈?鏈熷钩闈欙紝鍙?€傚綋鏀惧ぇ
@@ -51,7 +51,7 @@ class DynamicRiskBudget:
         else:
             adjusted = self.base_target_vol
 
-        # 鍥炴挙鎯╃綒
+        # 回撤惩罚
         if self.current_dd > self.max_dd_limit * 0.5:
             dd_penalty = max(0.3, 1 - self.current_dd / self.max_dd_limit)
             adjusted *= dd_penalty
@@ -63,7 +63,7 @@ class DynamicRiskBudget:
         鍥炴挙鎺у埗鏉犳潌鍊嶆暟锛?        dd < 5%  鈫?婊℃潬鏉?(1.0)
         dd 5-10% 鈫?0.8x
         dd 10-15% 鈫?0.5x
-        dd > 15%  鈫?0.3x锛堝己鍒堕檷浠擄級
+        dd > 15%  鈫?0.3x（强制降仓）
         """
         if self.current_dd < 0.05:
             return 1.0
@@ -76,9 +76,9 @@ class DynamicRiskBudget:
 
     def get_rebalance_freq(self, ic_decay_curve, default_freq=5):
         """
-        鏍规嵁IC琛板噺閫熷害鍔ㄦ€佽皟浠擄細
-        蹇?€熻“鍑?鈫?缂╃煭璋冧粨鍛ㄦ湡
-        缂撴參琛板噺 鈫?寤堕暱璋冧粨鍛ㄦ湡
+        根据IC琛板噺閫熷害鍔ㄦ€佽皟浠擄細
+        蹇?€熻“鍑?鈫?缩短调仓周期
+        缓慢衰减 鈫?延长调仓周期
         """
         if ic_decay_curve is None or len(ic_decay_curve) < 2:
             return default_freq
@@ -86,11 +86,11 @@ class DynamicRiskBudget:
         ic_norm = ic_decay_curve / (ic_decay_curve[0] + 1e-8)
         # 缁撳悎缁濆?闃堝€煎拰瓒嬪娍妫€娴嬶紙涓巈ngine.py淇濇寔涓€鑷达級
         for i in range(len(ic_norm)):
-            # 鏂规硶1锛氱粷瀵归槇鍊?- IC琛板噺鍒?0%浠ヤ笅
+            # 方法1锛氱粷瀵归槇鍊?- IC琛板噺鍒?0%以下
             if ic_norm[i] < 0.5:
                 half_life = i + 1
                 break
-            # 鏂规硶2锛氳秼鍔挎?娴?- IC鏄捐憲涓嬮檷锛堜笅闄嶈秴杩?0%锛?            if i > 0 and ic_norm[i] < ic_norm[i-1] * 0.7:
+            # 方法2锛氳秼鍔挎?娴?- IC鏄捐憲涓嬮檷锛堜笅闄嶈秴杩?0%锛?            if i > 0 and ic_norm[i] < ic_norm[i-1] * 0.7:
                 half_life = i + 1
                 break
         else:
@@ -104,16 +104,16 @@ class DynamicRiskBudget:
         # 闄愬埗鍦?[2, 20] 澶?        return int(np.clip(half_life, 2, 20))
 
 
-# ==================== 鐙?珛杩愯?锛堟煡鐪嬬姸鎬侊級 ====================
+# ==================== 鐙?珛杩愯?（查看状态） ====================
 if __name__ == "__main__":
     print("=== 鍔ㄦ€侀?闄╅?绠楁祴璇?===\n")
 
     rbc = DynamicRiskBudget(base_target_vol=0.15)
 
-    # 妯℃嫙骞抽潤甯傚満
+    # 模拟平静市场
     calm_rets = np.random.normal(0.001, 0.01, 60)
     rbc.update(calm_rets)
-    print(f"骞抽潤甯傚満: target_vol={rbc.get_target_vol():.3f}, "
+    print(f"平静市场: target_vol={rbc.get_target_vol():.3f}, "
           f"leverage={rbc.get_leverage_multiplier():.2f}, dd={rbc.current_dd:.3f}")
 
     # 妯℃嫙楂樻尝鍔?    high_vol_rets = np.random.normal(0.000, 0.03, 60)
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     print(f"楂樻尝鍔?   target_vol={rbc.get_target_vol():.3f}, "
           f"leverage={rbc.get_leverage_multiplier():.2f}, dd={rbc.current_dd:.3f}")
 
-    # 妯℃嫙鍥炴挙
+    # 模拟回撤
     dd_rets = np.array([-0.02] * 5 + [0.005] * 10 + [-0.03] * 5)
     rbc.update(dd_rets)
     print(f"鍥炴挙涓?   target_vol={rbc.get_target_vol():.3f}, "
@@ -129,5 +129,5 @@ if __name__ == "__main__":
 
     # 娴嬭瘯鍔ㄦ€佽皟浠撻?鐜?    ic_decay = np.array([0.15, 0.10, 0.07, 0.04, 0.02, 0.01, 0.005, 0.003])
     freq = rbc.get_rebalance_freq(ic_decay)
-    print(f"\nIC琛板噺: {ic_decay}")
+    print(f"\nIC衰减: {ic_decay}")
     print(f"[FIXED]")

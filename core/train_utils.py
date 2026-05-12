@@ -16,7 +16,7 @@ warnings.filterwarnings('ignore')
 from data.market_features import N_MARKET
 from data.pipeline import MACRO_COLS
 
-# regime缁村害 = 3涓?偂绁ㄧ骇椋庨櫓鍥犲瓙 + 甯傚満鏁翠綋灞炴EUR?+ 鍙?EUR夊畯瑙?璧勯噾娴佺壒寰?
+# regime维度 = 3涓?偂绁ㄧ骇椋庨櫓鍥犲瓙 + 甯傚満鏁翠綋灞炴EUR?+ 鍙?EUR夊畯瑙?璧勯噾娴佺壒寰?
 REGIME_BASE_DIM = 3 + N_MARKET
 MACRO_REGIME_DIM = len(MACRO_COLS)
 REGIME_DIM = REGIME_BASE_DIM
@@ -70,7 +70,7 @@ def collate_fn_eval(batch):
 
 
 def collate_fn(batch, keep_ratio=0.7, min_keep=20):
-    """鍔ㄦEUR佸瓙閲囨牱锛氭瘡鎴?潰闅忔満淇濈暀 keep_ratio 鑲＄エ"""
+    """鍔ㄦEUR佸瓙閲囨牱锛氭瘡鎴?潰闅忔満淇濈暀 keep_ratio 股票"""
     B = len(batch)
     X_list, y_list, yseq_list, risk_list, ind_list = [], [], [], [], []
     for item in batch:
@@ -107,7 +107,7 @@ def collate_fn(batch, keep_ratio=0.7, min_keep=20):
     return {"X": X, "y": y, "y_seq": y_seq, "risk": risk, "industry_ids": industry_ids, "mask": mask}
 
 
-# ============================ 鎹熷け鍑芥暟 ============================
+# ============================ 损失函数 ============================
 def _masked_corr_loss_1d(pred, target, mask):
     pred_p = pred[mask]
     target_p = target[mask]
@@ -186,13 +186,13 @@ def total_loss_v7(alpha_raw, alphas, horizon_preds, y, y_seq, mask, cfg):
                 horizon_preds[..., j], y_seq[..., idx], mask
             )
 
-    # 澶氭牱鎬ф?鍒欙細鎯╃綒alpha澶翠箣闂寸殑鐩稿叧鎬э紝閬垮厤澶氬ご濉岀缉
+    # 澶氭牱鎬ф?则：惩罚alpha澶翠箣闂寸殑鐩稿叧鎬э紝閬垮厤澶氬ご濉岀缉
     div = alpha_diversity_loss(alphas, mask)
 
     return main + 0.3 * multi + 0.05 * div
 
 
-# ============================ 璇勪及 ============================
+# ============================ 评估 ============================
 @torch.no_grad()
 def evaluate(model, loader, cfg, device):
     """Compute validation set Rank IC per horizon (chunked processing, memory cleanup)"""
@@ -217,7 +217,7 @@ def evaluate(model, loader, cfg, device):
             msg = str(e).lower()
             if "out of memory" not in msg and "cuda" not in msg:
                 raise
-            print(f"  [WARN] 楠岃瘉 batch {bi} OOM: {e}, 璺宠繃")
+            print(f"  [WARN] 验证 batch {bi} OOM: {e}, 跳过")
             # OOM鏃朵篃瑕佹竻鐞嗗凡鍒嗛厤鐨勮緭鍏?ensor
             del X, y, y_seq, risk, industry_ids, mask
             if device.type == "cuda":
@@ -226,7 +226,7 @@ def evaluate(model, loader, cfg, device):
 
         target_weighted, _, _ = weighted_horizon_target(y_seq, cfg)
 
-        # 绔嬪嵆绉诲埌CPU閲婃斁鏄惧瓨
+        # 立即移到CPU释放显存
         alpha_cpu = alpha_raw.cpu()
         horizon_cpu = horizon_preds.cpu()
         y_cpu = y.cpu()
@@ -234,7 +234,7 @@ def evaluate(model, loader, cfg, device):
         target_cpu = target_weighted.cpu()
         mask_cpu = mask.cpu()
 
-        # 閲婃斁GPU tensor
+        # 释放GPU tensor
         del X, y, y_seq, risk, industry_ids, mask, alpha_raw, horizon_preds, target_weighted
         if device.type == "cuda" and bi % 100 == 0:
             torch.cuda.empty_cache()
@@ -277,9 +277,9 @@ def train_model(train_loader, val_loader, input_dim, base_feat_dim, cfg,
     if device.type == "cuda":
         torch.backends.cudnn.benchmark = True
         print(f"GPU: {torch.cuda.get_device_name(0)}, "
-              f"鏄惧瓨: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f}GB")
+              f"显存: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f}GB")
     else:
-        print("浣跨敤CPU璁?粌")
+        print("使用CPU璁?粌")
 
     regime_dim = get_regime_dim(cfg)
     from core.model import UltimateV7Model
@@ -310,10 +310,10 @@ def train_model(train_loader, val_loader, input_dim, base_feat_dim, cfg,
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-5)
 
-    # AMP锛氳嚜鍔ㄦ贩鍚堢簿搴︼紝鑺傜渷GPU鏄惧瓨40%
+    # AMP：自动混合精度，节省GPU显存40%
     scaler = torch.cuda.amp.GradScaler() if use_amp and device.type == 'cuda' else None
     amp_str = "AMP ON" if scaler else "AMP OFF"
-    print(f"娣峰悎绮惧害(AMP): {amp_str}")
+    print(f"混合精度(AMP): {amp_str}")
 
     if resume and os.path.exists(best_model_path):
         print(f"loading existing checkpoint {best_model_path}, continuing training...")
@@ -324,7 +324,7 @@ def train_model(train_loader, val_loader, input_dim, base_feat_dim, cfg,
         if arch_config is not None:
             for k, v in current_arch.items():
                 if k in arch_config and arch_config[k] != v:
-                    print(f"  鏋舵瀯涓嶅尮閰? {k}={arch_config[k]} (褰撳墠={v})")
+                    print(f"  鏋舵瀯涓嶅尮閰? {k}={arch_config[k]} (当前={v})")
                     to_load = False
             if not to_load:
                 print("[FIXED]")
@@ -343,7 +343,7 @@ def train_model(train_loader, val_loader, input_dim, base_feat_dim, cfg,
                 optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
                 print(f"restored optimizer state")
             else:
-                print(f"  (妫EUR鏌ョ偣鏃爋ptimizer鐘舵EUR侊紝浣跨敤鍏ㄦ柊浼樺寲鍣?")
+                print(f"  (妫EUR查点无optimizer鐘舵EUR侊紝浣跨敤鍏ㄦ柊浼樺寲鍣?")
             if 'scheduler_state_dict' in checkpoint:
                 scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
                 print(f"restored optimizer state")
@@ -380,7 +380,7 @@ def train_model(train_loader, val_loader, input_dim, base_feat_dim, cfg,
                 loss = total_loss_v7(alpha_raw, alphas, horizon_preds, y, y_seq, mask, cfg)
             loss = loss / accum_steps
 
-            # 閲婃斁妯"瀷杈撳嚭tensor锛岃繖浜涘湪loss涓?笉鍐嶉渶瑕?
+            # 閲婃斁妯"瀷杈撳嚭tensor，这些在loss涓?笉鍐嶉渶瑕?
             del alpha_raw, alphas, horizon_preds
 
             if scaler:
@@ -388,7 +388,7 @@ def train_model(train_loader, val_loader, input_dim, base_feat_dim, cfg,
             else:
                 loss.backward()
 
-            # 鎻愬墠鎻愬彇鏍囬噺鍊肩敤浜庣粺璁★紝鐒跺悗閲婃斁loss tensor
+            # 提前提取标量值用于统计，然后释放loss tensor
             loss_val = loss.item() * accum_steps
             del loss
 
@@ -437,16 +437,16 @@ def train_model(train_loader, val_loader, input_dim, base_feat_dim, cfg,
         train_loss /= len(train_loader)
         print(f"--- Epoch {epoch+1} TRAINING done in {time.time()-epoch_start:.1f}s ---")
 
-        # 娓呯悊GPU鍐呭瓨纰庣墖锛屼负楠岃瘉鑵惧嚭绌洪棿
+        # 清理GPU内存碎片，为验证腾出空间
         if device.type == "cuda":
             torch.cuda.empty_cache()
             import gc; gc.collect()
 
-        # 楠岃瘉
+        # 验证
         t_val = time.time()
         val_ics = evaluate(model, val_loader, cfg, device)
         print(f"--- VAL done in {time.time()-t_val:.1f}s ---")
-        val_loss = -val_ics["alpha"]  # 鐢?-RankIC 浣滀负鏃╁仠鏍囧噯
+        val_loss = -val_ics["alpha"]  # 鐢?-RankIC 作为早停标准
 
         scheduler.step()
 
@@ -456,9 +456,9 @@ def train_model(train_loader, val_loader, input_dim, base_feat_dim, cfg,
         remaining_epochs = epochs - epoch - 1
         eta_seconds = avg_epoch_time * remaining_epochs
         print(
-            f"Epoch {epoch+1} 鐢ㄦ椂: {epoch_time/60:.1f} min | "
-            f"骞冲潎: {avg_epoch_time/60:.1f} min/epoch | "
-            f"棰勮?鍓╀綑: {eta_seconds/3600:.2f} h"
+            f"Epoch {epoch+1} 用时: {epoch_time/60:.1f} min | "
+            f"平均: {avg_epoch_time/60:.1f} min/epoch | "
+            f"棰勮?剩余: {eta_seconds/3600:.2f} h"
         )
         ic_str = " | ".join([f"{k}: {v:.4f}" for k, v in val_ics.items()])
         print(f"Epoch {epoch+1} | Train Loss: {train_loss:.4f} | Val IC 鈫?{ic_str}")
@@ -508,20 +508,20 @@ if __name__ == "__main__":
         print("full training mode")
     if "--gat" in sys.argv:
         cfg.use_gat = True
-        print("鍚?敤 GAT 鍒嗘敮")
+        print("鍚?敤 GAT 分支")
 
-    print(f"閰嶇疆: target_horizon={cfg.target_horizon}, seq_len={cfg.seq_len}, "
+    print(f"配置: target_horizon={cfg.target_horizon}, seq_len={cfg.seq_len}, "
           f"horizons={cfg.horizon_indices}, weights={cfg.horizon_weights}, "
           f"market={cfg.use_market_features}")
 
-    # 鍔犺浇鏁版嵁
+    # 加载数据
     print("\n鏋勫缓鏁版嵁闆?..")
     train_samples, val_samples = build_cross_section_dataset(cfg, use_cache=True)
 
     input_dim = train_samples[0]["X"].shape[1]
     horizon = train_samples[0]["y_seq"].shape[1]
     print(f"Input dim: {input_dim}, Horizon labels: {horizon}")
-    print(f"璁?粌鏍锋湰: {len(train_samples)}, 楠岃瘉鏍锋湰: {len(val_samples)}")
+    print(f"璁?粌鏍锋湰: {len(train_samples)}, 验证样本: {len(val_samples)}")
 
     # 璁$畻 base_feat_dim锛堣仛鍚堢壒寰佺殑鍩虹?缁村害锛?
     from data.pipeline import N_AGGS, INDUSTRY_REL_FEATURES
@@ -533,14 +533,14 @@ if __name__ == "__main__":
     train_ds = CrossSectionDataset(train_samples)
     val_ds = CrossSectionDataset(val_samples)
 
-    # 鏍规嵁鏄惧瓨璋冩暣 batch size 涓庣疮绉??鏁?
+    # 根据显存调整 batch size 涓庣疮绉??鏁?
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     if device.type == 'cuda' and torch.cuda.get_device_properties(0).total_memory < 8 * 1024**3:
         batch_size = 4
-        accum_steps = 8       # 绛夋晥 32
+        accum_steps = 8       # 等效 32
     else:
         batch_size = 16
-        accum_steps = 2       # 绛夋晥 32
+        accum_steps = 2       # 等效 32
 
     val_batch_size = batch_size
 

@@ -1,4 +1,4 @@
-# ensemble.py 鈥?Stacking 闆嗘垚锛圠ightGBM棰勬祴 + Transformer鐗瑰緛锛?
+# ensemble.py 鈥?Stacking 集成（LightGBM预测 + Transformer鐗瑰緛锛?
 import os
 import numpy as np
 import torch
@@ -18,7 +18,7 @@ from core.model import UltimateV7Model
 from core.train_utils import get_regime_dim
 
 
-# ==================== 鏃跺簭浜ゅ弶楠岃瘉棰勬祴 ====================
+# ==================== 时序交叉验证预测 ====================
 def cv_predict_lgb(train_samples, val_samples, horizon_list=(1, 3, 5, 10),
                    n_folds=5, model_dir="models_multi_cv"):
     """OOZE prediction: CV for training set, full model prediction for validation set"""
@@ -91,8 +91,8 @@ class StackingDataset(Dataset):
     def __init__(self, samples, lgb_preds_dict, sample_offset=0):
         """
         samples: 鎴?潰鏍锋湰鍒楄〃
-        lgb_preds_dict: {horizon: (n_samples,) array} 鈥?CV棰勬祴
-        sample_offset: samples鍦╰rain+val鍚堝苟鍒楄〃涓?殑璧峰?浣嶇疆
+        lgb_preds_dict: {horizon: (n_samples,) array} 鈥?CV预测
+        sample_offset: samples在train+val鍚堝苟鍒楄〃涓?殑璧峰?位置
         """
         self.X_list = []
         self.y_list = []
@@ -103,7 +103,7 @@ class StackingDataset(Dataset):
 
         for i, s in enumerate(samples):
             N, F = s['X'].shape
-            # 灏哃GB棰勬祴浣滀负棰濆?鐗瑰緛鎷煎叆
+            # 将LGB棰勬祴浣滀负棰濆?特征拼入
             extra_feats = np.zeros((N, len(lgb_preds_dict)), dtype=np.float32)
             global_i = sample_offset + i
             for j, h in enumerate(sorted(lgb_preds_dict.keys())):
@@ -159,17 +159,17 @@ def collate_stacking(batch):
     return {'X': X, 'y': y, 'y_seq': y_seq, 'risk': risk, 'industry_ids': industry_ids, 'mask': mask}
 
 
-# ==================== 鍔犳潈铻嶅悎 ====================
+# ==================== 加权融合 ====================
 def blend_predictions(lgb_preds, dl_alpha, weights=(0.5, 0.5)):
     """
-    铻嶅悎LightGBM鍜屾繁搴﹀?涔犻?娴?
+    融合LightGBM鍜屾繁搴﹀?涔犻?娴?
 
     Args:
-        lgb_preds: (N,) LightGBM铻嶅悎alpha
+        lgb_preds: (N,) LightGBM融合alpha
         dl_alpha: (N,) Transformer/GAT alpha
-        weights: (w_lgb, w_dl) 铻嶅悎鏉冮噸
+        weights: (w_lgb, w_dl) 融合权重
     Returns:
-        blended: (N,) 铻嶅悎鍚巃lpha
+        blended: (N,) 融合后alpha
     """
     w_lgb, w_dl = weights
     blended = w_lgb * lgb_preds + w_dl * dl_alpha
@@ -182,18 +182,18 @@ def blend_predictions(lgb_preds, dl_alpha, weights=(0.5, 0.5)):
 # ==================== 璁?粌鍏ュ彛 ====================
 def train_stacking(train_samples, val_samples, input_dim, horizon=10, epochs=15,
                    lr=3e-4, batch_size=8, cfg=None):
-    """璁?粌Stacking浜岀骇妯″瀷"""
+    """璁?粌Stacking二级模型"""
     cfg = cfg or DataConfig()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # 鍏堣窇LGB CV鑾峰彇棰勬祴
-    print("Step 1: LightGBM浜ゅ弶楠岃瘉...")
+    # 先跑LGB CV获取预测
+    print("Step 1: LightGBM交叉验证...")
     lgb_preds, _ = cv_predict_lgb(train_samples, val_samples)
 
-    # 鏋勫缓Stacking鏁版嵁闆嗭紙褰撳墠绠€鍖栦负鐩存帴澧炲姞鍗犱綅鐗瑰緛锛?
+    # 构建Stacking鏁版嵁闆嗭紙褰撳墠绠€鍖栦负鐩存帴澧炲姞鍗犱綅鐗瑰緛锛?
     n_lgb_feats = len(lgb_preds)
     stacking_dim = input_dim + n_lgb_feats
-    print(f"Stacking杈撳叆缁村害: {input_dim} + {n_lgb_feats} = {stacking_dim}")
+    print(f"Stacking输入维度: {input_dim} + {n_lgb_feats} = {stacking_dim}")
 
     train_ds = StackingDataset(train_samples, lgb_preds, sample_offset=0)
     val_ds = StackingDataset(val_samples, lgb_preds, sample_offset=len(train_samples))
@@ -203,7 +203,7 @@ def train_stacking(train_samples, val_samples, input_dim, horizon=10, epochs=15,
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False,
                             collate_fn=collate_stacking)
 
-    print("Step 2: 璁?粌Transformer浜岀骇妯″瀷...")
+    print("Step 2: 璁?粌Transformer二级模型...")
     base_feat_dim = (input_dim - len(INDUSTRY_REL_FEATURES)) // 2 // N_AGGS
     regime_dim = get_regime_dim(cfg)
     num_industries = train_samples[0]['risk'].shape[1] - regime_dim
@@ -248,7 +248,7 @@ def train_stacking(train_samples, val_samples, input_dim, horizon=10, epochs=15,
 
         train_loss /= len(train_loader)
 
-        # 楠岃瘉
+        # 验证
         model.eval()
         val_ic = []
         with torch.no_grad():
@@ -286,7 +286,7 @@ def train_stacking(train_samples, val_samples, input_dim, horizon=10, epochs=15,
 
 
 if __name__ == "__main__":
-    print("=== Stacking闆嗘垚娴嬭瘯 ===\n")
+    print("=== Stacking集成测试 ===\n")
 
     cfg = DataConfig()
     cfg.use_technical_features = True
@@ -296,10 +296,10 @@ if __name__ == "__main__":
     cfg.seq_len = 40
     cfg.max_horizon = 10
 
-    print("鍔犺浇鏁版嵁...")
+    print("加载数据...")
     train_samples, val_samples = build_cross_section_dataset(cfg, use_cache=True)
     input_dim = train_samples[0]['X'].shape[1]
-    print(f"Input dim: {input_dim}, 璁?粌鏍锋湰: {len(train_samples)}, 楠岃瘉鏍锋湰: {len(val_samples)}")
+    print(f"Input dim: {input_dim}, 璁?粌鏍锋湰: {len(train_samples)}, 验证样本: {len(val_samples)}")
 
     print("\n寮€濮婼tacking璁?粌...")
     model = train_stacking(train_samples, val_samples, input_dim, horizon=10,

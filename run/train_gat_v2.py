@@ -9,24 +9,24 @@ if sys.platform == 'win32':
     import _locale
     _locale._getdefaultlocale = (lambda *args: ['zh_CN', 'utf8'])
 
-# 杈撳嚭鍙?啓log鏂囦欢锛屼笉pipe鍒皊tdout锛堥槻姝?indows pipe闃诲?锛?log_file = open("train_gat.log", "w", encoding="utf-8")
+# 杈撳嚭鍙?啓log文件，不pipe到stdout锛堥槻姝?indows pipe闃诲?锛?log_file = open("train_gat.log", "w", encoding="utf-8")
 
 def log(msg):
     log_file.write(msg + "\n")
     log_file.flush()
 
-# 閲嶅畾鍚憇tdout鍒發og鏂囦欢锛岄伩鍏峎indows pipe闃诲?bash鎹曡幏
+# 重定向stdout到log文件，避免Windows pipe闃诲?bash捕获
 sys.stdout = log_file
 sys.stderr = log_file
 
 log("GAT training (V9 + industry graph attention)")
 log("GAT training (V9 + industry graph attention)")
 log("=" * 60)
-log("鏀硅繘:")
+log("改进:")
 log("  - FeatureGrouper + Transformer (cross-stock attention)")
 log("  - GATConv industry subgraph message passing")
 log("  - FusionGate: 鑷?EUR傚簲铻嶅悎Transformer+GAT")
-log("  - 琛屼笟embedding + rank embedding")
+log("  - 行业embedding + rank embedding")
 log("=" * 60)
 
 from core.config import DataConfig
@@ -48,7 +48,7 @@ cfg.use_market_features = True
 cfg.use_macro_features = True
 cfg.test_mode = False
 
-log(f"閰嶇疆: target_horizon={cfg.target_horizon}, seq_len={cfg.seq_len}, "
+log(f"配置: target_horizon={cfg.target_horizon}, seq_len={cfg.seq_len}, "
     f"horizons={cfg.horizon_indices}, weights={cfg.horizon_weights}, "
     f"market={cfg.use_market_features}, macro={cfg.use_macro_features}, "
     f"use_gat={cfg.use_gat}")
@@ -65,7 +65,7 @@ gc.collect()
 input_dim = train_samples[0]["X"].shape[1]
 horizon = train_samples[0]["y_seq"].shape[1]
 log(f"Input dim: {input_dim}, Horizon labels: {horizon}")
-log(f"璁?粌鏍锋湰: {len(train_samples)}, 楠岃瘉鏍锋湰: {len(val_samples)}")
+log(f"璁?粌鏍锋湰: {len(train_samples)}, 验证样本: {len(val_samples)}")
 
 industry_rel_dim = len(INDUSTRY_REL_FEATURES)
 total_agg = (input_dim - industry_rel_dim) // 2
@@ -77,7 +77,7 @@ all_ids = np.concatenate([s['industry_ids'] for s in train_samples])
 num_industries = int(all_ids.max()) + 1
 log(f"  input_dim={input_dim}, base_feat_dim={base_feat_dim}, n_aggs={N_AGGS}")
 log(f"  regime_dim={regime_dim}, risk_dim={risk_dim}, industries={num_industries}")
-log(f"  GAT: {num_industries}涓??涓氬叏杩炴帴鍥?+ {base_feat_dim}涓?熀纭EUR鐗瑰緛")
+log(f"  GAT: {num_industries}涓??涓氬叏杩炴帴鍥?+ {base_feat_dim}涓?熀纭EUR特征")
 
 train_ds = CrossSectionDataset(train_samples)
 val_ds = CrossSectionDataset(val_samples)

@@ -32,11 +32,11 @@ sys.stderr = LogWriter(log_file)
 print("GAT training (V9 + industry graph attention)")
 print("GAT training (V9 + industry graph attention)")
 print("=" * 60)
-print("鏀硅繘:")
+print("改进:")
 print("  - FeatureGrouper 鈫?Transformer锛堣法鑲$エ锛?")
 print("  - GATConv锛?灞傦紝琛屼笟鍏ㄨ繛鎺ュ浘锛?")
 print("  - FusionGate: 鑷?EUR傚簲铻嶅悎Transformer+GAT")
-print("  - 琛屼笟embedding + rank embedding")
+print("  - 行业embedding + rank embedding")
 print("=" * 60)
 
 from core.config import DataConfig
@@ -59,7 +59,7 @@ cfg.use_macro_features = True
 cfg.test_mode = False
 # cfg.test_stocks = 100
 
-print(f"閰嶇疆: target_horizon={cfg.target_horizon}, seq_len={cfg.seq_len}, "
+print(f"配置: target_horizon={cfg.target_horizon}, seq_len={cfg.seq_len}, "
       f"horizons={cfg.horizon_indices}, weights={cfg.horizon_weights}, "
       f"market={cfg.use_market_features}, macro={cfg.use_macro_features}, "
       f"use_gat={cfg.use_gat}")
@@ -67,7 +67,7 @@ print(f"閰嶇疆: target_horizon={cfg.target_horizon}, seq_len={cfg.seq_len}, "
 print("\n鏋勫缓鏁版嵁闆?..")
 train_samples, val_samples = build_cross_section_dataset(cfg, use_cache=True)
 
-# 鎴?柇risk鍒皉egime_dim锛堝幓鎺?3缁磋?涓歰ne-hot锛岃妭鐪亊49% risk鍐呭瓨锛?regime_dim = get_regime_dim(cfg)
+# 鎴?柇risk到regime_dim锛堝幓鎺?3缁磋?业one-hot，节省~49% risk鍐呭瓨锛?regime_dim = get_regime_dim(cfg)
 for s in train_samples + val_samples:
     s['risk'] = s['risk'][:, :regime_dim].copy()
 import gc
@@ -76,19 +76,19 @@ gc.collect()
 input_dim = train_samples[0]["X"].shape[1]
 horizon = train_samples[0]["y_seq"].shape[1]
 print(f"Input dim: {input_dim}, Horizon labels: {horizon}")
-print(f"璁?粌鏍锋湰: {len(train_samples)}, 楠岃瘉鏍锋湰: {len(val_samples)}")
+print(f"璁?粌鏍锋湰: {len(train_samples)}, 验证样本: {len(val_samples)}")
 
 industry_rel_dim = len(INDUSTRY_REL_FEATURES)
 total_agg = (input_dim - industry_rel_dim) // 2
 base_feat_dim = total_agg // N_AGGS
 
-print(f"\n鐗瑰緛缁村害:")
+print(f"\n特征维度:")
 risk_dim = train_samples[0]["risk"].shape[1]
 all_ids = np.concatenate([s['industry_ids'] for s in train_samples])
 num_industries = int(all_ids.max()) + 1
 print(f"  input_dim={input_dim}, base_feat_dim={base_feat_dim}, n_aggs={N_AGGS}")
 print(f"  regime_dim={regime_dim}, risk_dim={risk_dim}, industries={num_industries}")
-print(f"  GAT: {num_industries}涓??涓氬叏杩炴帴鍥?+ {base_feat_dim}涓?熀纭EUR鐗瑰緛")
+print(f"  GAT: {num_industries}涓??涓氬叏杩炴帴鍥?+ {base_feat_dim}涓?熀纭EUR特征")
 
 train_ds = CrossSectionDataset(train_samples)
 val_ds = CrossSectionDataset(val_samples)
@@ -97,10 +97,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 if device.type == "cuda":
     gpu_mem = torch.cuda.get_device_properties(0).total_memory / 1024**3
     if gpu_mem < 8:
-        # GAT: batch_size=8, 宄板EUR紐1.85GB, RTX 2060 6GB瀵屼綑4.3GB
-        batch_size, accum_steps = 8, 2   # 绛夋晥batch 16
+        # GAT: batch_size=8, 宄板EUR紐1.85GB, RTX 2060 6GB富余4.3GB
+        batch_size, accum_steps = 8, 2   # 等效batch 16
     else:
-        batch_size, accum_steps = 4, 4   # 澶ф樉瀛? 绛夋晥batch 16
+        batch_size, accum_steps = 4, 4   # 澶ф樉瀛? 等效batch 16
 else:
     batch_size, accum_steps = 2, 8
 

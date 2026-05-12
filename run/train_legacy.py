@@ -31,7 +31,7 @@ sys.stdout = Tee(original_stdout, log_file)
 sys.stderr = Tee(original_stderr, log_file)
 
 print("=" * 60)
-print("V9 璁?粌鍚?姩锛堝惈甯傚満鏁翠綋灞炴€?+ 澧炲己Alpha澶达級")
+print("V9 璁?粌鍚?姩锛堝惈甯傚満鏁翠綋灞炴€?+ 增强Alpha头）")
 print("=" * 60)
 
 from core.config import DataConfig
@@ -50,7 +50,7 @@ cfg.max_horizon = 10
 cfg.use_market_features = True
 cfg.test_mode = False          # V9: 鍏ㄩ噺璁?粌锛?332鍙?偂绁?級
 
-print(f"閰嶇疆: target_horizon={cfg.target_horizon}, seq_len={cfg.seq_len}, "
+print(f"配置: target_horizon={cfg.target_horizon}, seq_len={cfg.seq_len}, "
       f"horizons={cfg.horizon_indices}, weights={cfg.horizon_weights}, "
       f"market={cfg.use_market_features}")
 
@@ -60,7 +60,7 @@ train_samples, val_samples = build_cross_section_dataset(cfg, use_cache=True)
 input_dim = train_samples[0]["X"].shape[1]
 horizon = train_samples[0]["y_seq"].shape[1]
 print(f"Input dim: {input_dim}, Horizon labels: {horizon}")
-print(f"璁?粌鏍锋湰: {len(train_samples)}, 楠岃瘉鏍锋湰: {len(val_samples)}")
+print(f"璁?粌鏍锋湰: {len(train_samples)}, 验证样本: {len(val_samples)}")
 
 industry_rel_dim = len(INDUSTRY_REL_FEATURES)
 total_agg = (input_dim - industry_rel_dim) // 2

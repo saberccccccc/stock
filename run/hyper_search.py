@@ -35,20 +35,20 @@ def load_data_and_models():
         print("璁?粌澶氬懆鏈熸ā鍨?..")
         models, ic_decay = train_multi_horizon_models(train, val, horizon_list, model_dir)
     else:
-        print("鍔犺浇宸叉湁妯″瀷...")
+        print("加载已有模型...")
         models, ic_decay = load_multi_horizon_models(horizon_list, model_dir)
         if not models_match_feature_dim(models, expected_dim):
-            print("宸叉湁LightGBM妯″瀷鐗瑰緛缁村害涓嶅尮閰嶏紝閲嶆柊璁?粌...")
+            print("已有LightGBM妯″瀷鐗瑰緛缁村害涓嶅尮閰嶏紝閲嶆柊璁?粌...")
             models, ic_decay = train_multi_horizon_models(train, val, horizon_list, model_dir)
 
-    print("鍔犺浇浠锋牸涓庢垚浜ら噺鏁版嵁...")
+    print("加载价格与成交量数据...")
     price_dict, vol_dict = load_price_volume(cfg)
     print(f"鑲＄エ鏁? {len(price_dict)}")
 
     return cfg, models, ic_decay, val, price_dict, vol_dict
 
 
-# ==================== 鍙傛暟缃戞牸 ====================
+# ==================== 参数网格 ====================
 param_grid = {
     'target_vol': [0.06, 0.08, 0.10, 0.15],
     'lambda_t': [0.02, 0.05, 0.1, 0.2],
@@ -64,17 +64,17 @@ fixed_params = {
     'impact_coeff': 0.1,
 }
 
-# 鐢熸垚缁勫悎
+# 生成组合
 keys = list(param_grid.keys())
 values = [param_grid[k] for k in keys]
 combinations = list(itertools.product(*values))
 print(f"total {len(combinations)} param combinations")
 
-# 鍔犺浇鏁版嵁
+# 加载数据
 cfg, models, ic_decay, val_samples, price_dict, vol_dict = load_data_and_models()
 fixed_params['future_len'] = cfg.target_horizon
 
-# 閬嶅巻
+# 遍历
 results = []
 for comb in tqdm(combinations, desc="鍙傛暟鎵?弿"):
     params = fixed_params.copy()
@@ -99,7 +99,7 @@ for comb in tqdm(combinations, desc="鍙傛暟鎵?弿"):
         ann, sharpe, mdd = calc_metrics(raw_ret)
         ann_neu, sharpe_neu, mdd_neu = calc_metrics(neu_ret)
     except Exception as e:
-        print(f"鍙傛暟 {params} 鍑洪敊: {e}")
+        print(f"参数 {params} 出错: {e}")
         ann = sharpe = mdd = ann_neu = sharpe_neu = mdd_neu = np.nan
 
     results.append({

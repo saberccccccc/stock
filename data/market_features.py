@@ -20,21 +20,21 @@ SW_INDUSTRIES = [
     ('801980', 'beauty_care'),
 ]
 
-# 甯傚満鐗瑰緛鍒楀悕
+# 市场特征列名
 MARKET_COLS = [
     # 娌?繁300
     'idx_ret_1d', 'idx_ret_5d', 'idx_ret_20d', 'idx_vol_20d',
-    # 涓婅瘉50
+    # 上证50
     'sz50_ret_1d', 'sz50_ret_5d', 'sz50_ret_20d', 'sz50_vol_20d',
     # 涓?瘉500
     'zz500_ret_1d', 'zz500_ret_5d', 'zz500_ret_20d', 'zz500_vol_20d',
-    # 鍒涗笟鏉挎寚
+    # 创业板指
     'cyb_ret_1d', 'cyb_ret_5d', 'cyb_ret_20d', 'cyb_vol_20d',
-    # 甯傚満瀹藉害
+    # 市场宽度
     'advance_decline', 'new_high_ratio', 'return_dispersion',
 ]
 
-# 娣诲姞琛屼笟鎸囨暟鏀剁泭涓庡彲鐢ㄦ€?ask鍒楀悕
+# 娣诲姞琛屼笟鎸囨暟鏀剁泭涓庡彲鐢ㄦ€?ask列名
 for code, name in SW_INDUSTRIES:
     MARKET_COLS.append(f'sw_{code}_ret')
 for code, name in SW_INDUSTRIES:
@@ -44,10 +44,10 @@ N_MARKET = len(MARKET_COLS)
 
 
 def _compute_index_features(data_dir):
-    """浠?hs300_index.csv 璁＄畻鎸囨暟鐗瑰緛"""
+    """浠?hs300_index.csv 计算指数特征"""
     idx_path = os.path.join(data_dir, "hs300_index.csv")
     if not os.path.exists(idx_path):
-        print(f"璀﹀憡: 鏈?壘鍒版寚鏁版枃浠?{idx_path}锛屾寚鏁扮壒寰佸皢濉?")
+        print(f"警告: 鏈?壘鍒版寚鏁版枃浠?{idx_path}锛屾寚鏁扮壒寰佸皢濉?")
         return None
 
     df = pd.read_csv(idx_path)
@@ -64,9 +64,9 @@ def _compute_index_features(data_dir):
 
 def compute_breadth_from_close_matrix(close_matrix):
     """
-    浠?(num_stocks, num_dates) 鏀剁洏浠风煩闃佃?绠楀競鍦哄?搴︾壒寰併€?    浣跨敤numpy鍚戦噺鍖栵紝閬垮厤Python閫愭棩鏈?閫愯偂绁ㄥ惊鐜?€?
+    浠?(num_stocks, num_dates) 鏀剁洏浠风煩闃佃?绠楀競鍦哄?搴︾壒寰併€?    使用numpy向量化，避免Python閫愭棩鏈?閫愯偂绁ㄥ惊鐜?€?
     Args:
-        close_matrix: (num_stocks, num_dates) float32, NaN琛ㄧず缂哄け
+        close_matrix: (num_stocks, num_dates) float32, NaN表示缺失
 
     Returns:
         breadth: (num_dates, 3) float32 鈥?advance_decline, new_high_ratio, return_dispersion
@@ -90,7 +90,7 @@ def compute_breadth_from_close_matrix(close_matrix):
         ad_ratio = (up + 1) / (down + 1)
         breadth[t, 0] = np.clip(np.log(ad_ratio), -2, 2)
 
-        # 鏂伴珮姣斾緥: 褰撴棩鏀剁洏 >= 鍓?0鏃ユ渶楂?0.995
+        # 新高比例: 当日收盘 >= 鍓?0鏃ユ渶楂?0.995
         if t >= 20:
             col_close = close_matrix[:, t]
             valid_c = ~np.isnan(col_close)
@@ -106,7 +106,7 @@ def compute_breadth_from_close_matrix(close_matrix):
 
 def _compute_index_features_full(idx_path, prefix):
     """
-    浠庢寚鏁版枃浠惰?绠楀畬鏁寸壒寰侊紙1d/5d/20d鏀剁泭 + 20d娉㈠姩鐜囷級
+    浠庢寚鏁版枃浠惰?算完整特征（1d/5d/20d收益 + 20d波动率）
 
     Args:
         idx_path: 鎸囨暟鏂囦欢璺?緞
@@ -129,7 +129,7 @@ def _compute_index_features_full(idx_path, prefix):
         result[f'{prefix}_vol_20d'] = df['close'].pct_change().rolling(20).std()
         return result.fillna(0)
     except Exception as e:
-        print(f"璀﹀憡: 璇诲彇{idx_path}澶辫触: {e}")
+        print(f"警告: 读取{idx_path}失败: {e}")
         return None
 
 
@@ -141,13 +141,13 @@ def build_market_features_index_only(data_dir, all_dates):
     """
     all_dates = pd.DatetimeIndex(sorted(all_dates))
 
-    # 鍒濆?鍖栫粨鏋淒ataFrame - 瀹藉熀鎸囨暟
+    # 鍒濆?化结果DataFrame - 宽基指数
     index_cols = []
     for prefix in ['idx', 'sz50', 'zz500', 'cyb']:
         for suffix in ['ret_1d', 'ret_5d', 'ret_20d', 'vol_20d']:
             index_cols.append(f'{prefix}_{suffix}')
 
-    # 娣诲姞琛屼笟鎸囨暟鏀剁泭涓庡彲鐢ㄦ€?ask鍒楀悕
+    # 娣诲姞琛屼笟鎸囨暟鏀剁泭涓庡彲鐢ㄦ€?ask列名
     for code, name in SW_INDUSTRIES:
         index_cols.append(f'sw_{code}_ret')
     for code, name in SW_INDUSTRIES:
@@ -155,7 +155,7 @@ def build_market_features_index_only(data_dir, all_dates):
 
     result = pd.DataFrame(index=all_dates, columns=index_cols, data=0.0)
 
-    # 璇诲彇瀹藉熀鎸囨暟鏁版嵁
+    # 读取宽基指数数据
     indices = [
         ('hs300_index.csv', 'idx'),
         ('sz50_index.csv', 'sz50'),
@@ -173,9 +173,9 @@ def build_market_features_index_only(data_dir, all_dates):
         else:
             missing_index_files.append(filename)
     if missing_index_files:
-        print(f"璀﹀憡: 缂哄皯瀹藉熀鎸囨暟鏂囦欢锛屽皢浠?濉?厖: {missing_index_files}")
+        print(f"警告: 缂哄皯瀹藉熀鎸囨暟鏂囦欢锛屽皢浠?濉?厖: {missing_index_files}")
 
-    # 璇诲彇琛屼笟鎸囨暟鏁版嵁
+    # 读取行业指数数据
     sw_dir = os.path.join(data_dir, 'sw_industry')
     missing_sw = []
     if os.path.exists(sw_dir):
@@ -192,13 +192,13 @@ def build_market_features_index_only(data_dir, all_dates):
                     result[ret_col] = ret_1d.reindex(all_dates).fillna(0).values
                     result[avail_col] = df['close'].notna().astype(np.float32).reindex(all_dates).fillna(0).values
                 except Exception as e:
-                    print(f"璀﹀憡: 璇诲彇琛屼笟{name}澶辫触: {e}")
+                    print(f"警告: 读取行业{name}失败: {e}")
             else:
                 missing_sw.append(code)
     else:
         missing_sw = [code for code, _ in SW_INDUSTRIES]
     if missing_sw:
-        print(f"璀﹀憡: 缂哄皯{len(missing_sw)}涓?敵涓囪?涓氭寚鏁版枃浠讹紝灏嗕互0濉?厖")
+        print(f"警告: 缺少{len(missing_sw)}涓?敵涓囪?业指数文件，将以0濉?厖")
 
     return result
 
@@ -208,7 +208,7 @@ if __name__ == "__main__":
     data_dir = "data/raw"
     dates = pd.date_range('2020-01-01', '2025-12-31', freq='B')
     result = build_market_features_index_only(data_dir, dates)
-    print(f"鎸囨暟鐗瑰緛 shape: {result.shape}")
+    print(f"指数特征 shape: {result.shape}")
     print(result.head(10))
     print("\n缁熻?鎽樿?:")
     print(result.describe())

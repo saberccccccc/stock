@@ -1,4 +1,4 @@
-# fundamental_factors.py 鈥?瀛ｆ姤鍩烘湰闈㈠洜瀛愯幏鍙栵紙鎸夊叕鍛婃棩PIT瀵归綈锛?import hashlib
+# fundamental_factors.py 鈥?季报基本面因子获取（按公告日PIT瀵归綈锛?import hashlib
 import os
 import time
 import random
@@ -20,7 +20,7 @@ _min_interval = 2.0
 def resolve_tushare_token(token=None):
     resolved = token or os.getenv('TUSHARE_TOKEN')
     if not resolved:
-        raise ValueError('缂哄皯 TUSHARE_TOKEN锛岃?璁剧疆鐜??鍙橀噺鎴栦紶鍏?token')
+        raise ValueError('缺少 TUSHARE_TOKEN锛岃?璁剧疆鐜??鍙橀噺鎴栦紶鍏?token')
     return resolved
 
 
@@ -42,7 +42,7 @@ def _safe_ts_call(pro, func_name, *args, **kwargs):
             func = getattr(pro, func_name)
             return func(*args, **kwargs)
         except Exception as e:
-            print(f"  璇锋眰澶辫触 ({attempt+1}/3): {e}, 绛夊緟 {5*(attempt+1)}s")
+            print(f"  请求失败 ({attempt+1}/3): {e}, 等待 {5*(attempt+1)}s")
             time.sleep(5 * (attempt + 1))
     return None
 
@@ -66,14 +66,14 @@ def _rolling_percentile(values, window=1250, min_periods=60):
 
 def fetch_fundamentals(codes, token=None, start_date='20100101', end_date='20261231'):
     """
-    鑾峰彇PIT鍩烘湰闈㈠洜瀛愰暱琛ㄣ€?
+    获取PIT鍩烘湰闈㈠洜瀛愰暱琛ㄣ€?
     Returns:
         DataFrame columns=[ts_code,effective_date,end_date,roe,revenue_yoy,pe_percentile]
     """
     cache_file = _cache_path(codes, start_date, end_date)
     if os.path.exists(cache_file):
         df = pd.read_parquet(cache_file)
-        print(f"浠庣紦瀛樺姞杞絇IT鍩烘湰闈㈠洜瀛? {df.shape}")
+        print(f"从缓存加载PIT鍩烘湰闈㈠洜瀛? {df.shape}")
         return df
 
     token = resolve_tushare_token(token)
@@ -115,7 +115,7 @@ def fetch_fundamentals(codes, token=None, start_date='20100101', end_date='20261
         income_all = income_all.sort_values(['ts_code', 'end_date', 'ann_date'])
         balance_all = balance_all.sort_values(['ts_code', 'end_date', 'ann_date'])
 
-        # 鍘婚噸锛氭瘡涓?ts_code, end_date)淇濈暀鏈€鏂癮nn_date锛岄伩鍏峬erge浜х敓绗涘崱灏旂Н
+        # 鍘婚噸锛氭瘡涓?ts_code, end_date)淇濈暀鏈€鏂癮nn_date，避免merge浜х敓绗涘崱灏旂Н
         income_dedup = income_all.groupby(['ts_code', 'end_date']).last().reset_index()
         balance_dedup = balance_all.groupby(['ts_code', 'end_date']).last().reset_index()
 
@@ -175,7 +175,7 @@ def fetch_fundamentals(codes, token=None, start_date='20100101', end_date='20261
         ])
 
     result.to_parquet(cache_file)
-    print(f"PIT鍩烘湰闈㈠洜瀛愬凡淇濆瓨: {result.shape}")
+    print(f"PIT基本面因子已保存: {result.shape}")
     return result
 
 
