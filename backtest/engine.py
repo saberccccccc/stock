@@ -1,0 +1,1097 @@
+# backtest.py 鈥?澶氬懆鏈熷競鍦轰腑鎬х粍鍚堝洖娴嬩笌浼樺寲
+import argparse
+import os
+import sys
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
+from collections import defaultdict
+import lightgbm as lgb
+from scipy.stats import spearmanr
+import warnings
+import pickle
+import torch
+os.chdir(r"F:\stock_prediction\deepseek_optimized")
+sys.path.insert(0, os.getcwd())
+warnings.filterwarnings('ignore')
+
+from core.config import DataConfig
+from core.model import UltimateV7Model
+from core.train_utils import get_regime_dim
+from data.pipeline import build_cross_section_dataset, N_AGGS, INDUSTRY_REL_FEATURES
+
+# ==================== 澶氬懆鏈熸ā鍨嬭?缁冧笌鍔犺浇 ====================
+def train_multi_horizon_models(train_samples, val_samples, horizon_list=(1, 3, 5, 10),
+                               model_dir="models_multi_v9_tech_macro"):
+    os.makedirs(model_dir, exist_ok=True)
+    models = {}
+    ic_by_horizon = []
+
+    for h in horizon_list:
+        print(f"\n璁?粌 Horizon={h} 妯″瀷...")
+        X_list, y_list = [], []
+        for s in train_samples:
+            if s['y_seq'].shape[1] < h:
+                continue
+            y_vals = s['y_seq'][:, h - 1]
+            if np.all(np.isnan(y_vals)):
+                continue
+            X_list.append(s['X'])
+            y_list.append(y_vals)
+
+        if not X_list:
+            print(f"Horizon {h}: [FIXED]")
+            ic_by_horizon.append(0.0)
+            continue
+
+        X_train = np.vstack(X_list)
+        y_train = np.hstack(y_list)
+        print(f"璁?粌鏁版嵁 shape: {X_train.shape}")
+
+        dtrain = lgb.Dataset(X_train, label=y_train)
+        params = {
+            'objective': 'regression', 'metric': 'rmse', 'boosting_type': 'gbdt',
+            'num_leaves': 63, 'learning_rate': 0.03, 'feature_fraction': 0.7,
+            'bagging_fraction': 0.7, 'bagging_freq': 5, 'lambda_l1': 0.2,
+            'lambda_l2': 0.2, 'min_data_in_leaf': 30, 'max_depth': -1,
+            'verbose': -1, 'num_threads': 8,
+        }
+        model = lgb.train(
+            params, dtrain, num_boost_round=300, valid_sets=[dtrain],
+            callbacks=[lgb.early_stopping(10)],
+        )
+        model.save_model(f"{model_dir}/lgb_h{h}.txt")
+        models[h] = model
+
+        # 楠岃瘉 IC
+        ic_list = []
+        for s in val_samples:
+            if s['y_seq'].shape[1] < h:
+                continue
+            y_true = s['y_seq'][:, h - 1]
+            if np.all(np.isnan(y_true)):
+                continue
+            pred = model.predict(s['X'])
+            ic, _ = spearmanr(pred, y_true)
+            if np.isfinite(ic):
+                ic_list.append(ic)
+        mean_ic = np.mean(ic_list) if ic_list else 0.0
+        ic_by_horizon.append(mean_ic)
+        print(f"Horizon {h} 楠岃瘉 IC = {mean_ic:.4f}")
+
+    np.save(f"{model_dir}/ic_decay.npy", ic_by_horizon)
+    return models, ic_by_horizon
+
+
+def load_multi_horizon_models(horizon_list=(1, 3, 5, 10), model_dir="models_multi_v9_tech_macro"):
+    models = {}
+    for h in horizon_list:
+        path = f"{model_dir}/lgb_h{h}.txt"
+        if os.path.exists(path):
+            models[h] = lgb.Booster(model_file=path)
+        else:
+            raise FileNotFoundError(f"model {path} not found")
+    ic_decay = (np.load(f"{model_dir}/ic_decay.npy")
+                if os.path.exists(f"{model_dir}/ic_decay.npy") else None)
+    return models, ic_decay
+
+
+def models_match_feature_dim(models, expected_dim):
+    return all(model.num_feature() == expected_dim for model in models.values())
+
+
+def resolve_device(device_arg):
+    if device_arg == "auto":
+        return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if device_arg == "cuda" and not torch.cuda.is_available():
+        raise RuntimeError("璇锋眰浣跨敤CUDA锛屼絾褰撳墠PyTorch涓嶅彲鐢–UDA")
+    return torch.device(device_arg)
+
+
+def load_v9_checkpoint(checkpoint_path, train_samples, cfg, device_arg="auto"):
+    if not os.path.exists(checkpoint_path):
+        raise FileNotFoundError(f"V9 checkpoint涓嶅瓨鍦? {checkpoint_path}")
+
+    device = resolve_device(device_arg)
+    input_dim = train_samples[0]["X"].shape[1]
+    industry_rel_dim = len(INDUSTRY_REL_FEATURES)
+    total_agg = (input_dim - industry_rel_dim) // 2
+    base_feat_dim = total_agg // N_AGGS
+    regime_dim = get_regime_dim(cfg)
+    num_industries = train_samples[0]["risk"].shape[1] - regime_dim
+    if num_industries <= 0:
+        raise ValueError(
+            f"琛屼笟缁村害寮傚父: risk_dim={train_samples[0]['risk'].shape[1]}, regime_dim={regime_dim}"
+        )
+
+    checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    state_dict = checkpoint["model_state_dict"] if "model_state_dict" in checkpoint else checkpoint
+
+    # 浠巗tate_dict鑷?姩妫€娴嬫槸鍚︽湁GAT灞傦紝涓嶄緷璧朿fg.use_gat
+    has_gat = any(
+        k.startswith("gat_conv") or k.startswith("fusion_gate")
+        for k in state_dict.keys()
+    )
+
+    model = UltimateV7Model(
+        input_dim, base_feat_dim, n_aggs=N_AGGS,
+        hidden_dim=256, n_heads=8, n_layers=4,
+        n_horizons=len(cfg.horizon_indices), n_alpha=4,
+        use_gat=has_gat,
+        regime_dim=regime_dim, num_industries=num_industries,
+    ).to(device)
+
+    model.load_state_dict(state_dict)
+    model.eval()
+
+    print(f"鍔犺浇V9娣卞害妯″瀷: {checkpoint_path} {'[GAT]' if has_gat else '[Transformer]'}")
+    print(
+        f"DL缁村害: input_dim={input_dim}, base_feat_dim={base_feat_dim}, "
+        f"regime_dim={regime_dim}, num_industries={num_industries}, device={device}"
+    )
+    if isinstance(checkpoint, dict):
+        print(f"checkpoint epoch={checkpoint.get('epoch')}, val_ics={checkpoint.get('val_ics')}")
+    return model, device, regime_dim
+
+
+class DLPredictor:
+    name = "dl"
+
+    def __init__(self, model, device, regime_dim):
+        self.model = model
+        self.device = device
+        self.regime_dim = regime_dim
+
+    def predict_alpha(self, sample, valid, regime):
+        X_np = sample["X"][valid].astype(np.float32)
+        risk_np = sample["risk"][valid].astype(np.float32)
+        industry_np = sample["industry_ids"][valid].astype(np.int64)
+        if X_np.shape[0] == 0:
+            return np.array([], dtype=np.float32)
+
+        X = torch.from_numpy(X_np).unsqueeze(0).to(self.device)
+        risk = torch.from_numpy(risk_np).unsqueeze(0).to(self.device)
+        industry_ids = torch.from_numpy(industry_np).unsqueeze(0).to(self.device)
+        mask = torch.ones(1, X_np.shape[0], dtype=torch.bool, device=self.device)
+
+        with torch.no_grad():
+            alpha_raw, _, _ = self.model(
+                X, risk[..., :self.regime_dim], mask, industry_ids
+            )
+        pred = alpha_raw[0].detach().cpu().numpy()
+        pred = np.nan_to_num(pred, nan=0.0, posinf=0.0, neginf=0.0)
+        if pred.size > 1:
+            pred = (pred - np.mean(pred)) / (np.std(pred) + 1e-8)
+        return np.tanh(pred)
+
+
+class LGBPredictor:
+    name = "lgb"
+
+    def __init__(self, models, ic_decay=None):
+        self.models = models
+        self.ic_decay = ic_decay
+
+    def predict_alpha(self, sample, valid, regime):
+        return fused_alpha(self.models, sample["X"][valid], regime, self.ic_decay)
+
+# ==================== 甯傚満鐘舵€佽瘑鍒?====================
+def detect_regime(sample):
+    risk_mean = np.mean(sample['risk'], axis=0)
+    vol_z = risk_mean[1]
+    mom_z = risk_mean[2]
+    if mom_z > 0.2 and vol_z < 0.5:
+        return "trend_up"
+    elif mom_z < -0.2 and vol_z > 0.5:
+        return "panic"
+    return "sideways"
+
+# ==================== 澶欰lpha铻嶅悎 ====================
+def fused_alpha(models, X, regime, ic_decay=None):
+    alpha_dict = {}
+    for h, model in models.items():
+        pred = model.predict(X)
+        pred = np.nan_to_num(pred, nan=0.0, posinf=0.0, neginf=0.0)
+        pred = (pred - np.mean(pred)) / (np.std(pred) + 1e-8)
+        alpha_dict[h] = np.tanh(pred)
+
+    regime_weights = {
+        "trend_up": {10: 0.5, 5: 0.3, 3: 0.2},
+        "panic": {1: 0.6, 3: 0.3, 5: 0.1},
+        "sideways": {5: 0.4, 3: 0.3, 1: 0.3},
+    }
+    weights = dict(regime_weights.get(regime, regime_weights["sideways"]))
+
+    if ic_decay is not None:
+        horizons = list(models.keys())
+        adjusted = {}
+        for h, weight in weights.items():
+            if h not in horizons:
+                continue
+            idx = horizons.index(h)
+            ic_weight = max(float(ic_decay[idx]), 0.0) if idx < len(ic_decay) else 0.0
+            adjusted[h] = weight * ic_weight
+        if sum(adjusted.values()) > 1e-12:
+            weights = adjusted
+
+    weight_sum = sum(weights.values()) + 1e-8
+    alpha = np.zeros(X.shape[0], dtype=np.float32)
+    for h, weight in weights.items():
+        if h in alpha_dict:
+            alpha += (weight / weight_sum) * alpha_dict[h]
+    alpha = (alpha - np.mean(alpha)) / (np.std(alpha) + 1e-8)
+    return np.tanh(alpha)
+
+# ==================== 椋庨櫓妯″瀷 ====================
+def compute_risk_model(B, R, lam=1e-3, decay=0.94):
+    T = R.shape[0]
+    weights = np.array([decay ** (T - 1 - i) for i in range(T)])
+    weights /= weights.sum()
+    BtB = B.T @ B + lam * np.eye(B.shape[1])
+    factor_returns = np.linalg.solve(BtB, B.T @ R.T)
+    F_cov = np.zeros((B.shape[1], B.shape[1]))
+    for t in range(T):
+        f = factor_returns[:, t].reshape(-1, 1)
+        F_cov += weights[t] * (f @ f.T)
+    diag = np.diag(np.diag(F_cov))
+    F_cov = 0.2 * diag + 0.8 * F_cov
+    F_cov /= np.mean(np.diag(F_cov))
+    fitted = (B @ factor_returns).T
+    residuals = R - fitted
+    D_diag = np.var(residuals, axis=0) + 1e-8
+    D_diag /= np.mean(D_diag)
+    return F_cov, D_diag
+
+
+def ewma_beta(rets, idx_ret, half_life=20):
+    N, T = rets.shape
+    decay = np.exp(-np.log(2) / half_life)
+    weights = np.array([decay ** (T - 1 - i) for i in range(T)])
+    weights /= weights.sum()
+    wmean_rets = np.sum(rets * weights, axis=1, keepdims=True)
+    wmean_idx = np.sum(idx_ret * weights)
+    rets_dm = rets - wmean_rets
+    idx_dm = idx_ret - wmean_idx
+    cov = np.sum((rets_dm * idx_dm) * weights, axis=1)
+    var_idx = np.sum(idx_dm ** 2 * weights)
+    beta = cov / (var_idx + 1e-8)
+    return np.clip(beta, -3, 3)
+
+def build_simple_weights(alpha, mode="simple_ls", top_frac=0.10, max_leverage=1.0, regime="sideways", market_mult=1.0):
+    N = len(alpha)
+    w = np.zeros(N, dtype=np.float64)
+    if N == 0:
+        return w
+    order = np.argsort(alpha)
+    k = max(1, int(N * top_frac))
+    top_idx = order[-k:]
+
+    if mode == "simple_long":
+        regime_mult = {"panic": 0.5, "sideways": 1.0, "trend_up": 1.0}
+        lev = max_leverage * regime_mult.get(regime, 1.0) * market_mult
+        alpha_top = np.maximum(alpha[top_idx], 0)
+        alpha_sum = np.sum(alpha_top) + 1e-12
+        w[top_idx] = alpha_top / alpha_sum * lev
+    elif mode == "simple_ls":
+        bottom_idx = order[:k]
+        alpha_top = np.maximum(alpha[top_idx], 0)
+        w[top_idx] = alpha_top / (np.sum(alpha_top) + 1e-12) * (max_leverage / 2)
+        alpha_bot = np.maximum(-alpha[bottom_idx], 0)
+        w[bottom_idx] = -alpha_bot / (np.sum(alpha_bot) + 1e-12) * (max_leverage / 2)
+    else:
+        raise ValueError(f"鏈?煡绠€鍗曠粍鍚堟ā寮? {mode}")
+
+    return w
+
+# ==================== 椋庨櫓棰勭畻涓庝紭鍖?====================
+def risk_budget_allocation(alpha, D_diag, target_vol=0.15):
+    """鍩轰簬alpha寮哄害鍜屼釜鑲℃畫宸??闄╁垎閰嶉?闄╅?绠?
+
+    Args:
+        alpha: alpha淇″彿寮哄害
+        D_diag: 涓?偂娈嬪樊椋庨櫓锛堟潵鑷??闄╂ā鍨嬶級
+        target_vol: 鐩?爣娉㈠姩鐜?
+
+    Returns:
+        椋庨櫓棰勭畻鍒嗛厤
+    """
+    # 鎸塧lpha寮哄害鍒嗛厤
+    strength = np.abs(alpha)
+    strength /= (np.sum(strength) + 1e-8)
+
+    # 娈嬪樊椋庨櫓鍔犳潈锛氭畫宸?柟宸?ぇ鐨勮偂绁ㄥ垎閰嶆洿灏戦?闄╅?绠?
+    inv_risk = 1.0 / (D_diag + 1e-8)
+    inv_risk /= (np.sum(inv_risk) + 1e-8)
+
+    # 娣峰悎锛?0%鎸塧lpha寮哄害锛?0%鎸夐?闄╁€掓暟
+    blended = 0.5 * strength + 0.5 * inv_risk
+    blended /= (np.sum(blended) + 1e-8)
+
+    target_var = (target_vol / np.sqrt(252)) ** 2
+    return blended * target_var
+
+
+def optimize_with_risk_budget(alpha, B, beta, prev_w, F_cov, D_diag, risk_budget,
+                              lambda_t, lambda_b, max_weight, max_leverage,
+                              lr0=0.02, n_iter=200, return_diagnostics=False):
+    N = len(alpha)
+    w = prev_w.copy() if prev_w is not None else np.zeros(N)
+    max_w_arr = (np.full(N, max_weight) if np.isscalar(max_weight)
+                 else max_weight)
+
+    # 妫€娴嬫槸鍚︿负鍒濆?寤轰粨
+    is_initial = prev_w is None or np.sum(np.abs(prev_w)) < 1e-8
+    lambda_init = 0.01 if is_initial else 0.0  # 鍒濆?寤轰粨鏃舵坊鍔犺交寰?殑浠撲綅瑙勬ā鎯╃綒
+
+    converged = False
+    final_iter = n_iter
+    for i in range(n_iter):
+        sigma_w = B @ (F_cov @ (B.T @ w)) + D_diag * w
+        risk_contrib = w * sigma_w
+        grad_risk = (risk_contrib - risk_budget) / (np.sum(risk_budget) + 1e-8)
+        grad = grad_risk - alpha
+
+        if lambda_t > 0 and prev_w is not None:
+            grad += 2 * lambda_t * (w - prev_w)
+        if lambda_b > 0:
+            beta_exp = np.dot(w, beta)
+            grad += 2 * lambda_b * beta_exp * beta
+        if lambda_init > 0:
+            # 鍒濆?寤轰粨鎯╃綒锛氭儵缃氭€讳粨浣嶈?妯★紝榧撳姳骞虫粦寤轰粨
+            grad += lambda_init * np.sign(w)
+
+        lr = lr0 / np.sqrt(i + 1)
+        w_new = w - lr * grad
+        w_new = np.clip(w_new, -max_w_arr, max_w_arr)
+
+        lev = np.sum(np.abs(w_new))
+        if lev > max_leverage:
+            w_new = w_new / lev * max_leverage
+        w_new = w_new - np.mean(w_new)
+
+        # 浣跨敤鐩稿?鏀舵暃鍒ゆ嵁锛屽?澶ц?妯＄粍鍚堟洿绋冲仴
+        rel_change = np.linalg.norm(w_new - w) / (np.linalg.norm(w) + 1e-8)
+        if rel_change < 1e-4:
+            w = w_new
+            converged = True
+            final_iter = i + 1
+            break
+        w = w_new
+
+    w[np.abs(w) < 1e-6] = 0.0
+    if not np.all(np.isfinite(w)):
+        if return_diagnostics:
+            return np.zeros(N), {"converged": False, "iterations": 0, "risk_budget_match": 0.0}
+        return np.zeros(N)
+
+    if return_diagnostics:
+        sigma_w = B @ (F_cov @ (B.T @ w)) + D_diag * w
+        risk_contrib = w * sigma_w
+        total_risk_budget = np.sum(risk_budget)
+        total_risk_contrib = np.sum(risk_contrib)
+        risk_budget_match = 1.0 - np.abs(total_risk_contrib - total_risk_budget) / (total_risk_budget + 1e-8)
+
+        diagnostics = {
+            "converged": converged,
+            "iterations": final_iter,
+            "risk_budget_match": float(risk_budget_match),
+            "beta_exposure": float(np.dot(w, beta)) if beta is not None else 0.0,
+        }
+        return w, diagnostics
+
+    return w
+
+# ==================== 鎾?悎寮曟搸 ====================
+def execute_order_with_impact(w_target, prev_w, price, volume,
+                              adv_ratio=0.02, impact_coeff=0.1,
+                              portfolio_value=1e8, regime="sideways"):
+    """鎵ц?璁㈠崟骞惰?绠楀啿鍑绘垚鏈?
+
+    Args:
+        regime: 甯傚満鐘舵€?("panic", "sideways", "trend_up")锛岀敤浜庤皟鏁村啿鍑绘垚鏈?
+    """
+    price = np.asarray(price, dtype=float)
+    volume = np.asarray(volume, dtype=float)
+    w_target = np.nan_to_num(w_target, nan=0.0, posinf=0.0, neginf=0.0)
+    prev_w = np.nan_to_num(prev_w, nan=0.0, posinf=0.0, neginf=0.0)
+    trade = w_target - prev_w
+
+    valid_liquidity = np.isfinite(price) & np.isfinite(volume) & (price > 0) & (volume > 0)
+    # volume鍗曚綅鏄?墜锛?鎵?100鑲?
+    dollar_vol = np.where(valid_liquidity, price * volume * 100, 0.0)
+    max_trade_weight = np.where(
+        dollar_vol > 0,
+        dollar_vol * adv_ratio / portfolio_value,
+        0.0,
+    )
+    trade_weight_abs = np.abs(trade)
+    fill_ratio = np.minimum(1.0, max_trade_weight / (trade_weight_abs + 1e-8))
+    fill_ratio = np.where(valid_liquidity, fill_ratio, 0.0)
+    trade_exec = trade * fill_ratio
+    turnover_ratio = np.where(
+        dollar_vol > 0,
+        np.abs(trade_exec) * portfolio_value / (dollar_vol + 1e-8),
+        0.0,
+    )
+    # Cap turnover_ratio to prevent extreme impact cost from illiquid days
+    turnover_ratio = np.clip(turnover_ratio, 0.0, 1.0)
+
+    # 甯傚満鐘舵€佽皟鑺傜郴鏁帮細鎭愭厡鏃舵祦鍔ㄦ€ф灟绔?紝鍐插嚮鎴愭湰鏇撮珮
+    regime_multiplier = {
+        "panic": 1.5,      # 鎭愭厡甯傚満锛氭祦鍔ㄦ€ф灟绔?
+        "sideways": 1.0,   # 姝ｅ父甯傚満锛氬熀鍑?
+        "trend_up": 1.0    # 瓒嬪娍甯傚満锛氬熀鍑?
+    }
+    impact_coeff_adj = impact_coeff * regime_multiplier.get(regime, 1.0)
+
+    impact_cost = impact_coeff_adj * (turnover_ratio ** 2) * np.abs(trade_exec)
+    impact_cost = np.nan_to_num(impact_cost, nan=0.0, posinf=0.0, neginf=0.0)
+    w_filled = np.nan_to_num(prev_w + trade_exec, nan=0.0, posinf=0.0, neginf=0.0)
+    return w_filled, float(np.sum(impact_cost)), fill_ratio, trade_exec
+
+# ==================== 浠锋牸涓庢垚浜ら噺鏁版嵁鍔犺浇 ====================
+def load_price_volume(config):
+    data_dir = config.data_dir
+    excluded = {'all_data_jq.csv', 'stable_stocks.csv', 'stable_stocks_industry.csv'}
+    files = [f for f in os.listdir(data_dir)
+             if f.endswith('.csv') and f not in excluded and f[0].isdigit()]
+    if config.max_stocks:
+        files = files[:config.max_stocks]
+
+    price_dict, vol_dict = {}, {}
+    for fname in tqdm(files, desc="load_price_vol"):
+        code = fname.replace('.csv', '')
+        path = os.path.join(data_dir, fname)
+        try:
+            df = pd.read_csv(path, usecols=['trade_date', 'close', 'volume'])
+            df.columns = df.columns.str.strip().str.lower()
+            df['trade_date'] = pd.to_datetime(df['trade_date'])
+            df.set_index('trade_date', inplace=True)
+            price_dict[code] = df['close']
+            vol_dict[code] = df['volume']
+        except Exception:
+            continue
+    return price_dict, vol_dict
+
+
+def build_universe_matrix(price_dict, vol_dict, all_codes):
+    all_dates = sorted(set().union(*[price_dict[c].index
+                                      for c in all_codes if c in price_dict]))
+    all_dates = pd.DatetimeIndex(all_dates)
+    N, T = len(all_codes), len(all_dates)
+    price_mat = np.full((N, T), np.nan)
+    vol_mat = np.full((N, T), np.nan) if vol_dict else None
+    code2idx = {c: i for i, c in enumerate(all_codes)}
+    for code, ser in price_dict.items():
+        i = code2idx.get(code)
+        if i is None:
+            continue
+        price_mat[i] = ser.reindex(all_dates).values
+        if vol_dict and code in vol_dict:
+            vol_mat[i] = vol_dict[code].reindex(all_dates).values
+    return price_mat, vol_mat, all_dates, code2idx
+
+# ==================== 鍥炴祴涓诲嚱鏁?====================
+def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
+                            future_len=2, rebalance_freq=None, hist_window=60,
+                            ewma_hl=20, adv_limit_ratio=0.02, adv_mode="execution",
+                            portfolio_mode="optimizer", top_frac=0.10,
+                            max_weight=0.05, lambda_t=0.05, lambda_b=0.2,
+                            target_vol=0.15, impact_coeff=0.1, config=None,
+                            portfolio_value=1e8):
+    # 鑷?姩纭?畾璋冧粨棰戠巼
+    ic_decay = getattr(predictor, "ic_decay", None)
+    if ic_decay is not None:
+        ic_decay = np.asarray(ic_decay, dtype=float)
+    if rebalance_freq is None and ic_decay is not None and len(ic_decay) > 0 and abs(ic_decay[0]) > 1e-8:
+        ic_norm = ic_decay / (ic_decay[0] + 1e-8)
+        for i in range(len(ic_norm)):
+            # 鏂规硶1锛氱粷瀵归槇鍊?- IC琛板噺鍒?0%浠ヤ笅
+            if ic_norm[i] < 0.5:
+                rebalance_freq = i + 1
+                break
+            # 鏂规硶2锛氳秼鍔挎?娴?- IC鏄捐憲涓嬮檷锛堜笅闄嶈秴杩?0%锛?
+            if i > 0 and ic_norm[i] < ic_norm[i-1] * 0.7:
+                rebalance_freq = i + 1
+                break
+        else:
+            # 閮芥湭瑙﹀彂锛氫娇鐢ㄩ粯璁や腑绛夊懆鏈?
+            rebalance_freq = max(3, min(5, len(ic_decay)))
+    if rebalance_freq is None:
+        rebalance_freq = 5
+    print(f"棰勬祴鍣? {predictor.name}")
+    print(f"{rebalance_freq}")
+    print(f"缁勫悎妯″紡: {portfolio_mode} | top_frac={top_frac:.2%}")
+    print(f"ADV妯″紡: {adv_mode}")
+    print("return metric: next_close_to_next_close")
+
+    all_codes = sorted(set(c for s in val_samples for c in s['codes']))
+    price_mat, vol_mat, all_dates, code2idx = build_universe_matrix(
+        price_dict, vol_dict, all_codes)
+    T_total = len(all_dates)
+
+    # 鍔犺浇鎸囨暟鏁版嵁
+    config = config or DataConfig()
+    idx_path = os.path.join(config.data_dir, "hs300_index.csv")
+    if os.path.exists(idx_path):
+        idx_df = pd.read_csv(idx_path)
+        date_col = 'trade_date' if 'trade_date' in idx_df.columns else 'date'
+        idx_df[date_col] = pd.to_datetime(idx_df[date_col])
+        idx_df.set_index(date_col, inplace=True)
+        idx_close = idx_df['close'].reindex(all_dates)
+        idx_daily = idx_close.pct_change().fillna(0)
+    else:
+        idx_close = pd.Series(np.nan, index=all_dates)
+        idx_daily = pd.Series(0.0, index=all_dates)
+
+    # 鏃ユ湡鏄犲皠
+    date2idx = {}
+    for s in val_samples:
+        dt = s['date']
+        pos = all_dates.searchsorted(dt, side='right') - 1
+        date2idx[dt] = max(pos, 0)
+
+    # 鏃ユ敹鐩婄巼鐭╅樀
+    ret_daily = np.full((len(all_codes), T_total - 1), np.nan)
+    for i in range(len(all_codes)):
+        p = price_mat[i]
+        ret_daily[i] = p[1:] / p[:-1] - 1
+    ret_daily[~np.isfinite(ret_daily)] = 0.0
+
+    daily_total_weights = [np.zeros(len(all_codes)) for _ in range(T_total)]
+    daily_costs = np.zeros(T_total)
+    last_signal_idx = -1
+    total_cost = 0.0
+    diag = defaultdict(list)
+    diag_counts = defaultdict(int)
+
+    for t_idx, sample in enumerate(tqdm(val_samples, desc=f"鍥炴祴-{predictor.name}")):
+        dt = sample['date']
+        col_cur = date2idx[dt]
+        if col_cur < hist_window + future_len:
+            continue
+        if t_idx - last_signal_idx >= rebalance_freq:
+            diag_counts['rebalance_attempts'] += 1
+            codes = sample['codes']
+            idx_full = [code2idx[c] for c in codes]
+            N = len(codes)
+
+            hist_start = col_cur - hist_window
+            hist_end = col_cur - 1
+            if hist_start < 0:
+                continue
+
+            price_hist = price_mat[idx_full, hist_start:hist_end + 1]
+            valid = np.sum(~np.isnan(price_hist), axis=1) >= 0.7 * hist_window
+            if not np.any(valid):
+                continue
+
+            price_hist = price_hist[valid]
+            codes = [codes[i] for i in range(N) if valid[i]]
+            idx_full = [idx_full[i] for i in range(N) if valid[i]]
+            N = len(codes)
+
+            with np.errstate(divide='ignore', invalid='ignore'):
+                rets = np.log(price_hist[:, 1:] / price_hist[:, :-1])
+                rets[~np.isfinite(rets)] = 0
+            R_mat = rets.T
+
+            regime = detect_regime(sample)
+            alpha = predictor.predict_alpha(sample, valid, regime)
+            alpha = np.nan_to_num(alpha, nan=0.0, posinf=0.0, neginf=0.0)
+            if alpha.shape[0] != N:
+                raise ValueError(f"棰勬祴闀垮害涓嶅尮閰? alpha={alpha.shape[0]}, N={N}")
+            diag['valid_names'].append(N)
+            diag['alpha_std'].append(float(np.std(alpha)))
+
+            # 甯傚満鎷╂椂锛氭勃娣?00鎸囨暟浣庝簬60鏃ュ潎绾挎椂闄嶄綆鏁翠綋鏁炲彛
+            market_mult = 1.0
+            if portfolio_mode == "simple_long":
+                if col_cur >= 60 and np.isfinite(idx_close.iloc[col_cur]):
+                    idx_ma60 = idx_close.iloc[col_cur - 60:col_cur].mean()
+                    idx_cur = idx_close.iloc[col_cur]
+                    if idx_cur < idx_ma60:
+                        market_mult = 0.7
+                    # 鏋佸害寮卞娍锛氳繛缁?涓?湀涓嬭穼锛岄檷鑷?.3
+                    if col_cur >= 120:
+                        idx_ret_6m = idx_close.iloc[col_cur] / idx_close.iloc[col_cur - 120] - 1
+                        if idx_ret_6m < -0.10:
+                            market_mult = min(market_mult, 0.3)
+
+            prev_w = daily_total_weights[col_cur][idx_full]
+
+            if portfolio_mode == "optimizer":
+                idx_ret_hist = idx_daily.iloc[hist_start + 1:hist_end + 1].values
+                beta_vec = ewma_beta(rets, idx_ret_hist, ewma_hl)
+
+                # 浠呬娇鐢ㄤ釜鑲″洜瀛?0-2: size,vol,mom)鍜岃?涓歰ne-hot(87-169)浣滀负椋庨櫓妯″瀷鍥犲瓙
+                # 鎺掗櫎甯傚満鏁翠綋鐗瑰緛(3-86)锛屽洜涓烘墍鏈夎偂绁ㄥ叡浜?浉鍚屽€?
+                B_style = np.hstack([
+                    sample['risk'][valid, :3],      # 涓?偂椋庢牸鍥犲瓙
+                    sample['risk'][valid, 87:]      # 琛屼笟one-hot
+                ])
+                F_cov, D_diag = compute_risk_model(B_style, R_mat)
+
+                max_w_arr = max_weight
+                # 鈿狅笍 DEPRECATED: weight_cap妯″紡宸插純鐢?紝瀛樺湪璁捐?缂洪櫡
+                # 闂??锛氫紭鍖栧櫒鐢ㄥ巻鍙睞DV绾︽潫鏉冮噸锛屼絾鎵ц?鏃?00%鎴愪氦(exec_adv_ratio=1e9)
+                # 褰撴棩娴佸姩鎬у樊鏃跺啿鍑绘垚鏈?垎鐐革紝瀵艰嚧鍥炴祴琛ㄧ幇鏋佸樊
+                # 鎺ㄨ崘浣跨敤execution妯″紡锛堥粯璁わ級
+                if adv_mode in ("weight_cap", "both") and vol_mat is not None and adv_limit_ratio > 0:
+                    vol_hist = vol_mat[idx_full, hist_start:hist_end + 1]
+                    lookback = min(20, vol_hist.shape[1])
+                    adv = np.nanmean(vol_hist[:, -lookback:], axis=1)
+                    adv = np.nan_to_num(adv, nan=0.0, posinf=0.0, neginf=0.0)
+                    dollar_vol = np.where(
+                        (adv > 0) & np.isfinite(price_hist[:, -1]) & (price_hist[:, -1] > 0),
+                        adv * price_hist[:, -1] * 100,  # volume鏄?墜鏁帮紝闇€涔樹互100
+                        0.0,
+                    )
+                    max_w_adv = dollar_vol * adv_limit_ratio / portfolio_value
+                    max_w_arr = np.minimum(max_weight, max_w_adv)
+                    max_w_arr = np.where(dollar_vol > 0, max_w_arr, max_weight)
+                    diag['avg_adv_weight_cap'].append(float(np.mean(max_w_arr)))
+
+                risk_budget = risk_budget_allocation(alpha, D_diag, target_vol)
+                w_target, opt_diag = optimize_with_risk_budget(
+                    alpha, B_style, beta_vec, prev_w,
+                    F_cov, D_diag, risk_budget,
+                    lambda_t, lambda_b,
+                    max_weight=max_w_arr, max_leverage=1.0,
+                    return_diagnostics=True,
+                )
+                diag['opt_converged'].append(opt_diag['converged'])
+                diag['opt_iterations'].append(opt_diag['iterations'])
+                diag['risk_budget_match'].append(opt_diag['risk_budget_match'])
+                diag['beta_exposure'].append(opt_diag['beta_exposure'])
+            else:
+                w_target = build_simple_weights(alpha, portfolio_mode, top_frac,
+                                                 max_leverage=1.0, regime=regime,
+                                                 market_mult=market_mult)
+
+            if not np.all(np.isfinite(w_target)):
+                continue
+            diag['target_leverage'].append(float(np.sum(np.abs(w_target))))
+
+            entry_day = col_cur + 1
+            exit_day = entry_day + future_len
+            # 杈圭晫妫€鏌ワ細纭?繚exit_day涓嶈秴鍑鸿寖鍥?
+            if exit_day >= T_total:
+                exit_day = T_total - 1
+            if entry_day >= T_total:
+                continue
+
+            price_next = price_mat[idx_full, entry_day]
+            vol_next = (vol_mat[idx_full, entry_day]
+                        if vol_mat is not None else np.ones(N) * 1e9)
+            tradable = np.isfinite(price_next) & (vol_next > 0)
+            w_target_tradable = np.where(tradable, w_target, prev_w)
+
+            exec_adv_ratio = adv_limit_ratio if adv_mode in ("execution", "both") else 1e9
+            w_filled, impact_cost, fill_ratio, trade_exec = execute_order_with_impact(
+                w_target_tradable, prev_w, price_next, vol_next,
+                adv_ratio=exec_adv_ratio, impact_coeff=impact_coeff,
+                portfolio_value=portfolio_value,
+                regime=regime,  # 浼犲叆甯傚満鐘舵€佺敤浜庤皟鏁村啿鍑绘垚鏈?
+            )
+            total_cost += impact_cost
+            daily_costs[entry_day] += impact_cost
+            diag_counts['successful_rebalances'] += 1
+            diag['filled_leverage'].append(float(np.sum(np.abs(w_filled))))
+            diag['turnover'].append(float(np.sum(np.abs(trade_exec))))
+            active_trade = np.abs(w_target_tradable - prev_w) > 1e-8
+            if np.any(active_trade):
+                diag['fill_ratio'].append(float(np.mean(fill_ratio[active_trade])))
+            diag['untradable_ratio'].append(float(1.0 - np.mean(tradable)))
+
+            for d in range(entry_day + 1, min(exit_day + 1, T_total)):
+                day_weights = daily_total_weights[d].copy()
+                day_weights[idx_full] = w_filled
+                daily_total_weights[d] = day_weights
+
+            last_signal_idx = t_idx
+
+    # 璁＄畻姣忔棩鏀剁泭
+    daily_port_ret = []
+    for day in range(1, T_total):
+        w_day = daily_total_weights[day].copy()
+        stock_ret = ret_daily[:, day - 1]
+        valid = np.isfinite(stock_ret)
+        w_day[~valid] = 0.0
+        stock_ret = np.nan_to_num(stock_ret, nan=0.0)
+        lev = np.sum(np.abs(w_day))
+        if lev > 1.0:
+            w_day = w_day / lev
+        port_ret_day = np.dot(w_day, stock_ret) - daily_costs[day]
+        daily_port_ret.append(port_ret_day)
+
+    port_ret = np.nan_to_num(np.array(daily_port_ret), nan=0.0)
+    idx_ret_arr = np.nan_to_num(idx_daily.iloc[1:len(daily_port_ret) + 1].values, nan=0.0)
+
+    # 婊氬姩Beta涓?€у寲
+    neu_ret = []
+    beta_estimates = []
+    for i in range(len(port_ret)):
+        start = max(0, i - 60)
+        if i - start < 20:
+            beta = 0.0
+        else:
+            cov_ = np.cov(port_ret[start:i], idx_ret_arr[start:i])[0, 1]
+            var_ = np.var(idx_ret_arr[start:i])
+            beta = cov_ / (var_ + 1e-8) if var_ > 1e-8 else 0.0
+            beta_estimates.append(beta)
+        neu_ret.append(port_ret[i] - beta * idx_ret_arr[i])
+
+    leverage_values = [np.sum(np.abs(w)) for w in daily_total_weights if np.sum(np.abs(w)) > 0]
+    avg_leverage = np.mean(leverage_values) if leverage_values else 0.0
+    nonzero_days = len(leverage_values)
+
+    def diag_mean(key):
+        return float(np.mean(diag[key])) if diag[key] else 0.0
+
+    print("\n========== 鍥炴祴璇婃柇 ==========")
+    print(f"棰勬祴鍣? {predictor.name} | 缁勫悎妯″紡: {portfolio_mode}")
+    print(f"rebalance: attempts {diag_counts['rebalance_attempts']} | success {diag_counts['successful_rebalances']}")
+    print(f"骞冲潎鏈夋晥鑲＄エ鏁? {diag_mean('valid_names'):.1f}")
+    print(f"Alpha鏍囧噯宸? {diag_mean('alpha_std'):.4f}")
+    print(f"鐩?爣鏉犳潌: {diag_mean('target_leverage'):.3f} | 鎴愪氦鍚庢潬鏉? {diag_mean('filled_leverage'):.3f}")
+    print(f"骞冲潎鎹㈡墜/璋冧粨: {diag_mean('turnover'):.3f} | 骞冲潎濉?厖鐜? {diag_mean('fill_ratio'):.3f}")
+    print(f"涓嶅彲浜ゆ槗姣斾緥: {diag_mean('untradable_ratio'):.3%}")
+    if diag['avg_adv_weight_cap']:
+        print(f"骞冲潎ADV鏉冮噸涓婇檺: {diag_mean('avg_adv_weight_cap'):.5f}")
+    if portfolio_mode == "optimizer" and diag.get('opt_converged'):
+        converged_rate = np.mean(diag['opt_converged']) if diag['opt_converged'] else 0.0
+        print(f"\n浼樺寲鍣ㄨ瘖鏂?")
+        print(f"  鏀舵暃鐜? {converged_rate:.1%}")
+        print(f"  骞冲潎杩?唬娆℃暟: {diag_mean('opt_iterations'):.1f}")
+        print(f"  椋庨櫓棰勭畻鍖归厤搴? {diag_mean('risk_budget_match'):.3f}")
+        print(f"  骞冲潎Beta鏆撮湶: {diag_mean('beta_exposure'):.4f}")
+    print(f"闈為浂鎸佷粨澶╂暟: {nonzero_days} / {T_total}")
+    print(f"骞冲潎鏉犳潌: {avg_leverage:.3f}")
+    print(f"骞冲潎浼拌?Beta: {(np.mean(beta_estimates) if beta_estimates else 0.0):.3f}")
+    print(f"鎬诲啿鍑绘垚鏈? {total_cost:.4f}")
+    active = np.array([np.sum(np.abs(w)) > 0 for w in daily_total_weights[1:]], dtype=bool)
+    if active.any():
+        first_active = int(np.argmax(active))
+        last_active = len(active) - int(np.argmax(active[::-1]))
+        port_ret = port_ret[first_active:last_active]
+        neu_ret = np.array(neu_ret)[first_active:last_active]
+    else:
+        neu_ret = np.array(neu_ret)
+
+    # 杩斿洖璇︾粏鏁版嵁鐢ㄤ簬淇濆瓨
+    backtest_data = {
+        'daily_returns': port_ret,
+        'neutral_returns': neu_ret,
+        'daily_weights': daily_total_weights,
+        'daily_costs': daily_costs,
+        'dates': all_dates,
+        'codes': all_codes,
+        'diagnostics': diag,
+        'diagnostic_counts': dict(diag_counts),
+        'beta_estimates': beta_estimates,
+        'leverage_values': leverage_values,
+    }
+    return port_ret, neu_ret, backtest_data
+
+
+def calc_metrics(returns):
+    if len(returns) == 0:
+        return 0, 0, 0
+    returns = np.nan_to_num(returns, nan=0.0)
+    cum = np.cumprod(1 + returns)
+    days = len(returns)
+    years = days / 252
+    ann = (cum[-1] ** (1 / years) - 1) * 100 if years > 0 and cum[-1] > 0 else np.nan
+    sharpe = returns.mean() / (returns.std() + 1e-8) * np.sqrt(252)
+    peak = np.maximum.accumulate(cum)
+    mdd = ((peak - cum) / (peak + 1e-12)).max()
+    return ann, sharpe, mdd
+
+
+def calc_extended_metrics(returns):
+    """璁＄畻鎵╁睍鐨勯?闄╂寚鏍?"""
+    if len(returns) == 0:
+        return {}
+
+    returns = np.nan_to_num(returns, nan=0.0)
+    cum = np.cumprod(1 + returns)
+    days = len(returns)
+    years = days / 252
+
+    # 鍩虹?鎸囨爣
+    ann_ret = (cum[-1] ** (1 / years) - 1) * 100 if years > 0 and cum[-1] > 0 else 0.0
+    sharpe = returns.mean() / (returns.std() + 1e-8) * np.sqrt(252)
+    peak = np.maximum.accumulate(cum)
+    mdd = ((peak - cum) / (peak + 1e-12)).max()
+
+    # Calmar姣旂巼
+    calmar = ann_ret / (mdd * 100 + 1e-8) if mdd > 0 else 0.0
+
+    # Sortino姣旂巼锛堜笅琛屾尝鍔ㄧ巼锛?
+    downside_returns = returns[returns < 0]
+    downside_std = np.std(downside_returns) if len(downside_returns) > 0 else 1e-8
+    sortino = returns.mean() / (downside_std + 1e-8) * np.sqrt(252)
+
+    # 鑳滅巼
+    win_rate = np.mean(returns > 0) if len(returns) > 0 else 0.0
+
+    # 鐩堜簭姣?
+    avg_win = np.mean(returns[returns > 0]) if np.any(returns > 0) else 0.0
+    avg_loss = np.mean(np.abs(returns[returns < 0])) if np.any(returns < 0) else 1e-8
+    profit_loss_ratio = avg_win / (avg_loss + 1e-8)
+
+    return {
+        'ann_return': ann_ret,
+        'sharpe': sharpe,
+        'max_drawdown': mdd * 100,
+        'calmar': calmar,
+        'sortino': sortino,
+        'win_rate': win_rate * 100,
+        'profit_loss_ratio': profit_loss_ratio,
+        'total_days': days,
+    }
+
+
+def analyze_by_period(returns, dates, period='year'):
+    """鎸夋椂闂存?鍒嗘瀽鍥炴祴琛ㄧ幇"""
+    if len(returns) == 0 or len(dates) == 0:
+        return {}
+
+    returns = np.array(returns)
+    dates = pd.DatetimeIndex(dates[:len(returns)])
+
+    results = {}
+    if period == 'year':
+        for year in dates.year.unique():
+            mask = dates.year == year
+            year_returns = returns[mask]
+            if len(year_returns) > 0:
+                results[str(year)] = calc_extended_metrics(year_returns)
+
+    return results
+
+
+def compare_predictors(all_results, output_dir="backtest_results"):
+    """瀵规瘮澶氫釜棰勬祴鍣ㄧ殑琛ㄧ幇"""
+    if len(all_results) < 2:
+        return
+
+    os.makedirs(output_dir, exist_ok=True)
+    timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+
+    print("\n" + "="*60)
+    print("Predictor comparison")
+    print("="*60)
+
+    # Comparison table
+    comparison = []
+    for name, (data, metrics) in all_results.items():
+        ext_raw = calc_extended_metrics(data['daily_returns'])
+        ext_neu = calc_extended_metrics(data['neutral_returns'])
+        comparison.append({
+            'predictor': name,
+            'ann_return_raw': f"{ext_raw.get('ann_return', 0):.2f}%",
+            'sharpe_raw': f"{ext_raw.get('sharpe', 0):.2f}",
+            'mdd_raw': f"{ext_raw.get('max_drawdown', 0):.2f}%",
+            'calmar_raw': f"{ext_raw.get('calmar', 0):.2f}",
+            'ann_return_neu': f"{ext_neu.get('ann_return', 0):.2f}%",
+            'sharpe_neu': f"{ext_neu.get('sharpe', 0):.2f}",
+            'mdd_neu': f"{ext_neu.get('max_drawdown', 0):.2f}%",
+        })
+
+    df_comp = pd.DataFrame(comparison)
+    print("\n" + df_comp.to_string(index=False))
+
+    # 淇濆瓨瀵规瘮缁撴灉
+    df_comp.to_csv(f"{output_dir}/comparison_{timestamp}.csv", index=False)
+    print(f"\n瀵规瘮缁撴灉宸蹭繚瀛樺埌: {output_dir}/comparison_{timestamp}.csv")
+
+
+def save_backtest_results(backtest_data, metrics, predictor_name, portfolio_mode, output_dir="backtest_results"):
+    """淇濆瓨鍥炴祴缁撴灉鍒版枃浠?"""
+    os.makedirs(output_dir, exist_ok=True)
+    timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
+    prefix = f"{output_dir}/{predictor_name}_{portfolio_mode}_{timestamp}"
+
+    # 淇濆瓨鏃ユ敹鐩婄巼
+    returns_df = pd.DataFrame({
+        'date': backtest_data['dates'][1:len(backtest_data['daily_returns'])+1],
+        'raw_return': backtest_data['daily_returns'],
+        'neutral_return': backtest_data['neutral_returns'],
+        'cost': backtest_data['daily_costs'][1:len(backtest_data['daily_returns'])+1],
+    })
+    returns_df.to_csv(f"{prefix}_returns.csv", index=False)
+
+    # 淇濆瓨璇婃柇淇℃伅锛堝?鐞嗛暱搴︿笉涓€鑷寸殑鍒楄〃锛?
+    diag_dict = backtest_data['diagnostics']
+    if diag_dict:
+        max_len = max(len(v) for v in diag_dict.values() if isinstance(v, list))
+        diag_dict_padded = {}
+        for k, v in diag_dict.items():
+            if isinstance(v, list):
+                diag_dict_padded[k] = v + [np.nan] * (max_len - len(v))
+            else:
+                diag_dict_padded[k] = v
+        diag_df = pd.DataFrame(diag_dict_padded)
+        diag_df.to_csv(f"{prefix}_diagnostics.csv", index=False)
+
+    # 淇濆瓨鎵╁睍鎸囨爣
+    ext_metrics_raw = calc_extended_metrics(backtest_data['daily_returns'])
+    ext_metrics_neu = calc_extended_metrics(backtest_data['neutral_returns'])
+
+    # 淇濆瓨鍒嗗勾搴﹀垎鏋?
+    yearly_raw = analyze_by_period(
+        backtest_data['daily_returns'],
+        backtest_data['dates'][1:len(backtest_data['daily_returns'])+1],
+        period='year'
+    )
+    yearly_neu = analyze_by_period(
+        backtest_data['neutral_returns'],
+        backtest_data['dates'][1:len(backtest_data['daily_returns'])+1],
+        period='year'
+    )
+
+    # 淇濆瓨姹囨€绘寚鏍?
+    with open(f"{prefix}_summary.txt", 'w', encoding='utf-8') as f:
+        f.write(f"棰勬祴鍣? {predictor_name}\n")
+        f.write(f"缁勫悎妯″紡: {portfolio_mode}\n")
+        f.write(f"\n========== 鏁翠綋琛ㄧ幇 ==========\n")
+        f.write(f"\n鍘熷?澶氱┖:\n")
+        for k, v in ext_metrics_raw.items():
+            f.write(f"  {k}: {v:.4f}\n")
+        f.write(f"\n淇??涓?€?\n")
+        for k, v in ext_metrics_neu.items():
+            f.write(f"  {k}: {v:.4f}\n")
+
+        f.write(f"\n========== 鍒嗗勾搴﹁〃鐜帮紙鍘熷?锛?==========\n")
+        for year, m in yearly_raw.items():
+            f.write(f"\n{year}:\n")
+            for k, v in m.items():
+                f.write(f"  {k}: {v:.4f}\n")
+
+        f.write(f"\n========== 璇婃柇缁熻? ==========\n")
+        for k, v in backtest_data['diagnostic_counts'].items():
+            f.write(f"{k}: {v}\n")
+
+    # 淇濆瓨瀹屾暣鏁版嵁锛坧ickle锛?
+    with open(f"{prefix}_full_data.pkl", 'wb') as f:
+        pickle.dump(backtest_data, f)
+
+    print(f"\n缁撴灉宸蹭繚瀛樺埌: {prefix}_*")
+    return prefix
+
+    parser = argparse.ArgumentParser(description="V9 DL model / LightGBM production backtest")
+    parser = argparse.ArgumentParser(description="V9 DL model / LightGBM production backtest")
+    parser.add_argument("--model-type", choices=["dl", "lgb", "both"], default="dl")
+    parser.add_argument("--checkpoint", default="ultimate_v7_best.pt")
+    parser.add_argument("--lgb-dir", default="models_multi_v9_tech_macro")
+    parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
+    parser.add_argument("--adv-mode", choices=["execution", "weight_cap", "both"], default="execution",
+                        help="ADV绾︽潫妯″紡 (榛樿?: execution, 鎺ㄨ崘). weight_cap宸插純鐢?紝瀛樺湪璁捐?缂洪櫡瀵艰嚧鍐插嚮鎴愭湰杩囬珮")
+    parser.add_argument("--portfolio-mode", choices=["optimizer", "simple_ls", "simple_long"], default="optimizer")
+    parser.add_argument("--top-frac", type=float, default=0.10)
+    parser.add_argument("--rebalance-freq", type=int, default=None)
+    return parser.parse_args()
+
+
+def load_or_train_lgb(train, val, model_dir, horizon_list):
+    expected_dim = train[0]['X'].shape[1]
+    if not os.path.exists(f"{model_dir}/lgb_h1.txt"):
+        print("璁?粌澶氬懆鏈烲ightGBM妯″瀷...")
+        return train_multi_horizon_models(train, val, horizon_list, model_dir)
+    print("鍔犺浇宸叉湁LightGBM妯″瀷...")
+    models, ic_decay = load_multi_horizon_models(horizon_list, model_dir)
+    if not models_match_feature_dim(models, expected_dim):
+        print("宸叉湁LightGBM妯″瀷鐗瑰緛缁村害涓嶅尮閰嶏紝閲嶆柊璁?粌...")
+        models, ic_decay = train_multi_horizon_models(train, val, horizon_list, model_dir)
+    return models, ic_decay
+
+
+def run_and_print_metrics(predictor, val, price_dict, vol_dict, cfg, args):
+    print(f"\n寮€濮嬬敓浜х骇鍥炴祴: {predictor.name}")
+    raw_ret, neu_ret, backtest_data = run_backtest_production(
+        predictor, val, price_dict, vol_dict,
+        future_len=cfg.target_horizon, rebalance_freq=args.rebalance_freq, hist_window=60,
+        ewma_hl=20, adv_limit_ratio=0.02, adv_mode=args.adv_mode,
+        portfolio_mode=args.portfolio_mode, top_frac=args.top_frac,
+        max_weight=0.05, lambda_t=0.05, lambda_b=0.2,
+        target_vol=0.15, impact_coeff=0.1,
+        config=cfg,
+    )
+
+    ann_raw, sharpe_raw, mdd_raw = calc_metrics(raw_ret)
+    ann_neu, sharpe_neu, mdd_neu = calc_metrics(neu_ret)
+
+    print(f"\n========== 鐢熶骇绾у洖娴嬬哗鏁?({predictor.name}, {args.portfolio_mode}) ==========")
+    print(f"鍘熷?澶氱┖: 骞村寲 {ann_raw:.2f}% | 澶忔櫘 {sharpe_raw:.2f} | 鍥炴挙 {mdd_raw * 100:.2f}%")
+    print(f"淇??涓?€? 骞村寲 {ann_neu:.2f}% | 澶忔櫘 {sharpe_neu:.2f} | 鍥炴挙 {mdd_neu * 100:.2f}%")
+
+    # 璁＄畻骞舵樉绀烘墿灞曟寚鏍?
+    ext_metrics_raw = calc_extended_metrics(raw_ret)
+    ext_metrics_neu = calc_extended_metrics(neu_ret)
+
+    print(f"\n========== 鎵╁睍鎸囨爣 ==========")
+    print(f"鍘熷?澶氱┖:")
+    print(f"  Calmar姣旂巼: {ext_metrics_raw.get('calmar', 0):.3f}")
+    print(f"  Sortino姣旂巼: {ext_metrics_raw.get('sortino', 0):.3f}")
+    print(f"  鑳滅巼: {ext_metrics_raw.get('win_rate', 0):.2f}%")
+    print(f"  鐩堜簭姣? {ext_metrics_raw.get('profit_loss_ratio', 0):.3f}")
+    print(f"淇??涓?€?")
+    print(f"  Calmar姣旂巼: {ext_metrics_neu.get('calmar', 0):.3f}")
+    print(f"  Sortino姣旂巼: {ext_metrics_neu.get('sortino', 0):.3f}")
+    print(f"  鑳滅巼: {ext_metrics_neu.get('win_rate', 0):.2f}%")
+    print(f"  鐩堜簭姣? {ext_metrics_neu.get('profit_loss_ratio', 0):.3f}")
+
+    # 淇濆瓨缁撴灉
+    metrics = {
+        'ann_raw': ann_raw, 'sharpe_raw': sharpe_raw, 'mdd_raw': mdd_raw,
+        'ann_neu': ann_neu, 'sharpe_neu': sharpe_neu, 'mdd_neu': mdd_neu,
+    }
+    save_backtest_results(backtest_data, metrics, predictor.name, args.portfolio_mode)
+
+    return backtest_data, metrics
+
+
+# ==================== 涓荤▼搴?====================
+def main():
+    args = parse_args()
+    cfg = DataConfig()
+    cfg.use_technical_features = True
+    cfg.use_market_features = True
+    cfg.use_macro_features = True
+    cfg.min_stocks_per_time = 30
+    cfg.target_horizon = 5
+    cfg.seq_len = 40
+    cfg.max_horizon = 10
+
+    print("鏋勫缓鎴?潰鏁版嵁闆?..")
+    train, val = build_cross_section_dataset(cfg, use_cache=True)
+
+    print("鍔犺浇浠锋牸涓庢垚浜ら噺鏁版嵁...")
+    price_dict, vol_dict = load_price_volume(cfg)
+    print(f"鑲＄エ鏁? {len(price_dict)}")
+
+    predictors = []
+    if args.model_type in ("dl", "both"):
+        model, device, regime_dim = load_v9_checkpoint(args.checkpoint, train, cfg, args.device)
+        predictors.append(DLPredictor(model, device, regime_dim))
+
+    if args.model_type in ("lgb", "both"):
+        horizon_list = [1, 3, 5, 10]
+        models, ic_decay = load_or_train_lgb(train, val, args.lgb_dir, horizon_list)
+        print("IC Decay:", ic_decay)
+        predictors.append(LGBPredictor(models, ic_decay))
+
+    all_results = {}
+    for predictor in predictors:
+        data, metrics = run_and_print_metrics(predictor, val, price_dict, vol_dict, cfg, args)
+        all_results[predictor.name] = (data, metrics)
+
+    # 瀵规瘮鍒嗘瀽
+    if len(all_results) > 1:
+        compare_predictors(all_results)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Training artifacts
+*.log
+*.pth
+*.pt
+
+# Cache & data
+cache/
+data/raw/
+
+# Backtest results
+backtest_results/
+
+# Local settings
+.claude/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
