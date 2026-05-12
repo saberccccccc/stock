@@ -522,7 +522,7 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
     print(f"棰勬祴鍣? {predictor.name}")
     print(f"{rebalance_freq}")
     print(f"组合模式: {portfolio_mode} | top_frac={top_frac:.2%}")
-    print(f"ADV模式: {adv_mode}")
+    print(f"ADVģʽ: {adv_mode}")
     print("return metric: next_close_to_next_close")
 
     all_codes = sorted(set(c for s in val_samples for c in s['codes']))
@@ -624,7 +624,7 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
                 idx_ret_hist = idx_daily.iloc[hist_start + 1:hist_end + 1].values
                 beta_vec = ewma_beta(rets, idx_ret_hist, ewma_hl)
 
-                # 浠呬娇鐢ㄤ釜鑲″洜瀛?0-2: size,vol,mom)鍜岃?业one-hot(87-169)作为风险模型因子
+                # 浠呬娇鐢ㄤ釜鑲″洜瀛?0-2: size,vol,mom)鍜岃?ҵone-hot(87-169)作为风险模型因子
                 # 排除市场整体特征(3-86)锛屽洜涓烘墍鏈夎偂绁ㄥ叡浜?浉鍚屽€?
                 B_style = np.hstack([
                     sample['risk'][valid, :3],      # 涓?偂椋庢牸鍥犲瓙

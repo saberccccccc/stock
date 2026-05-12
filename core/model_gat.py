@@ -147,7 +147,7 @@ if __name__ == "__main__":
 
     # 模拟行业
     codes = [f"{600000 + i}" for i in range(N)]
-    industries = ['閾惰?'] * 20 + ['白酒'] * 15 + ['医药'] * 25 + ['地产'] * 20 + ['电力'] * 20
+    industries = ['閾惰?'] * 20 + ['白酒'] * 15 + ['ҽҩ'] * 25 + ['地产'] * 20 + ['电力'] * 20
     industry_dict = {code: industries[i] for i, code in enumerate(codes)}
 
     print(f"industry graph: {N} nodes, {edge_index.shape[1]} edges")

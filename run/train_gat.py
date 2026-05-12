@@ -67,7 +67,7 @@ print(f"配置: target_horizon={cfg.target_horizon}, seq_len={cfg.seq_len}, "
 print("\n鏋勫缓鏁版嵁闆?..")
 train_samples, val_samples = build_cross_section_dataset(cfg, use_cache=True)
 
-# 鎴?柇risk到regime_dim锛堝幓鎺?3缁磋?业one-hot，节省~49% risk鍐呭瓨锛?regime_dim = get_regime_dim(cfg)
+# 鎴?柇risk到regime_dim锛堝幓鎺?3缁磋?ҵone-hot，节省~49% risk鍐呭瓨锛?regime_dim = get_regime_dim(cfg)
 for s in train_samples + val_samples:
     s['risk'] = s['risk'][:, :regime_dim].copy()
 import gc
