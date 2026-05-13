@@ -1,4 +1,4 @@
-# ensemble.py 鈥?Stacking 集成（LightGBM预测 + Transformer鐗瑰緛锛?
+# ensemble.py - Stacking 集成（LightGBM预测 + Transformer特征）
 import os
 import numpy as np
 import torch
@@ -52,8 +52,7 @@ def cv_predict_lgb(train_samples, val_samples, horizon_list=(1, 3, 5, 10),
         if not X_train_list:
             return None
         dtrain = lgb.Dataset(np.vstack(X_train_list), label=np.hstack(y_train_list))
-        return lgb.train(params, dtrain, num_boost_round=200, valid_sets=[dtrain],
-                         callbacks=[lgb.early_stopping(10)])
+        return lgb.train(params, dtrain, num_boost_round=200)
 
     for h in horizon_list:
         for fold in range(n_folds):
@@ -84,15 +83,15 @@ def cv_predict_lgb(train_samples, val_samples, horizon_list=(1, 3, 5, 10),
     return preds_by_h, y_by_h
 
 
-# ==================== Stacking 鏁版嵁闆?====================
+# ==================== Stacking 数据集====================
 class StackingDataset(Dataset):
     """Stack original features + LGB predictions into 2nd-level input"""
 
     def __init__(self, samples, lgb_preds_dict, sample_offset=0):
         """
-        samples: 鎴?潰鏍锋湰鍒楄〃
-        lgb_preds_dict: {horizon: (n_samples,) array} 鈥?CV预测
-        sample_offset: samples在train+val鍚堝苟鍒楄〃涓?殑璧峰?位置
+        samples: 截面样本列表
+        lgb_preds_dict: {horizon: (n_samples,) array} - CV预测
+        sample_offset: samples在train+val合并列表中的起始位置
         """
         self.X_list = []
         self.y_list = []
@@ -103,7 +102,7 @@ class StackingDataset(Dataset):
 
         for i, s in enumerate(samples):
             N, F = s['X'].shape
-            # 将LGB棰勬祴浣滀负棰濆?特征拼入
+            # 将LGB预测作为额外特征拼入
             extra_feats = np.zeros((N, len(lgb_preds_dict)), dtype=np.float32)
             global_i = sample_offset + i
             for j, h in enumerate(sorted(lgb_preds_dict.keys())):
@@ -162,7 +161,7 @@ def collate_stacking(batch):
 # ==================== 加权融合 ====================
 def blend_predictions(lgb_preds, dl_alpha, weights=(0.5, 0.5)):
     """
-    融合LightGBM鍜屾繁搴﹀?涔犻?娴?
+    融合LightGBM和深度学习预测
 
     Args:
         lgb_preds: (N,) LightGBM融合alpha
@@ -173,16 +172,16 @@ def blend_predictions(lgb_preds, dl_alpha, weights=(0.5, 0.5)):
     """
     w_lgb, w_dl = weights
     blended = w_lgb * lgb_preds + w_dl * dl_alpha
-    # 鎴?潰鏍囧噯鍖?
+    # 截面标准化
     if len(blended) > 1:
         blended = (blended - np.mean(blended)) / (np.std(blended) + 1e-8)
     return np.tanh(blended)
 
 
-# ==================== 璁?粌鍏ュ彛 ====================
+# ==================== 训练入口 ====================
 def train_stacking(train_samples, val_samples, input_dim, horizon=10, epochs=15,
                    lr=3e-4, batch_size=8, cfg=None):
-    """璁?粌Stacking二级模型"""
+    """训练Stacking二级模型"""
     cfg = cfg or DataConfig()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -190,7 +189,7 @@ def train_stacking(train_samples, val_samples, input_dim, horizon=10, epochs=15,
     print("Step 1: LightGBM交叉验证...")
     lgb_preds, _ = cv_predict_lgb(train_samples, val_samples)
 
-    # 构建Stacking鏁版嵁闆嗭紙褰撳墠绠€鍖栦负鐩存帴澧炲姞鍗犱綅鐗瑰緛锛?
+    # 构建Stacking数据集（当前简化为直接增加占位特征）
     n_lgb_feats = len(lgb_preds)
     stacking_dim = input_dim + n_lgb_feats
     print(f"Stacking输入维度: {input_dim} + {n_lgb_feats} = {stacking_dim}")
@@ -203,7 +202,7 @@ def train_stacking(train_samples, val_samples, input_dim, horizon=10, epochs=15,
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False,
                             collate_fn=collate_stacking)
 
-    print("Step 2: 璁?粌Transformer二级模型...")
+    print("Step 2: 训练Transformer二级模型...")
     base_feat_dim = (input_dim - len(INDUSTRY_REL_FEATURES)) // 2 // N_AGGS
     regime_dim = get_regime_dim(cfg)
     num_industries = train_samples[0]['risk'].shape[1] - regime_dim
@@ -299,8 +298,8 @@ if __name__ == "__main__":
     print("加载数据...")
     train_samples, val_samples = build_cross_section_dataset(cfg, use_cache=True)
     input_dim = train_samples[0]['X'].shape[1]
-    print(f"Input dim: {input_dim}, 璁?粌鏍锋湰: {len(train_samples)}, 验证样本: {len(val_samples)}")
+    print(f"Input dim: {input_dim}, 训练样本: {len(train_samples)}, 验证样本: {len(val_samples)}")
 
-    print("\n寮€濮婼tacking璁?粌...")
+    print("\n开始Stacking训练...")
     model = train_stacking(train_samples, val_samples, input_dim, horizon=10,
                            epochs=5, batch_size=8, cfg=cfg)

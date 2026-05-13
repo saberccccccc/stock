@@ -1,5 +1,6 @@
-# update_daily_data.py 鈥?涓?偂鏃ョ嚎鏅鸿兘澧為噺鏇存柊锛堟柇鐐圭画浼犵増锛?# 用法: python update_daily_data.py [--workers 2]
-# 鍙?殢鏃?Ctrl+C 涓?柇锛岄噸鏂拌繍琛屼細鑷?姩璺宠繃宸叉洿鏂扮殑鑲$エ
+# update_daily_data.py - 个股日线智能增量更新（断点续传版）
+# 用法: python update_daily_data.py [--workers 2]
+# 可随时 Ctrl+C 中断，重新运行会自动跳过已更新的股票
 
 import os, sys, time, random, argparse, json
 import pandas as pd
@@ -14,8 +15,8 @@ warnings.filterwarnings('ignore')
 # ==================== 配置 ====================
 DATA_DIR = "data/raw"
 START_DATE = "20100101"
-MIN_INTERVAL = 1.5       # API鏈EUR小间隔（秒）
-BATCH_SLEEP = 60         # 鎵规?闂翠紤鎭?紙绉掞級
+MIN_INTERVAL = 1.5       # API最小间隔（秒）
+BATCH_SLEEP = 60         # 批次间休息（秒）
 
 PROGRESS_FILE = os.path.join(DATA_DIR, "_update_progress.json")
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -24,7 +25,7 @@ os.makedirs(DATA_DIR, exist_ok=True)
 def resolve_tushare_token(token=None):
     resolved = token or os.getenv('TUSHARE_TOKEN')
     if not resolved:
-        raise ValueError('缺少 TUSHARE_TOKEN锛岃?璁剧疆鐜??鍙橀噺鎴栭EUR氳繃 --token 传入')
+        raise ValueError('缺少 TUSHARE_TOKEN，请设置环境变量或通过 --token 传入')
     return resolved
 
 # ==================== 安全限流调用 ====================
@@ -48,7 +49,7 @@ def safe_call(func, *args, **kwargs):
 
 
 def fetch_one_stock(pro, ts_code, start_date, end_date):
-    """鍏ㄩ噺鑾峰彇鍗曞彧鑲$エ鏃ョ嚎"""
+    """全量获取单只股票日线"""
     df = safe_call(
         pro.daily, ts_code=ts_code,
         start_date=start_date, end_date=end_date,
@@ -66,7 +67,7 @@ def fetch_one_stock(pro, ts_code, start_date, end_date):
 
 
 def needs_update(ts_code):
-    """妫EUR查股票是否需要更新（2010~2025鐨勬暟鎹?笉婊¤冻瑕佹眰锛?"""
+    """检查股票是否需要更新（2010~2025的数据不满足要求）"""
     csv_path = os.path.join(DATA_DIR, f"{ts_code}.csv")
     if not os.path.exists(csv_path):
         return True, 'no_file'
@@ -80,13 +81,13 @@ def needs_update(ts_code):
         last_date = df.index.max()
         days_behind = (datetime.today() - last_date).days
 
-        # 已有2010数据 + 鏈EUR鏂?鈫?跳过
+        # 已有2010数据 + 最新 -> 跳过
         if first_date.year <= 2010 and days_behind <= 2:
             return False, f'skip ({first_date.date()}~{last_date.date()})'
-        # 已有2010鏁版嵁浣嗚惤鍚?鈫?增量
+        # 已有2010数据但落后 -> 增量
         if first_date.year <= 2010:
             return True, f'incremental (behind {days_behind}d)'
-        # 鍙?湁2017+数据 鈫?全量
+        # 只有2017+数据 -> 全量
         return True, f'full ({first_date.date()}~{last_date.date()})'
     except Exception:
         return True, 'read_error'
@@ -102,7 +103,7 @@ def update_one(pro, ts_code):
     end_date = datetime.today().strftime('%Y%m%d')
 
     if 'incremental' in info:
-        # 鍙?媺澧為噺
+        # 只拉增量
         local_df = pd.read_csv(csv_path, index_col=0, parse_dates=True)
         next_day = (local_df.index.max() + timedelta(days=1)).strftime('%Y%m%d')
         new_df = fetch_one_stock(pro, ts_code, next_day, end_date)
@@ -138,10 +139,10 @@ def get_stock_list(pro):
     cache_path = os.path.join(DATA_DIR, 'stable_stocks.csv')
     if os.path.exists(cache_path):
         df = pd.read_csv(cache_path, dtype=str)
-        print(f"鑲$エ鍒楄〃(缓存): {len(df)} 鍙?")
+        print(f"股票列表(缓存): {len(df)} 只")
         return df['ts_code'].tolist()
 
-    print("棣栨?鑾峰彇鑲$エ鍒楄〃...")
+    print("首次获取股票列表...")
     df = safe_call(pro.stock_basic, exchange='', list_status='L',
                    fields='ts_code,symbol,name,list_date')
     if df is None or df.empty:
@@ -149,7 +150,7 @@ def get_stock_list(pro):
     cutoff = (datetime.today() - timedelta(days=365)).strftime('%Y%m%d')
     df = df[df['list_date'] <= cutoff]
     df.to_csv(cache_path, index=False)
-    print(f"绋冲畾鑲$エ: {len(df)} 鍙?")
+    print(f"稳定股票: {len(df)} 只")
     return df['ts_code'].tolist()
 
 
@@ -159,7 +160,7 @@ def main():
     parser.add_argument('--batch', type=int, default=30)
     parser.add_argument('--test', type=int, default=0)
     parser.add_argument('--token', type=str, default=None,
-                        help='Tushare token锛涙湭浼犲叆鏃惰?鍙?TUSHARE_TOKEN 鐜??变量')
+                        help='Tushare token；未传入时读取 TUSHARE_TOKEN 环境变量')
     args = parser.parse_args()
     token = resolve_tushare_token(args.token)
 
@@ -171,7 +172,7 @@ def main():
     progress = load_progress()
     updated_set = set(progress['updated'])
 
-    # 杩囨护宸叉洿鏂扮殑鑲$エ
+    # 过滤已更新的股票
     remaining = [s for s in stocks if s not in updated_set]
     if args.test:
         remaining = remaining[:args.test]
@@ -181,17 +182,17 @@ def main():
     start_batch = progress.get('batch', 0)
 
     if total == 0:
-        print("鍏ㄩ儴鑲$エ宸叉洿鏂板畬鎴愶紒")
-        print(f"缁熻?: 全量{stats['full']} | 增量{stats['incremental']} | 跳过{stats['skip']} | 失败{stats['fail']}")
+        print("全部股票已更新完成！")
+        print(f"统计: 全量{stats['full']} | 增量{stats['incremental']} | 跳过{stats['skip']} | 失败{stats['fail']}")
         return
 
-    print(f"寰呮洿鏂? {total} 鍙?(鍏?{len(stocks)} 鍙?")
+    print(f"待更新 {total} 只(共{len(stocks)} 只")
     batch_count = (total + args.batch - 1) // args.batch
 
     for bi in range(batch_count):
         batch = remaining[bi * args.batch: (bi + 1) * args.batch]
         print(f"\n{'=' * 55}")
-        print(f"鎵规? {start_batch + bi + 1}/{start_batch + batch_count} | "
+        print(f"批次 {start_batch + bi + 1}/{start_batch + batch_count} | "
               f"{bi * args.batch + 1}-{min((bi + 1) * args.batch, total)} / {total}")
 
         batch_updated = []
@@ -235,5 +236,5 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print("\n\n涓?柇淇濆瓨杩涘害銆傞噸鏂拌繍琛屽皢缁х画浠庢湭澶勭悊鐨勮偂绁ㄥ紑濮嬨EUR?")
+        print("\n\n中断保存进度。重新运行将继续从未处理的股票开始。")
         sys.exit(0)

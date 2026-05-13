@@ -1,2 +1,2 @@
-# deepseek_optimized - 鑲＄エ澶氬洜瀛怉lpha棰勬祴绯荤粺
+# deepseek_optimized - 股票多因子Alpha预测系统
 

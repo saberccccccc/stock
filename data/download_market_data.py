@@ -1,4 +1,4 @@
-"""鎵归噺涓嬭浇甯傚満鐗瑰緛鏁版嵁锛堝?鍩烘寚鏁般€佽?业指数）"""
+"""批量下载市场特征数据（宽基指数、行业指数）"""
 import os
 import pandas as pd
 
@@ -8,12 +8,13 @@ def download_index_data(symbol, name, output_dir="data/raw"):
 
     Args:
         symbol: akshare 指数代码
-        name: 输出文件名（不含.csv锛?        output_dir: 杈撳嚭鐩?綍
+        name: 输出文件名（不含.csv）
+        output_dir: 输出目录
     """
     try:
         import akshare as ak
     except ImportError:
-        print("閿欒?: 鏈?畨瑁卆kshare")
+        print("错误: 未安装akshare")
         return False
 
     output_path = os.path.join(output_dir, f"{name}.csv")
@@ -28,7 +29,7 @@ def download_index_data(symbol, name, output_dir="data/raw"):
         df = df.sort_values('date')
 
         df.to_csv(output_path, index=False)
-        print(f"  [OK] {len(df)} 鏉¤?录，{df['date'].min().strftime('%Y-%m-%d')} 鑷?{df['date'].max().strftime('%Y-%m-%d')}")
+        print(f"  [OK] {len(df)} 条记录，{df['date'].min().strftime('%Y-%m-%d')} 至 {df['date'].max().strftime('%Y-%m-%d')}")
         return True
     except Exception as e:
         print(f"  [FAIL] {e}")
@@ -41,18 +42,18 @@ def download_all_market_data():
     # 1. 宽基指数
     print("\n=== 下载宽基指数 ===")
     indices = [
-        ("sh000300", "hs300_index"),      # 娌?繁300锛堝凡鏈夛紝鍙?烦杩囷級
+        ("sh000300", "hs300_index"),      # 沪深300
         ("sh000016", "sz50_index"),       # 上证50
-        ("sh000905", "zz500_index"),      # 涓?瘉500
+        ("sh000905", "zz500_index"),      # 中证500
         ("sz399006", "cyb_index"),        # 创业板指
     ]
 
     for symbol, name in indices:
         download_index_data(symbol, name)
 
-    # 2. 琛屼笟鎸囨暟锛堢敵涓囦竴绾э級
-    print("\n=== 涓嬭浇鐢充竾涓€绾ц?涓氭寚鏁?===")
-    print("提示: 琛屼笟鎸囨暟鏁版嵁閲忚緝澶э紝鍙?兘闇€瑕佸嚑鍒嗛挓...")
+    # 2. 行业指数（申万一级）
+    print("\n=== 下载申万一级行业指数===")
+    print("提示: 行业指数数据量较大，可能需要几分钟...")
 
     try:
         import akshare as ak
@@ -67,7 +68,7 @@ def download_all_market_data():
         skip_count = 0
         for idx, row in sw_index.iterrows():
             code = row['行业代码'].replace('.SI', '')  # 去掉后缀
-            name = row['琛屼笟鍚嶇О']
+            name = row['行业名称']
             output_path = os.path.join(output_dir, f"{code}_{name}.csv")
 
             # 跳过已下载的

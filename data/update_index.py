@@ -5,17 +5,17 @@ import tushare as ts
 
 def update_hs300_index(token=None, output_path="data/raw/hs300_index.csv"):
     """
-    从Tushare鑾峰彇娌?繁300指数日线数据并更新到CSV
+    从Tushare获取沪深300指数日线数据并更新到CSV
 
     Args:
-        token: Tushare token锛屽?果为None鍒欎粠鐜??变量读取
-        output_path: 输出CSV璺?緞
+        token: Tushare token，如果为None则从环境变量读取
+        output_path: 输出CSV路径
     """
     if token is None:
         token = os.environ.get('TUSHARE_TOKEN')
 
     if not token:
-        print("閿欒?: 鏈?壘鍒癟USHARE_TOKEN锛岃?璁剧疆鐜??鍙橀噺鎴栦紶鍏?oken参数")
+        print("错误: 未找到TUSHARE_TOKEN，请设置环境变量或传入token参数")
         return False
 
     print("连接Tushare API...")
@@ -26,14 +26,15 @@ def update_hs300_index(token=None, output_path="data/raw/hs300_index.csv"):
         existing = pd.read_csv(output_path)
         existing['date'] = pd.to_datetime(existing['date'])
         last_date = existing['date'].max()
-        print(f"鐜版湁鏁版嵁鏈EUR鍚庢棩鏈? {last_date.strftime('%Y-%m-%d')}")
+        print(f"现有数据最后日期: {last_date.strftime('%Y-%m-%d')}")
         start_date = (last_date + pd.Timedelta(days=1)).strftime('%Y%m%d')
-        print("no existing data, fetching full history")
-        print("no existing data, fetching full history")
+    else:
+        print("无现有数据，获取全量历史")
         start_date = '20100101'
         existing = None
 
-    # 鑾峰彇鏂版暟鎹?    print(f"获取 {start_date} 鑷充粖鐨勬暟鎹?..")
+    # 获取新数据
+    print(f"获取 {start_date} 至今的数据...")
     try:
         new_data = pro.index_daily(
             ts_code='000300.SH',
@@ -45,10 +46,10 @@ def update_hs300_index(token=None, output_path="data/raw/hs300_index.csv"):
         return False
 
     if new_data.empty:
-        print("娌℃湁鏂版暟鎹?渶瑕佹洿鏂?")
+        print("没有新数据需要更新")
         return True
 
-    # 鏍煎紡杞?崲
+    # 格式转换
     new_data.rename(columns={
         'trade_date': 'date',
         'vol': 'volume'
@@ -66,9 +67,9 @@ def update_hs300_index(token=None, output_path="data/raw/hs300_index.csv"):
 
     # 保存
     combined.to_csv(output_path, index=False)
-    print(f"鉁?宸叉洿鏂?{len(new_data)} 条新数据")
-    print(f"鉁?数据范围: {combined['date'].min().strftime('%Y-%m-%d')} 鑷?{combined['date'].max().strftime('%Y-%m-%d')}")
-    print(f"鉁?鎬昏? {len(combined)} 鏉¤?褰?")
+    print(f"[OK] 已更新 {len(new_data)} 条新数据")
+    print(f"[OK] 数据范围: {combined['date'].min().strftime('%Y-%m-%d')} 至 {combined['date'].max().strftime('%Y-%m-%d')}")
+    print(f"[OK] 总计 {len(combined)} 条记录")
 
     return True
 

@@ -1,4 +1,4 @@
-# data_pipeline.py 鈥?鎴?潰澶氬洜瀛愭暟鎹??线（内存优化版）
+# data_pipeline.py - 截面多因子数据流水线（内存优化版）
 import os
 import pickle
 import numpy as np
@@ -11,18 +11,18 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-# 瀹忚?特征列名
+# 宏观特征列名
 MACRO_COLS = ['north_net_zscore', 'margin_balance_change', 'pmi_zscore']
-# 鍩烘湰闈㈢壒寰佸垪鍚?
+# 基本面特征列名
 FUNDAMENTAL_COLS = ['roe', 'revenue_yoy', 'pe_percentile']
-# 甯傚満鏁翠綋灞炴EUR?
+# 市场整体属性
 from data.market_features import (
     build_market_features_index_only,
     compute_breadth_from_close_matrix,
     MARKET_COLS, N_MARKET,
 )
 
-# V7 鑱氬悎鏂瑰紡锛堟ā块级常量，供 train.py 寮曠敤锛?
+# V7 聚合方式（模块级常量，供 train.py 引用）
 AGG_NAMES = ['last', 'sma5', 'sma20', 'vol5', 'vol20']
 N_AGGS = len(AGG_NAMES)
 INDUSTRY_REL_FEATURES = ['ret_5d', 'ret_20d', 'vol_10d', 'vol_60d', 'price_momentum', 'log_volume']
@@ -31,7 +31,36 @@ TECH_FEATURES = [
     'rsi_norm', 'macd_pct', 'macd_signal_pct', 'macd_diff_pct',
     'atr_pct', 'volume_ratio'
 ]
-CACHE_VERSION = "v11_clipped_features"
+CACHE_VERSION = "v13_config_key"
+
+
+def _cache_config_digest(config, data_dir, stock_universe):
+    cache_config = {
+        'data_dir': os.path.abspath(data_dir),
+        'max_stocks': getattr(config, 'max_stocks', None),
+        'test_mode': getattr(config, 'test_mode', False),
+        'test_stocks': getattr(config, 'test_stocks', None),
+        'seq_len': getattr(config, 'seq_len', None),
+        'target_horizon': getattr(config, 'target_horizon', None),
+        'max_horizon': getattr(config, 'max_horizon', None),
+        'min_stocks_per_time': getattr(config, 'min_stocks_per_time', None),
+        'normalize_features': getattr(config, 'normalize_features', None),
+        'use_multi_horizon': getattr(config, 'use_multi_horizon', None),
+        'horizon_indices': tuple(getattr(config, 'horizon_indices', ())),
+        'horizon_weights': tuple(getattr(config, 'horizon_weights', ())),
+        'use_technical_features': getattr(config, 'use_technical_features', False),
+        'use_market_features': getattr(config, 'use_market_features', False),
+        'use_fundamental_features': getattr(config, 'use_fundamental_features', False),
+        'use_macro_features': getattr(config, 'use_macro_features', False),
+        'stock_universe': tuple(sorted(stock_universe)) if stock_universe else None,
+        'agg_names': tuple(AGG_NAMES),
+        'industry_rel_features': tuple(INDUSTRY_REL_FEATURES),
+        'tech_features': tuple(TECH_FEATURES),
+        'fundamental_cols': tuple(FUNDAMENTAL_COLS),
+        'macro_cols': tuple(MACRO_COLS),
+    }
+    payload = repr(sorted(cache_config.items())).encode('utf-8')
+    return hashlib.md5(payload).hexdigest()[:10]
 
 
 def _normalize_ts_code(code):
@@ -53,15 +82,15 @@ def _normalize_ts_code(code):
 
 
 def _load_extra_features(config, df_dict, all_dates):
-    """鍔犺浇骞跺悎骞朵釜鑲℃墿灞曞洜瀛愶紙鍩烘湰闈㈢瓑锛夈EUR?""
+    """加载并合并个股扩展因子（基本面等）。"""
     extra_feat_cols = []
 
-    # ----- 鍩烘湰闈㈠洜瀛愶紙瀛ｉ?鍓嶅悜濉?厖鍒版棩棰戯級-----
+    # ----- 基本面因子（季频前向填充到日频）-----
     if getattr(config, 'use_fundamental_features', False):
         try:
             from data.fundamental_factors import fetch_fundamentals, merge_to_daily
             codes = list(df_dict.keys())
-            # 注意：需要用户Token锛屾湭璁剧疆鏃惰烦杩?
+            # 注意：需要用户Token，未设置时跳过
             token = getattr(config, 'tushare_token', None) or os.environ.get('TUSHARE_TOKEN')
             if token:
                 funda_df = fetch_fundamentals(codes, token)
@@ -81,23 +110,22 @@ def _load_extra_features(config, df_dict, all_dates):
                             else:
                                 df_dict[code][f'fund_{col}'] = 0.0
                     extra_feat_cols += [f'fund_{c}' for c in FUNDAMENTAL_COLS]
-                    print(f"宸插姞杞藉熀鏈?潰鐗瑰緛: {[f'fund_{c}' for c in FUNDAMENTAL_COLS]}")
+                    print(f"已加载基本面特征: {[f'fund_{c}' for c in FUNDAMENTAL_COLS]}")
             else:
-                print("提示: 鏈??缃?tushare_token锛岃烦杩囧熀鏈?潰鍥犲瓙鍔犺浇")
+                print("提示: 未设置tushare_token，跳过基本面因子加载")
         except Exception as e:
-            print(f"鍩烘湰闈㈢壒寰佸姞杞藉け璐? {e}")
+            print(f"基本面特征加载失败 {e}")
 
     return extra_feat_cols
 
 
 def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
-    """
     """Build cross-section dataset, return (train_samples, val_samples).
 
     相较v6版本的内存优化：
-    - 涓嶉?瀛樺叏灞EUR特征矩阵 (num_stocks × num_dates × feat_dim)
-    - 鏀圭敤绐楀彛绱㈠紩棰勮?绠?+ 按需切片
-    - 淇濈暀浜嗘埅闈?ank鐗瑰緛鍜岃?涓氱浉瀵圭壒寰?
+    - 不缓存全局特征矩阵 (num_stocks × num_dates × feat_dim)
+    - 改用窗口索引预计算 + 按需切片
+    - 保留截面rank特征和行业相对特征
     """
     data_dir = config.data_dir
     seq_len = config.seq_len
@@ -108,7 +136,7 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
     os.makedirs(cache_dir, exist_ok=True)
     test_n = getattr(config, 'test_stocks', None) if getattr(config, 'test_mode', False) else None
 
-    # 鍙??的缓存文件名
+    # 可读的缓存文件名
     n_stocks = test_n if test_n else config.max_stocks if config.max_stocks else "all"
     features = []
     if config.use_technical_features:
@@ -125,7 +153,8 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
     if stock_universe:
         universe_digest = hashlib.md5("|".join(sorted(stock_universe)).encode()).hexdigest()[:8]
         universe_tag = f"_universe{len(stock_universe)}_{universe_digest}"
-    cache_key = f"cross_section_{CACHE_VERSION}_{n_stocks}stocks{universe_tag}_{feat_str}_seq{seq_len}_h{config.target_horizon}"
+    config_digest = _cache_config_digest(config, data_dir, stock_universe)
+    cache_key = f"cross_section_{CACHE_VERSION}_{n_stocks}stocks{universe_tag}_{feat_str}_seq{seq_len}_target{config.target_horizon}_maxh{max_horizon}_cfg{config_digest}"
     cache_file = os.path.join(cache_dir, cache_key + ".pkl")
     if use_cache and os.path.exists(cache_file) and not config.force_rebuild:
         print(f"加载缓存: {cache_file}")
@@ -143,7 +172,7 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
         csv_files = csv_files[:config.max_stocks]
     if getattr(config, 'test_mode', False):
         test_n = getattr(config, 'test_stocks', 1000)
-        print(f"test mode: loading only {len(csv_files)} stocks")
+        csv_files = csv_files[:test_n]
         print(f"test mode: loading only {len(csv_files)} stocks")
 
     df_dict = {}
@@ -174,11 +203,11 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
 
     if not df_dict:
         raise ValueError("没有有效股票数据")
-    print(f"鏈夋晥鑲＄エ鏁? {len(df_dict)}")
+    print(f"有效股票数 {len(df_dict)}")
 
-    # ========== 2. 鏋勯EUR犲?尺度特征 ==========
-    print("鏋勯EUR犲?尺度特征...")
-    # V8: 鍑忓皯鍐椾綑锛屽?鍔犲井瑙傜粨鏋勭壒寰?
+    # ========== 2. 构造多尺度特征 ==========
+    print("构造多尺度特征...")
+    # V8: 减少冗余，增加微观结构特征
     BASE_FEATURES = [
         'ret_5d', 'ret_20d', 'vol_10d', 'vol_60d',
         'price_momentum', 'log_volume', 'volume_spike',
@@ -191,7 +220,7 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
         df['log_close'] = np.log(close_safe).replace([np.inf, -np.inf], np.nan)
         df['log_volume'] = np.log(df['volume'].clip(lower=0) + 1)
 
-        # 鏀剁泭鐜囧拰娉㈠姩鐜?
+        # 收益率和波动率
         daily_ret = close_safe.pct_change().replace([np.inf, -np.inf], np.nan).clip(-0.5, 0.5)
         df['ret_5d'] = close_safe.pct_change(5).replace([np.inf, -np.inf], np.nan).clip(-1.0, 1.0)
         df['ret_20d'] = close_safe.pct_change(20).replace([np.inf, -np.inf], np.nan).clip(-1.0, 1.0)
@@ -200,7 +229,7 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
         df['price_momentum'] = (close_safe / close_safe.rolling(20).mean() - 1).replace([np.inf, -np.inf], np.nan).clip(-1.0, 1.0)
         df['volume_spike'] = df['log_volume'].pct_change(1).abs().replace([np.inf, -np.inf], np.nan).clip(0, 10)
 
-        # 寰??结构特征
+        # 微观结构特征
         hl_range_raw = df['high'] - df['low']
         valid_range = hl_range_raw > (close_safe * 1e-4)
         hl_range = hl_range_raw.where(valid_range)
@@ -218,7 +247,7 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
     FEATURE_COLS = list(dict.fromkeys(FEATURE_COLS))  # 去重保序
     base_feat_dim = len(FEATURE_COLS)
     agg_feat_dim = base_feat_dim * N_AGGS
-    print(f"鍩虹?鐗瑰緛鏁? {base_feat_dim}, 聚合方式: {N_AGGS}绉? 鑱氬悎鐗瑰緛鏁? {agg_feat_dim}")
+    print(f"基础特征数 {base_feat_dim}, 聚合方式: {N_AGGS}种，聚合特征数 {agg_feat_dim}")
 
     # ========== 3. 加载扩展因子 ==========
     all_dates = sorted(set().union(*[df.index for df in df_dict.values()]))
@@ -226,11 +255,11 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
     FEATURE_COLS = FEATURE_COLS + extra_feat_cols
     base_feat_dim = len(FEATURE_COLS)
     agg_feat_dim = base_feat_dim * N_AGGS
-    print(f"鏈EUR缁堢壒寰佸垪鏁? {base_feat_dim}, 鑱氬悎鐗瑰緛鏁? {agg_feat_dim}")
+    print(f"最终特征列数 {base_feat_dim}, 聚合特征数 {agg_feat_dim}")
 
     # ========== 4. 全局日期并集 ==========
     num_dates = len(all_dates)
-    print(f"鍏ㄥ眬鏃ユ湡鏁? {num_dates}")
+    print(f"全局日期数 {num_dates}")
 
     # ========== 5. 行业数据 ==========
     industry_file = os.path.join(os.path.dirname(data_dir), "stock_industry.csv")
@@ -248,11 +277,11 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
             all_industries = sorted(set(industry_dict.values()))
     n_industries = len(all_industries)
     industry_to_idx = {ind: i for i, ind in enumerate(all_industries)}
-    print(f"琛屼笟鏁? {n_industries}")
+    print(f"行业数 {n_industries}")
 
-    # ========== 6. 濉?厖鐗瑰緛鐭╅樀 ==========
+    # ========== 6. 填充特征矩阵 ==========
     # 构建 (num_stocks, num_dates, agg_feat_dim) 矩阵
-    # 杩欐槸鍞?竴鐨勫ぇ鐭╅樀锛屼絾蹇呴』瀛樺湪浠ヤ緵鍚庣画鎴?潰rank绛夋搷浣?
+    # 这是唯一的大矩阵，但必须存在以供后续截面rank等操作
     all_codes = list(df_dict.keys())
     num_stocks = len(all_codes)
     code_to_idx = {code: i for i, code in enumerate(all_codes)}
@@ -265,14 +294,14 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
     industry_array = np.full((num_stocks, num_dates), -1, dtype=np.int16)
     ret_seq_array = np.full((num_stocks, num_dates, max_horizon), np.nan, dtype=np.float32)
 
-    print("濉?厖鐗瑰緛鐭╅樀...")
-    for code, df in tqdm(df_dict.items(), desc="濉?厖鏁扮粍", mininterval=10):
+    print("填充特征矩阵...")
+    for code, df in tqdm(df_dict.items(), desc="填充数组", mininterval=10):
         sidx = code_to_idx[code]
         stock_dates = df.index
         stock_idx = np.array([date_to_idx[d] for d in stock_dates], dtype=np.int32)
         T_stock = len(stock_dates)
 
-        # V7鐗瑰緛鑱氬悎锛?种聚合替代原3种last/trend/vol锛?
+        # V7特征聚合：5种聚合替代原3种last/trend/vol
         raw_feat = df.reindex(columns=FEATURE_COLS).values
         if T_stock >= seq_len:
             windows = sliding_window_view(raw_feat, seq_len, axis=0)
@@ -280,7 +309,7 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
                 windows = windows.transpose(0, 2, 1)
             n_windows = windows.shape[0]
 
-            # 5绉嶅?尺度聚合
+            # 5种多尺度聚合
             last_val = windows[:, -1, :]                          # 鏈EUR鏂板EUR?
             sma5 = windows[:, -5:, :].mean(axis=1) if seq_len >= 5 else last_val
             sma20 = windows[:, -20:, :].mean(axis=1) if seq_len >= 20 else sma5
@@ -302,7 +331,7 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
         ind_id = industry_to_idx.get(raw_ind, -1) if raw_ind else -1
         industry_array[sidx, stock_idx] = ind_id
 
-        # 澶氭湡鏀剁泭鐜?
+        # 多期收益率
         close_vals = df['close'].values
         if T_stock >= max_horizon + 1:
             price_windows = sliding_window_view(close_vals, max_horizon + 1, axis=0)
@@ -312,10 +341,10 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
                 ret = (price_windows[:, h] - price_windows[:, 0]) / price_windows[:, 0]
                 ret_seq_array[sidx, ret_dates_idx, h - 1] = ret
 
-    # 濉?厖甯傚満鏁翠綋灞炴EURэ紙鍚戦噺鍖栬?算，避免O(N*D)寰?幆锛?
+    # 填充市场整体属性（向量化计算，避免O(N*D)循环）
     if getattr(config, 'use_market_features', True):
-        print("璁＄畻甯傚満鏁翠綋灞炴EUR?..")
-        # 1. 鏋勫缓鏀剁洏浠风煩闃?(num_stocks, num_dates) 鐢ㄤ簬鍚戦噺鍖栬?绠楀?搴︾壒寰?
+        print("计算市场整体属性...")
+        # 1. 构建收盘价矩阵(num_stocks, num_dates) 用于向量化计算宽度特征
         close_matrix = np.full((num_stocks, num_dates), np.nan, dtype=np.float32)
         for code, df in df_dict.items():
             sidx = code_to_idx[code]
@@ -323,31 +352,31 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
             stock_idx = np.array([date_to_idx[d] for d in stock_dates], dtype=np.int32)
             close_matrix[sidx, stock_idx] = df['close'].values.astype(np.float32)
 
-        # 2. 鍚戦噺鍖栬?绠楀?搴︾壒寰?(advance_decline, new_high_ratio, return_dispersion)
+        # 2. 向量化计算宽度特征(advance_decline, new_high_ratio, return_dispersion)
         breadth = compute_breadth_from_close_matrix(close_matrix)  # (num_dates, 3)
         del close_matrix  # 释放内存
 
         # 3. 指数特征
         idx_feat = build_market_features_index_only(config.data_dir, all_dates)
 
-        # 4. 鍚堝苟骞跺～鍏呭競鍦虹姸鎬佺壒寰?
-        # MARKET_COLS顺序: 16涓??鍩烘寚鏁?+ 3涓??搴︾壒寰?+ 31涓??涓氭敹鐩?+ 31涓??涓氬彲鐢ㄦEUR?ask
-        # idx_feat鍒楅『搴? 16涓??鍩烘寚鏁?+ 31涓??涓氭敹鐩?+ 31涓??涓氬彲鐢ㄦEUR?ask
+        # 4. 合并并填充市场状态特征
+        # MARKET_COLS顺序: 16个宽基指数+ 3个宽度特征+ 31个行业收益+ 31个行业可用性mask
+        # idx_feat列顺序 16个宽基指数+ 31个行业收益+ 31个行业可用性mask
         idx_feat_cols = list(idx_feat.columns)
         for t_idx, date in enumerate(all_dates):
             if date in idx_feat.index:
                 row = idx_feat.loc[date].values
-                # 鍓?6鍒? 宽基指数特征
+                # 前16列 宽基指数特征
                 risk_raw_array[:, t_idx, 3:19] = row[:16]
-                # 涓?棿3鍒? 宽度特征
+                # 中间3列 宽度特征
                 risk_raw_array[:, t_idx, 19:22] = breadth[t_idx]
-                # 鍚?2鍒? 行业指数收益 + 鍙?敤鎬?ask
+                # 后62列 行业指数收益 + 可用性mask
                 risk_raw_array[:, t_idx, 22:3 + N_MARKET] = row[16:]
         del breadth
-        print(f"宸插姞杞藉競鍦烘暣浣撳睘鎬? {MARKET_COLS}")
+        print(f"已加载市场整体属性 {MARKET_COLS}")
 
     if getattr(config, 'use_macro_features', False):
-        print("鍔犺浇瀹忚?/璧勯噾娴佺壒寰佸埌甯傚満鐘舵EUR?..")
+        print("加载宏观/资金流特征到市场状态...")
         try:
             from data.macro_factors import build_macro_features
             macro_df = build_macro_features(all_dates)
@@ -356,22 +385,22 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
                 if col in macro_df.columns:
                     vals = macro_df[col].reindex(all_dates).fillna(0).values.astype(np.float32)
                     risk_raw_array[:, :, macro_start + j] = vals[None, :]
-            print(f"宸插姞杞藉畯瑙?璧勯噾娴佺壒寰? {MACRO_COLS}")
+            print(f"已加载宏观/资金流特征 {MACRO_COLS}")
         except Exception as e:
-            print(f"瀹忚?/资金流特征加载失败，使用0濉?厖: {e}")
+            print(f"宏观/资金流特征加载失败，使用0填充: {e}")
 
-    # 閲婃斁涓嶅啀闇EUR瑕佺殑澶у?璞★紝涓烘埅闈㈡瀯寤鸿吘鍑哄唴瀛?
+    # 释放不再需要的大对象，为截面构建腾出内存
     import gc
     del df_dict
     gc.collect()
 
-    # ========== 7. 鏋勫缓鎴?潰鏍锋湰 ==========
-    print("鏋勫缓鎴?潰鏍锋湰...")
+    # ========== 7. 构建截面样本 ==========
+    print("构建截面样本...")
     X_samples = []
     min_stocks = getattr(config, 'min_stocks_per_time', 30)
     all_codes_np = np.array(all_codes)
 
-    for t in tqdm(range(seq_len, num_dates - max_horizon), desc="鏋勫缓鎴?潰", mininterval=10):
+    for t in tqdm(range(seq_len, num_dates - max_horizon), desc="构建截面", mininterval=10):
         X_t_all = feat_array[:, t, :]
         y_seq_all = ret_seq_array[:, t, :]
         risk_all = risk_raw_array[:, t, :]
@@ -389,16 +418,16 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
         risk_vals = risk_all[valid]
         ind_ids = ind_all[valid]
 
-        # V7: 澶氬懆鏈熷姞鏉冩爣绛撅紙鑰岄潪鍗曞懆鏈?future_len-1锛?
+        # V7: 多周期加权标签（而非单周期future_len-1）
         target_h = getattr(config, 'target_horizon', 5)
         h_idx = min(target_h - 1, max_horizon - 1)
-        y_t = y_seq_t[:, h_idx]           # 主标签用 target_horizon 鏃ユ敹鐩?
-        # y_seq_t 保留全部10个horizon鐢ㄤ簬澶氫换鍔¤?缁?
+        y_t = y_seq_t[:, h_idx]           # 主标签用 target_horizon 日收益
+        # y_seq_t 保留全部10个horizon用于多任务训练
 
-        # 鎴?潰rank特征
+        # 截面rank特征
         X_rank = np.argsort(np.argsort(X_t, axis=0), axis=0).astype(np.float32) / (X_t.shape[0] - 1)
 
-        # 琛屼笟鐩稿?特征：仅对last鑱氬悎鐨勬牳蹇冨洜瀛愯?算，避免维度过高
+        # 行业相对特征：仅对last聚合的核心因子计算，避免维度过高
         relative_indices = [FEATURE_COLS.index(name) for name in INDUSTRY_REL_FEATURES if name in FEATURE_COLS]
         n_relative = len(relative_indices)
         industry_relative = np.zeros((X_t.shape[0], n_relative), dtype=np.float32)
@@ -416,7 +445,7 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
         else:
             industry_relative = X_t[:, relative_indices]
 
-        # 拼接: 聚合特征 + rank特征 + 琛屼笟鐩稿?特征
+        # 拼接: 聚合特征 + rank特征 + 行业相对特征
         X_t = np.concatenate([X_t, X_rank, industry_relative], axis=1)
 
         # MAD鏍囧噯鍖?
@@ -426,7 +455,7 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
         X_norm = np.nan_to_num(X_norm, nan=0.0, posinf=0.0, neginf=0.0)
         X_norm = np.clip(X_norm, -10.0, 10.0)
 
-        # 风险因子标准化（仅前3涓?釜鑲＄骇椋庨櫓鍥犲瓙鍋氭埅闈㈡爣鍑嗗寲锛屽競鍦虹壒寰佷繚鎸佸師鍊硷級
+        # 风险因子标准化（仅前3个股票级风险因子做截面标准化，市场特征保持原值
         risk_cont_norm = risk_vals.copy()
         risk_mean = risk_vals[:, :3].mean(axis=0, keepdims=True)
         risk_std = risk_vals[:, :3].std(axis=0, keepdims=True) + 1e-8
@@ -444,12 +473,12 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
         else:
             risk_factors = risk_cont_norm
 
-        # 鏍囩?锛氱ǔ鍋ョ缉鏀?
+        # 标签：稳健缩放
         p_low, p_high = np.percentile(y_t, [1, 99])
         y_clipped = np.clip(y_t, p_low, p_high)
         y_label = (y_clipped - np.mean(y_clipped)) / (np.std(y_clipped) + 1e-8)
 
-        # 澶氭湡鏍囩?
+        # 多期标签
         y_seq_norm = np.zeros_like(y_seq_t)
         for h in range(max_horizon):
             y_h = y_seq_t[:, h]
@@ -468,9 +497,9 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
             'industry_ids': ind_ids,
         })
 
-    print(f"鎴?潰鏍锋湰鏁? {len(X_samples)}")
+    print(f"截面样本数 {len(X_samples)}")
 
-    # 鏄惧紡閲婃斁宸蹭笉鍐嶉渶瑕佺殑鐗瑰ぇ鏁扮粍锛岃妭鐪?~340 MB
+    # 显式释放已不再需要的特大数组，节省约340 MB
     del feat_array, risk_raw_array, industry_array, ret_seq_array
     gc.collect()
 

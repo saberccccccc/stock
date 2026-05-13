@@ -1,4 +1,5 @@
-# model_gat.py 鈥?GAT 浜т笟閾惧浘娉ㄦ剰鍔涚綉缁?import numpy as np
+# model_gat.py - GAT 产业链图注意力网络
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,10 +9,10 @@ from torch_geometric.nn import GATConv, global_mean_pool
 # ==================== 行业图谱构建 ====================
 def build_industry_graph(industry_dict, codes):
     """
-    鍩轰簬琛屼笟鍒嗙被鏋勯€犻偦鎺ョ煩闃?
+    基于行业分类构造邻接矩阵
     Args:
         industry_dict: {code: industry_name} 映射
-        codes: 褰撳墠鎴?潰鑲＄エ浠ｇ爜鍒楄〃
+        codes: 当前截面股票代码列表
     Returns:
         edge_index: torch.LongTensor shape (2, num_edges)
         edge_weight: torch.FloatTensor shape (num_edges,)
@@ -40,7 +41,7 @@ def build_industry_graph(industry_dict, codes):
                 edges_w.append(1.0)
 
     if not edges_src:
-        # 鏃犺?涓氫俊鎭?椂锛屾瀯閫犲叏杩炴帴鑷?幆
+        # 无行业信息时，构造自环
         N = len(codes)
         edge_index = torch.arange(N, dtype=torch.long).repeat(2, 1)
         edge_weight = torch.ones(N)
@@ -53,21 +54,23 @@ def build_industry_graph(industry_dict, codes):
 
 def build_correlation_edges(X, top_k=5):
     """
-    鍩轰簬鐗瑰緛鐩镐技搴﹁ˉ充跨行业连边（可选）
+    基于特征相似度补充跨行业连边（可选）
 
     Args:
         X: (N, F) 特征矩阵
-        top_k: 姣忓彧鑲＄エ杩炴帴鏈€鐩镐技鐨?K 涓?偦灞?    Returns:
+        top_k: 每只股票连接最相似的 K 个邻居
+    Returns:
         edge_index, edge_weight
     """
     N = X.shape[0]
-    # 浣欏鸡鐩镐技搴?    X_norm = X / (torch.norm(X, dim=1, keepdim=True) + 1e-8)
+    # 余弦相似度
+    X_norm = X / (torch.norm(X, dim=1, keepdim=True) + 1e-8)
     sim = X_norm @ X_norm.T  # (N, N)
 
     edges_src, edges_dst, edges_w = [], [], []
     for i in range(N):
         sim_i = sim[i].clone()
-        sim_i[i] = -1  # 鎺掗櫎鑷?幆
+        sim_i[i] = -1  # 排除自环
         top_idx = torch.topk(sim_i, min(top_k, N - 1)).indices
         for j in top_idx:
             edges_src.append(i)
@@ -88,7 +91,8 @@ class GATPredictor(nn.Module):
         self.input_proj = nn.Linear(input_dim, hidden_dim)
         self.dropout = nn.Dropout(dropout)
 
-        # GAT 鍗风Н灞?        self.gat_layers = nn.ModuleList()
+        # GAT 卷积层
+        self.gat_layers = nn.ModuleList()
         for i in range(n_layers):
             in_ch = hidden_dim if i == 0 else hidden_dim * n_heads
             out_ch = hidden_dim
@@ -96,7 +100,8 @@ class GATPredictor(nn.Module):
                 GATConv(in_ch, out_ch, heads=n_heads, dropout=dropout, concat=True)
             )
 
-        # 杈撳嚭澶?        final_dim = hidden_dim * n_heads
+        # 输出头
+        final_dim = hidden_dim * n_heads
         self.pred_head = nn.Sequential(
             nn.Linear(final_dim + hidden_dim, hidden_dim),
             nn.GELU(),
@@ -120,7 +125,7 @@ class GATPredictor(nn.Module):
             h_new = self.dropout(h_new)
             h = h_new
 
-        # 鎷兼帴鍘熷?特征投影 + GAT输出
+        # 拼接原始特征投影 + GAT输出
         h_out = torch.cat([h, h_res], dim=-1)
         pred = self.pred_head(h_out).squeeze(-1)
         return pred
@@ -136,7 +141,7 @@ def gat_rank_loss(pred, target):
     return -(pred_z * target_z).mean()
 
 
-# ==================== 鐙?珛娴嬭瘯 ====================
+# ==================== 独立测试 ====================
 if __name__ == "__main__":
     print("=== GAT 模型测试 ===\n")
 
@@ -147,10 +152,10 @@ if __name__ == "__main__":
 
     # 模拟行业
     codes = [f"{600000 + i}" for i in range(N)]
-    industries = ['閾惰?'] * 20 + ['白酒'] * 15 + ['ҽҩ'] * 25 + ['地产'] * 20 + ['电力'] * 20
+    industries = ['银行'] * 20 + ['白酒'] * 15 + ['医药'] * 25 + ['地产'] * 20 + ['电力'] * 20
     industry_dict = {code: industries[i] for i, code in enumerate(codes)}
 
-    print(f"industry graph: {N} nodes, {edge_index.shape[1]} edges")
+    edge_index, edge_weight = build_industry_graph(industry_dict, codes)
     print(f"industry graph: {N} nodes, {edge_index.shape[1]} edges")
 
     # 模型前向
@@ -163,5 +168,6 @@ if __name__ == "__main__":
     loss = gat_rank_loss(pred, y)
     print(f"Loss: {loss.item():.4f}")
 
-    # 鍙傛暟閲?    n_params = sum(p.numel() for p in model.parameters())
+    # 参数量
+    n_params = sum(p.numel() for p in model.parameters())
     print(f"参数总量: {n_params:,}")

@@ -1,14 +1,14 @@
-# update_data.py 鈥?鑲DOLLARエ鏃ョ嚎鏁版嵁鏇存柊鑴氭湰
+# update_data.py - 股票日线数据更新脚本
 """
-鐢ㄩEUR旓細
-  1. 灏嗘暟鎹?捣濮嬫棩鏈熶粠 2017 鎻愬墠鍒?2010
+用途：
+  1. 将数据起始日期从 2017 提前到 2010
   2. 增量更新到最新交易日
-  3. 閲嶅缓鎴?潰鏁版嵁闆嗙紦瀛?
+  3. 重建截面数据集缓存
 
-鐢ㄦ硶锛?
-  python update_data.py                      # 澧為噺鏇存柊锛堜粎鑾峰彇缂哄け鏃ユ湡锛?
-  python update_data.py --extend 20100101    # 扩展历史 + 鏇存柊鏈EURO鏂?
-  python update_data.py --rebuild-cache      # 鏇存柊鍚庨噸鍋氱紦瀛?
+用法：
+  python update_data.py                      # 增量更新（仅获取缺失日期）
+  python update_data.py --extend 20100101    # 扩展历史 + 更新最新
+  python update_data.py --rebuild-cache      # 更新后重做缓存
 """
 import os
 import sys
@@ -26,10 +26,10 @@ from datetime import datetime, timedelta
 def resolve_tushare_token(token=None):
     resolved = token or os.getenv('TUSHARE_TOKEN')
     if not resolved:
-        raise ValueError('缺少 TUSHARE_TOKEN锛岃?璁剧疆鐜??鍙橀噺鎴栭EURO氳繃 --token 传入')
+        raise ValueError('缺少 TUSHARE_TOKEN，请设置环境变量或通过 --token 传入')
     return resolved
 
-# ==================== TushareProLite锛堢簿绠EURO鑷?瑪璁版湰锛?===================
+# ==================== TushareProLite（精简自用版本）===================
 class TushareProLite:
     def __init__(self, token, max_workers=3, min_interval=2.0):
         import tushare as ts
@@ -78,11 +78,11 @@ class TushareProLite:
         return stable['ts_code'].tolist()
 
     def update_single_stock(self, ts_code, data_dir, start_date='20100101'):
-        """鏅鸿兘澧為噺鏇存柊锛氳ˉ全缺失的历史 + 杩藉姞鏈EURO鏂版暟鎹?"""
+        """智能增量更新：补全缺失的历史 + 追加最新数据"""
         end_date = datetime.today().strftime('%Y%m%d')
         csv_path = os.path.join(data_dir, f"{ts_code}.csv")
 
-        # 璇诲彇鏈?湴鏁版嵁
+        # 读取本地数据
         if os.path.exists(csv_path):
             try:
                 local = pd.read_csv(csv_path, index_col=0, parse_dates=True)
@@ -95,14 +95,14 @@ class TushareProLite:
             local_last = local.index.max().strftime('%Y%m%d')
             local_first = local.index.min().strftime('%Y%m%d')
 
-            # 情况1：本地已覆盖全部范围 鈫?鍙?ˉ鏈EURO鏂?
+            # 情况1：本地已覆盖全部范围 -> 只补最新
             if local_first <= start_date and local_last >= end_date:
                 return local
 
             need_history = (local_first > start_date)
             need_latest = (local_last < end_date)
 
-            # 情况2锛氬彧琛ュ巻鍙?
+            # 情况2：只补历史
             if need_history and not need_latest:
                 new = self._fetch_range(ts_code, start_date, local_first, subtract=1)
                 if new is not None and not new.empty:
@@ -111,7 +111,7 @@ class TushareProLite:
                     combined.to_csv(csv_path)
                     return combined
 
-            # 情况3锛氬彧琛ユ渶鏂?
+            # 情况3：只补最新
             if need_latest and not need_history:
                 next_day = (local.index.max() + timedelta(days=1)).strftime('%Y%m%d')
                 new = self._fetch_range(ts_code, next_day, end_date)
@@ -121,7 +121,7 @@ class TushareProLite:
                     combined.to_csv(csv_path)
                     return combined
 
-            # 情况4锛氫袱澶撮兘缂?鈫?闇EURO瑕佸叏閲?
+            # 情况4：两头都缺 -> 需要全量
             if need_history and need_latest:
                 new_full = self._fetch_range(ts_code, start_date, end_date)
                 if new_full is not None and not new_full.empty:
@@ -166,24 +166,23 @@ class TushareProLite:
 def batch_update(data_dir, token, start_date='20100101', max_workers=3,
                  batch_size=200, batch_sleep=30, limit=None):
     """
-    鎵归噺澧為噺鏇存柊鎵EURO鏈夎偂绁?
+    批量增量更新所有股票
 
     Args:
-        data_dir: 鏁版嵁鐩?綍
+        data_dir: 数据目录
         token: tushare token
-        start_date: 璧峰?日期（YYYYMMDD锛?
-        max_workers: 骞跺彂鏁?
-    print("batch incremental update all stocks")
-        batch_sleep: 鎵规?闂翠紤鐪犵?鏁帮紙閬垮厤闄愭祦锛?
-        limit: 闄愬埗鑲DOLLARエ鏁帮紙None=鍏ㄩ儴锛?
+        start_date: 起始日期（YYYYMMDD）
+        max_workers: 并发数
+        batch_sleep: 批次间休眠秒数（避免限流）
+        limit: 限制股票数（None=全部）
     """
     td = TushareProLite(token, max_workers=max_workers)
     stocks = td.get_stable_stocks(data_dir)
-    print(f"绋冲畾鑲DOLLARエ鎬绘暟: {len(stocks)}")
+    print(f"稳定股票总数: {len(stocks)}")
 
     if limit:
         stocks = stocks[:limit]
-        print(f"限制为前 {limit} 鍙?")
+        print(f"限制为前 {limit} 只")
 
     total = len(stocks)
     updated, skipped, failed = 0, 0, 0
@@ -193,7 +192,7 @@ def batch_update(data_dir, token, start_date='20100101', max_workers=3,
         batch_num = start // batch_size + 1
         total_batches = (total + batch_size - 1) // batch_size
         print(f"\n{'='*60}")
-        print(f"鎵规? {batch_num}/{total_batches}: {len(batch)} 鍙?偂绁?")
+        print(f"批次 {batch_num}/{total_batches}: {len(batch)} 只股票")
         print(f"{'='*60}")
 
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -204,7 +203,7 @@ def batch_update(data_dir, token, start_date='20100101', max_workers=3,
                 )] = code
 
             for future in tqdm(as_completed(futures), total=len(futures),
-                               desc=f"鎵规? {batch_num}"):
+                               desc=f"批次 {batch_num}"):
                 code = futures[future]
                 try:
                     df = future.result()
@@ -220,7 +219,7 @@ def batch_update(data_dir, token, start_date='20100101', max_workers=3,
               f"更新:{updated} 跳过:{skipped} 失败:{failed}")
 
         if start + batch_size < total:
-            print(f"鎵规?闂翠紤鐪?{batch_sleep}s...")
+            print(f"批次间休眠 {batch_sleep}s...")
             time.sleep(batch_sleep)
 
     print(f"\n{'='*60}")
@@ -228,9 +227,9 @@ def batch_update(data_dir, token, start_date='20100101', max_workers=3,
     print(f"{'='*60}")
 
 
-# ==================== 鏇存柊瀹忚?数据缓存 ====================
+# ==================== 更新宏观数据缓存 ====================
 def update_macro_cache():
-    """鍒犻櫎鏃х紦瀛橈紝閲嶆柊涓嬭浇瀹忚?数据"""
+    """删除旧缓存，重新下载宏观数据"""
     cache_dir = "cache"
     for f in ['north_flow.csv', 'margin_balance.csv', 'pmi.csv', 'pmi_pit_v2.csv']:
         path = os.path.join(cache_dir, f)
@@ -242,46 +241,46 @@ def update_macro_cache():
     fetch_north_flow()
     fetch_margin_balance()
     fetch_pmi()
-    print("瀹忚?鏁版嵁缂撳瓨宸叉洿鏂?")
+    print("宏观数据缓存已更新")
 
 
-# ==================== 閲嶅缓鎴?潰缂撳瓨 ====================
+# ==================== 重建截面缓存 ====================
 def rebuild_cross_cache():
-    """鍒犻櫎鏃ф埅闈紦瀛橈紝瑙﹀彂閲嶅缓"""
+    """删除旧截面缓存，触发重建"""
     cache_dir = "cache"
     for f in os.listdir(cache_dir):
         if f.startswith('cross_section_'):
             path = os.path.join(cache_dir, f)
             os.remove(path)
-            print(f"宸插垹闄ょ紦瀛? {f}")
+            print(f"已删除缓存 {f}")
 
-    print("\n涓嬫?杩愯? data_pipeline 鏃跺皢鑷?姩閲嶅缓鎴?潰鏁版嵁闆?")
+    print("\n下次运行 data_pipeline 时将自动重建截面数据集")
 
 
-# ==================== 涓荤▼搴?====================
+# ==================== 主程序====================
 def main():
-    parser = argparse.ArgumentParser(description='鑲DOLLARエ鏃ョ嚎鏁版嵁鏇存柊宸ュ叿')
+    parser = argparse.ArgumentParser(description='股票日线数据更新工具')
     parser.add_argument('--token', type=str, default=None,
-                        help='Tushare token锛涙湭浼犲叆鏃惰?鍙?TUSHARE_TOKEN 鐜??变量')
+                        help='Tushare token；未传入时读取 TUSHARE_TOKEN 环境变量')
     parser.add_argument('--data-dir', type=str,
                         default='data/raw',
-                        help='鏁版嵁鐩?綍')
+                        help='数据目录')
     parser.add_argument('--start-date', type=str, default='20100101',
-                        help='璧峰?日期 YYYYMMDD (榛樿?20100101)')
+                        help='起始日期 YYYYMMDD (默认20100101)')
     parser.add_argument('--extend', type=str, nargs='?', const='20100101',
                         help='extend history data to specified date (default 20100101)')
     parser.add_argument('--rebuild-cache', action='store_true',
-                        help='閲嶅缓鎴?潰鏁版嵁缂撳瓨')
+                        help='重建截面数据缓存')
     parser.add_argument('--update-macro', action='store_true',
-                        help='鏇存柊瀹忚?因子缓存')
+                        help='更新宏观因子缓存')
     parser.add_argument('--limit', type=int, default=None,
                         help='update stock data to latest date')
     parser.add_argument('--workers', type=int, default=3,
-                        help='骞跺彂鏁帮紙榛樿?3，避免限流）')
+                        help='并发数（默认3，避免限流）')
     parser.add_argument('--batch-size', type=int, default=200,
-                        help='FIXED')
+                        help='每批股票数（默认200）')
     parser.add_argument('--batch-sleep', type=int, default=45,
-                        help='FIXED')
+                        help='批次间休眠秒数（默认45）')
 
     args = parser.parse_args()
     start_date = args.extend if args.extend else args.start_date
@@ -289,10 +288,10 @@ def main():
 
     print(f"{'='*60}")
     print(f"数据更新工具")
-    print(f"  鏁版嵁鐩?綍: {args.data_dir}")
-    print(f"  璧峰?日期: {start_date}")
-    print(f"  骞跺彂鏁?   {args.workers}")
-    print(f"  姣忔壒鑲DOLLARエ: {args.batch_size} (鎵规?闂翠紤鐪?{args.batch_sleep}s)")
+    print(f"  数据目录: {args.data_dir}")
+    print(f"  起始日期: {start_date}")
+    print(f"  并发数   {args.workers}")
+    print(f"  每批股票: {args.batch_size} (批次间休眠 {args.batch_sleep}s)")
     print(f"{'='*60}")
 
     batch_update(
@@ -314,7 +313,7 @@ def main():
     print("\n全部完成!")
 
 
-# 鈥斺EURO斺EURO?鎸囨暟涓庤?涓氭暟鎹?笅杞斤紙鍘?fetch_data.py锛?鈥斺EURO斺EURO?
+# ==================== 指数与行业数据下载（原fetch_data.py）====================
 def fetch_index_data(symbol, save_path, start_date="2010-01-01", end_date="2026-12-31"):
     """下载指数日线数据"""
     import akshare as ak
@@ -325,11 +324,11 @@ def fetch_index_data(symbol, save_path, start_date="2010-01-01", end_date="2026-
     df.sort_index(inplace=True)
     df = df[(df.index >= start_date) & (df.index <= end_date)]
     df.to_csv(save_path)
-    print(f"指数数据已保存至 {save_path}，共 {len(df)} 鏉?")
+    print(f"指数数据已保存至 {save_path}，共 {len(df)} 条")
 
 
 def fetch_hs300_data(save_path="data/raw/hs300_index.csv", start_date="2010-01-01", end_date="2026-12-31"):
-    """涓嬭浇娌?繁300指数日线数据"""
+    """下载沪深300指数日线数据"""
     fetch_index_data("sh000300", save_path, start_date, end_date)
 
 
@@ -345,7 +344,7 @@ def fetch_broad_index_data(data_dir="data/raw", start_date="2010-01-01", end_dat
 
 
 def fetch_industry_data(save_path="data/stock_industry.csv"):
-    """下载A鑲¤?涓氬垎绫绘暟鎹?"""
+    """下载A股行业分类数据"""
     import baostock as bs
     lg = bs.login()
     if lg.error_code != '0':
@@ -353,7 +352,7 @@ def fetch_industry_data(save_path="data/stock_industry.csv"):
         return
     rs = bs.query_stock_industry()
     if rs.error_code != '0':
-        print(f"鏌ヨ?失败: {rs.error_msg}")
+        print(f"查询失败: {rs.error_msg}")
         bs.logout()
         return
     industry_list = []
@@ -362,7 +361,7 @@ def fetch_industry_data(save_path="data/stock_industry.csv"):
     result = pd.DataFrame(industry_list, columns=rs.fields)
     result.to_csv(save_path, index=False)
     bs.logout()
-    print(f"行业数据已保存至 {save_path}，共 {len(result)} 鏉?")
+    print(f"行业数据已保存至 {save_path}，共 {len(result)} 条")
 
 
 if __name__ == "__main__":

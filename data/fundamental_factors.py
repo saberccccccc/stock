@@ -1,4 +1,5 @@
-# fundamental_factors.py 鈥?季报基本面因子获取（按公告日PIT瀵归綈锛?import hashlib
+# fundamental_factors.py - 基本面因子获取及PIT对齐
+import hashlib
 import os
 import time
 import random
@@ -11,7 +12,9 @@ warnings.filterwarnings('ignore')
 
 CACHE_DIR = "cache"
 os.makedirs(CACHE_DIR, exist_ok=True)
-CACHE_VERSION = "pit_v2"
+CACHE_VERSION = "pit_v3_schema"
+FACTOR_SCHEMA = ('roe', 'revenue_yoy', 'pe_percentile')
+FACTOR_SCHEMA_VERSION = "schema_v1"
 
 _last_request_time = 0
 _min_interval = 2.0
@@ -20,14 +23,16 @@ _min_interval = 2.0
 def resolve_tushare_token(token=None):
     resolved = token or os.getenv('TUSHARE_TOKEN')
     if not resolved:
-        raise ValueError('缺少 TUSHARE_TOKEN锛岃?璁剧疆鐜??鍙橀噺鎴栦紶鍏?token')
+        raise ValueError('缺少 TUSHARE_TOKEN，请设置环境变量或传入token')
     return resolved
 
 
 def _cache_path(codes, start_date, end_date):
     joined = '|'.join(sorted(map(str, codes)))
     digest = hashlib.md5(joined.encode('utf-8')).hexdigest()[:12]
-    return os.path.join(CACHE_DIR, f"fundamental_features_{CACHE_VERSION}_{digest}_{start_date}_{end_date}.parquet")
+    schema_digest = hashlib.md5('|'.join(FACTOR_SCHEMA).encode('utf-8')).hexdigest()[:8]
+    filename = f"fundamental_features_{CACHE_VERSION}_{FACTOR_SCHEMA_VERSION}_{schema_digest}_{digest}_{start_date}_{end_date}.parquet"
+    return os.path.join(CACHE_DIR, filename)
 
 
 def _safe_ts_call(pro, func_name, *args, **kwargs):
@@ -66,14 +71,14 @@ def _rolling_percentile(values, window=1250, min_periods=60):
 
 def fetch_fundamentals(codes, token=None, start_date='20100101', end_date='20261231'):
     """
-    获取PIT鍩烘湰闈㈠洜瀛愰暱琛ㄣ€?
+    获取PIT基本面因子长表。
     Returns:
         DataFrame columns=[ts_code,effective_date,end_date,roe,revenue_yoy,pe_percentile]
     """
     cache_file = _cache_path(codes, start_date, end_date)
     if os.path.exists(cache_file):
         df = pd.read_parquet(cache_file)
-        print(f"从缓存加载PIT鍩烘湰闈㈠洜瀛? {df.shape}")
+        print(f"从缓存加载PIT基本面因子 {df.shape}")
         return df
 
     token = resolve_tushare_token(token)
@@ -81,7 +86,7 @@ def fetch_fundamentals(codes, token=None, start_date='20100101', end_date='20261
     ts.set_token(token)
     pro = ts.pro_api()
 
-    print("鑾峰彇鍒╂鼎琛ㄦ暟鎹?..")
+    print("获取利润表数据...")
     income_list = []
     for code in tqdm(codes, desc="income_table"):
         df = _safe_ts_call(
@@ -91,9 +96,9 @@ def fetch_fundamentals(codes, token=None, start_date='20100101', end_date='20261
         if df is not None and not df.empty:
             income_list.append(df)
 
-    print("鑾峰彇璧勪骇璐熷€鸿〃鏁版嵁...")
+    print("获取资产负债表数据...")
     balance_list = []
-    for code in tqdm(codes, desc="璧勪骇璐熷€鸿〃"):
+    for code in tqdm(codes, desc="资产负债表"):
         df = _safe_ts_call(
             pro, 'balancesheet', ts_code=code, start_date=start_date, end_date=end_date,
             fields='ts_code,ann_date,end_date,total_hldr_eqy_exc_min_int'
@@ -115,7 +120,7 @@ def fetch_fundamentals(codes, token=None, start_date='20100101', end_date='20261
         income_all = income_all.sort_values(['ts_code', 'end_date', 'ann_date'])
         balance_all = balance_all.sort_values(['ts_code', 'end_date', 'ann_date'])
 
-        # 鍘婚噸锛氭瘡涓?ts_code, end_date)淇濈暀鏈€鏂癮nn_date，避免merge浜х敓绗涘崱灏旂Н
+        # 去重：每个(ts_code, end_date)保留最新ann_date，避免merge产生笛卡尔积
         income_dedup = income_all.groupby(['ts_code', 'end_date']).last().reset_index()
         balance_dedup = balance_all.groupby(['ts_code', 'end_date']).last().reset_index()
 
@@ -138,7 +143,7 @@ def fetch_fundamentals(codes, token=None, start_date='20100101', end_date='20261
             'ts_code', 'effective_date', 'end_date', 'roe', 'revenue_yoy'
         ]])
 
-    print("鑾峰彇浼板€兼暟鎹?..")
+    print("获取估值数据...")
     daily_frames = []
     for code in tqdm(codes, desc="valuation_index"):
         df = _safe_ts_call(
@@ -213,7 +218,7 @@ def merge_to_daily(funda_df, code_list, all_dates):
 
 
 if __name__ == "__main__":
-    print("=== 鍩烘湰闈㈠洜瀛愭祴璇?===\n")
+    print("=== 基本面因子测试===\n")
     test_codes = ['000001.SZ', '600519.SH', '600000.SH']
     df = fetch_fundamentals(test_codes)
     print(df.head())

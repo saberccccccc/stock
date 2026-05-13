@@ -1,11 +1,12 @@
-# market_features.py 鈥?甯傚満鏁翠綋灞炴€ц?绠楋紙鎸囨暟銆佸?搴︺€佺?鏁ｅ害锛?import os
+# market_features.py - 市场整体属性计算（指数、宽度、离散度）
+import os
 import numpy as np
 import pandas as pd
 import warnings
 
 warnings.filterwarnings('ignore')
 
-# 鐢充竾涓€绾ц?涓氫唬鐮佸拰鍚嶇О
+# 申万一级行业代码和名称
 SW_INDUSTRIES = [
     ('801010', 'agriculture'), ('801030', 'chemical'), ('801040', 'steel'),
     ('801050', 'nonferrous'), ('801080', 'electronics'), ('801110', 'home_appliances'),
@@ -22,11 +23,11 @@ SW_INDUSTRIES = [
 
 # 市场特征列名
 MARKET_COLS = [
-    # 娌?繁300
+    # 沪深300
     'idx_ret_1d', 'idx_ret_5d', 'idx_ret_20d', 'idx_vol_20d',
     # 上证50
     'sz50_ret_1d', 'sz50_ret_5d', 'sz50_ret_20d', 'sz50_vol_20d',
-    # 涓?瘉500
+    # 中证500
     'zz500_ret_1d', 'zz500_ret_5d', 'zz500_ret_20d', 'zz500_vol_20d',
     # 创业板指
     'cyb_ret_1d', 'cyb_ret_5d', 'cyb_ret_20d', 'cyb_vol_20d',
@@ -34,7 +35,7 @@ MARKET_COLS = [
     'advance_decline', 'new_high_ratio', 'return_dispersion',
 ]
 
-# 娣诲姞琛屼笟鎸囨暟鏀剁泭涓庡彲鐢ㄦ€?ask列名
+# 添加行业指数收益与可用性mask列名
 for code, name in SW_INDUSTRIES:
     MARKET_COLS.append(f'sw_{code}_ret')
 for code, name in SW_INDUSTRIES:
@@ -44,10 +45,10 @@ N_MARKET = len(MARKET_COLS)
 
 
 def _compute_index_features(data_dir):
-    """浠?hs300_index.csv 计算指数特征"""
+    """从 hs300_index.csv 计算指数特征"""
     idx_path = os.path.join(data_dir, "hs300_index.csv")
     if not os.path.exists(idx_path):
-        print(f"警告: 鏈?壘鍒版寚鏁版枃浠?{idx_path}锛屾寚鏁扮壒寰佸皢濉?")
+        print(f"警告: 未找到指数文件 {idx_path}，指数特征将填0")
         return None
 
     df = pd.read_csv(idx_path)
@@ -64,17 +65,19 @@ def _compute_index_features(data_dir):
 
 def compute_breadth_from_close_matrix(close_matrix):
     """
-    浠?(num_stocks, num_dates) 鏀剁洏浠风煩闃佃?绠楀競鍦哄?搴︾壒寰併€?    使用numpy向量化，避免Python閫愭棩鏈?閫愯偂绁ㄥ惊鐜?€?
+    从 (num_stocks, num_dates) 收盘价矩阵计算市场宽度特征。
+    使用numpy向量化，避免Python逐日/逐股票循环。
     Args:
         close_matrix: (num_stocks, num_dates) float32, NaN表示缺失
 
     Returns:
-        breadth: (num_dates, 3) float32 鈥?advance_decline, new_high_ratio, return_dispersion
+        breadth: (num_dates, 3) float32 - advance_decline, new_high_ratio, return_dispersion
     """
     num_stocks, num_dates = close_matrix.shape
     breadth = np.zeros((num_dates, 3), dtype=np.float32)
 
-    # 鏃ユ敹鐩婄煩闃?    ret_matrix = np.full_like(close_matrix, np.nan)
+    # 日收益矩阵
+    ret_matrix = np.full_like(close_matrix, np.nan)
     ret_matrix[:, 1:] = (close_matrix[:, 1:] / close_matrix[:, :-1]) - 1
 
     for t in range(num_dates):
@@ -90,7 +93,7 @@ def compute_breadth_from_close_matrix(close_matrix):
         ad_ratio = (up + 1) / (down + 1)
         breadth[t, 0] = np.clip(np.log(ad_ratio), -2, 2)
 
-        # 新高比例: 当日收盘 >= 鍓?0鏃ユ渶楂?0.995
+        # 新高比例: 当日收盘 >= 前20日最高价 * 0.995
         if t >= 20:
             col_close = close_matrix[:, t]
             valid_c = ~np.isnan(col_close)
@@ -99,18 +102,19 @@ def compute_breadth_from_close_matrix(close_matrix):
                 new_high = (col_close[valid_c] >= high_20 * 0.995).sum()
                 breadth[t, 1] = new_high / max(valid_c.sum(), 1)
 
-        # 鎴?潰鏀剁泭绂绘暎搴?        breadth[t, 2] = np.std(rets)
+        # 截面收益离散度
+        breadth[t, 2] = np.std(rets)
 
     return breadth
 
 
 def _compute_index_features_full(idx_path, prefix):
     """
-    浠庢寚鏁版枃浠惰?算完整特征（1d/5d/20d收益 + 20d波动率）
+    从指数文件计算完整特征（1d/5d/20d收益 + 20d波动率）
 
     Args:
-        idx_path: 鎸囨暟鏂囦欢璺?緞
-        prefix: 鍒楀悕鍓嶇紑锛堝? 'idx', 'sz50', 'zz500', 'cyb'锛?
+        idx_path: 指数文件路径
+        prefix: 列名前缀（如 'idx', 'sz50', 'zz500', 'cyb'）
     Returns:
         DataFrame with 4 columns: {prefix}_ret_1d/5d/20d, {prefix}_vol_20d
     """
@@ -135,19 +139,19 @@ def _compute_index_features_full(idx_path, prefix):
 
 def build_market_features_index_only(data_dir, all_dates):
     """
-    浠庢寚鏁版枃浠舵瀯寤烘寚鏁扮壒寰侊紙涓嶅寘鍚??搴︾壒寰侊級銆?
+    从指数文件构建指数特征（不包含宽度特征）。
     Returns:
         DataFrame indexed by date with 16 + 31 + 31 = 78 index columns
     """
     all_dates = pd.DatetimeIndex(sorted(all_dates))
 
-    # 鍒濆?化结果DataFrame - 宽基指数
+    # 初始化结果DataFrame - 宽基指数
     index_cols = []
     for prefix in ['idx', 'sz50', 'zz500', 'cyb']:
         for suffix in ['ret_1d', 'ret_5d', 'ret_20d', 'vol_20d']:
             index_cols.append(f'{prefix}_{suffix}')
 
-    # 娣诲姞琛屼笟鎸囨暟鏀剁泭涓庡彲鐢ㄦ€?ask列名
+    # 添加行业指数收益与可用性mask列名
     for code, name in SW_INDUSTRIES:
         index_cols.append(f'sw_{code}_ret')
     for code, name in SW_INDUSTRIES:
@@ -173,7 +177,7 @@ def build_market_features_index_only(data_dir, all_dates):
         else:
             missing_index_files.append(filename)
     if missing_index_files:
-        print(f"警告: 缂哄皯瀹藉熀鎸囨暟鏂囦欢锛屽皢浠?濉?厖: {missing_index_files}")
+        print(f"警告: 缺少宽基指数文件，将以0填充: {missing_index_files}")
 
     # 读取行业指数数据
     sw_dir = os.path.join(data_dir, 'sw_industry')
@@ -198,17 +202,17 @@ def build_market_features_index_only(data_dir, all_dates):
     else:
         missing_sw = [code for code, _ in SW_INDUSTRIES]
     if missing_sw:
-        print(f"警告: 缺少{len(missing_sw)}涓?敵涓囪?业指数文件，将以0濉?厖")
+        print(f"警告: 缺少{len(missing_sw)}个申万行业指数文件，将以0填充")
 
     return result
 
 
 if __name__ == "__main__":
-    print("=== 甯傚満鏁翠綋灞炴€ф祴璇?===\n")
+    print("=== 市场整体属性测试===\n")
     data_dir = "data/raw"
     dates = pd.date_range('2020-01-01', '2025-12-31', freq='B')
     result = build_market_features_index_only(data_dir, dates)
     print(f"指数特征 shape: {result.shape}")
     print(result.head(10))
-    print("\n缁熻?鎽樿?:")
+    print("\n统计摘要:")
     print(result.describe())

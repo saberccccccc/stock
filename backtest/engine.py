@@ -1,7 +1,8 @@
-# backtest.py 鈥?澶氬懆鏈熷競鍦轰腑鎬х粍鍚堝洖娴嬩笌浼樺寲
+# backtest.py - 多周期市场中性组合回测与优化
 import argparse
 import os
 import sys
+from pathlib import Path
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -11,8 +12,10 @@ from scipy.stats import spearmanr
 import warnings
 import pickle
 import torch
-os.chdir(r"F:\stock_prediction\deepseek_optimized")
-sys.path.insert(0, os.getcwd())
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 warnings.filterwarnings('ignore')
 
 from core.config import DataConfig
@@ -20,7 +23,22 @@ from core.model import UltimateV7Model
 from core.train_utils import get_regime_dim
 from data.pipeline import build_cross_section_dataset, N_AGGS, INDUSTRY_REL_FEATURES
 
-# ==================== 澶氬懆鏈熸ā鍨嬭?练与加载 ====================
+# ==================== 多周期模型训练与加载 ====================
+def _stack_horizon_samples(samples, h):
+    X_list, y_list = [], []
+    for s in samples:
+        if s['y_seq'].shape[1] < h:
+            continue
+        y_vals = s['y_seq'][:, h - 1]
+        if np.all(np.isnan(y_vals)):
+            continue
+        X_list.append(s['X'])
+        y_list.append(y_vals)
+    if not X_list:
+        return None, None
+    return np.vstack(X_list), np.hstack(y_list)
+
+
 def train_multi_horizon_models(train_samples, val_samples, horizon_list=(1, 3, 5, 10),
                                model_dir="models_multi_v9_tech_macro"):
     os.makedirs(model_dir, exist_ok=True)
@@ -28,27 +46,17 @@ def train_multi_horizon_models(train_samples, val_samples, horizon_list=(1, 3, 5
     ic_by_horizon = []
 
     for h in horizon_list:
-        print(f"\n璁?粌 Horizon={h} 模型...")
-        X_list, y_list = [], []
-        for s in train_samples:
-            if s['y_seq'].shape[1] < h:
-                continue
-            y_vals = s['y_seq'][:, h - 1]
-            if np.all(np.isnan(y_vals)):
-                continue
-            X_list.append(s['X'])
-            y_list.append(y_vals)
-
-        if not X_list:
-            print(f"Horizon {h}: [FIXED]")
+        print(f"\n训练 Horizon={h} 模型...")
+        X_train, y_train = _stack_horizon_samples(train_samples, h)
+        if X_train is None:
+            print(f"Horizon {h}: 无可用训练样本")
             ic_by_horizon.append(0.0)
             continue
 
-        X_train = np.vstack(X_list)
-        y_train = np.hstack(y_list)
-        print(f"璁?粌鏁版嵁 shape: {X_train.shape}")
+        print(f"训练数据 shape: {X_train.shape}")
 
         dtrain = lgb.Dataset(X_train, label=y_train)
+        X_val, y_val = _stack_horizon_samples(val_samples, h)
         params = {
             'objective': 'regression', 'metric': 'rmse', 'boosting_type': 'gbdt',
             'num_leaves': 63, 'learning_rate': 0.03, 'feature_fraction': 0.7,
@@ -56,10 +64,15 @@ def train_multi_horizon_models(train_samples, val_samples, horizon_list=(1, 3, 5
             'lambda_l2': 0.2, 'min_data_in_leaf': 30, 'max_depth': -1,
             'verbose': -1, 'num_threads': 8,
         }
-        model = lgb.train(
-            params, dtrain, num_boost_round=300, valid_sets=[dtrain],
-            callbacks=[lgb.early_stopping(10)],
-        )
+        if X_val is not None:
+            dval = lgb.Dataset(X_val, label=y_val, reference=dtrain)
+            model = lgb.train(
+                params, dtrain, num_boost_round=300,
+                valid_sets=[dtrain, dval], valid_names=['train', 'valid'],
+                callbacks=[lgb.early_stopping(20), lgb.log_evaluation(0)],
+            )
+        else:
+            model = lgb.train(params, dtrain, num_boost_round=300)
         model.save_model(f"{model_dir}/lgb_h{h}.txt")
         models[h] = model
 
@@ -110,7 +123,7 @@ def resolve_device(device_arg):
 
 def load_v9_checkpoint(checkpoint_path, train_samples, cfg, device_arg="auto"):
     if not os.path.exists(checkpoint_path):
-        raise FileNotFoundError(f"V9 checkpoint涓嶅瓨鍦? {checkpoint_path}")
+        raise FileNotFoundError(f"V9 checkpoint不存在 {checkpoint_path}")
 
     device = resolve_device(device_arg)
     input_dim = train_samples[0]["X"].shape[1]
@@ -127,7 +140,7 @@ def load_v9_checkpoint(checkpoint_path, train_samples, cfg, device_arg="auto"):
     checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
     state_dict = checkpoint["model_state_dict"] if "model_state_dict" in checkpoint else checkpoint
 
-    # 从state_dict鑷?姩妫€娴嬫槸鍚︽湁GAT层，不依赖cfg.use_gat
+    # 从state_dict自动检测是否有GAT层，不依赖cfg.use_gat
     has_gat = any(
         k.startswith("gat_conv") or k.startswith("fusion_gate")
         for k in state_dict.keys()
@@ -195,7 +208,7 @@ class LGBPredictor:
     def predict_alpha(self, sample, valid, regime):
         return fused_alpha(self.models, sample["X"][valid], regime, self.ic_decay)
 
-# ==================== 甯傚満鐘舵€佽瘑鍒?====================
+# ==================== 市场状态识别====================
 def detect_regime(sample):
     risk_mean = np.mean(sample['risk'], axis=0)
     vol_z = risk_mean[1]
@@ -255,11 +268,17 @@ def compute_risk_model(B, R, lam=1e-3, decay=0.94):
         F_cov += weights[t] * (f @ f.T)
     diag = np.diag(np.diag(F_cov))
     F_cov = 0.2 * diag + 0.8 * F_cov
-    F_cov /= np.mean(np.diag(F_cov))
+    f_scale = np.mean(np.diag(F_cov))
+    if not np.isfinite(f_scale) or f_scale < 1e-8:
+        f_scale = 1.0
+    F_cov = np.nan_to_num(F_cov / f_scale, nan=0.0, posinf=0.0, neginf=0.0)
     fitted = (B @ factor_returns).T
     residuals = R - fitted
     D_diag = np.var(residuals, axis=0) + 1e-8
-    D_diag /= np.mean(D_diag)
+    d_scale = np.mean(D_diag)
+    if not np.isfinite(d_scale) or d_scale < 1e-8:
+        d_scale = 1.0
+    D_diag = np.nan_to_num(D_diag / d_scale, nan=1.0, posinf=1.0, neginf=1.0)
     return F_cov, D_diag
 
 
@@ -299,18 +318,18 @@ def build_simple_weights(alpha, mode="simple_ls", top_frac=0.10, max_leverage=1.
         alpha_bot = np.maximum(-alpha[bottom_idx], 0)
         w[bottom_idx] = -alpha_bot / (np.sum(alpha_bot) + 1e-12) * (max_leverage / 2)
     else:
-        raise ValueError(f"鏈?煡绠€鍗曠粍鍚堟ā寮? {mode}")
+        raise ValueError(f"未知简单组合模式 {mode}")
 
     return w
 
-# ==================== 椋庨櫓棰勭畻涓庝紭鍖?====================
+# ==================== 风险预算与优化====================
 def risk_budget_allocation(alpha, D_diag, target_vol=0.15):
-    """基于alpha寮哄害鍜屼釜鑲℃畫宸??闄╁垎閰嶉?闄╅?绠?
+    """基于alpha强度和个股残差风险分配风险预算
 
     Args:
         alpha: alpha信号强度
-        D_diag: 涓?偂娈嬪樊椋庨櫓锛堟潵鑷??闄╂ā型）
-        target_vol: 鐩?爣娉㈠姩鐜?
+        D_diag: 个股残差风险（来自风险模型）
+        target_vol: 目标波动率
 
     Returns:
         风险预算分配
@@ -319,11 +338,11 @@ def risk_budget_allocation(alpha, D_diag, target_vol=0.15):
     strength = np.abs(alpha)
     strength /= (np.sum(strength) + 1e-8)
 
-    # 娈嬪樊椋庨櫓鍔犳潈锛氭畫宸?柟宸?ぇ鐨勮偂绁ㄥ垎閰嶆洿灏戦?闄╅?绠?
+    # 残差风险加权：残差方差大的股票分配更少风险预算
     inv_risk = 1.0 / (D_diag + 1e-8)
     inv_risk /= (np.sum(inv_risk) + 1e-8)
 
-    # 娣峰悎锛?0%按alpha寮哄害锛?0%鎸夐?闄╁€掓暟
+    # 混合：50%按alpha强度，50%按风险倒数
     blended = 0.5 * strength + 0.5 * inv_risk
     blended /= (np.sum(blended) + 1e-8)
 
@@ -339,9 +358,9 @@ def optimize_with_risk_budget(alpha, B, beta, prev_w, F_cov, D_diag, risk_budget
     max_w_arr = (np.full(N, max_weight) if np.isscalar(max_weight)
                  else max_weight)
 
-    # 妫€娴嬫槸鍚︿负鍒濆?建仓
+    # 检测是否为初始建仓
     is_initial = prev_w is None or np.sum(np.abs(prev_w)) < 1e-8
-    lambda_init = 0.01 if is_initial else 0.0  # 鍒濆?寤轰粨鏃舵坊鍔犺交寰?殑浠撲綅瑙勬ā惩罚
+    lambda_init = 0.01 if is_initial else 0.0  # 初始建仓时添加轻微的仓位规模惩罚
 
     converged = False
     final_iter = n_iter
@@ -357,7 +376,7 @@ def optimize_with_risk_budget(alpha, B, beta, prev_w, F_cov, D_diag, risk_budget
             beta_exp = np.dot(w, beta)
             grad += 2 * lambda_b * beta_exp * beta
         if lambda_init > 0:
-            # 鍒濆?寤轰粨鎯╃綒锛氭儵缃氭€讳粨浣嶈?模，鼓励平滑建仓
+            # 初始建仓惩罚：惩罚总仓位规模，鼓励平滑建仓
             grad += lambda_init * np.sign(w)
 
         lr = lr0 / np.sqrt(i + 1)
@@ -369,7 +388,7 @@ def optimize_with_risk_budget(alpha, B, beta, prev_w, F_cov, D_diag, risk_budget
             w_new = w_new / lev * max_leverage
         w_new = w_new - np.mean(w_new)
 
-        # 浣跨敤鐩稿?鏀舵暃鍒ゆ嵁锛屽?澶ц?模组合更稳健
+        # 使用相对收敛判据，对大规模组合更稳健
         rel_change = np.linalg.norm(w_new - w) / (np.linalg.norm(w) + 1e-8)
         if rel_change < 1e-4:
             w = w_new
@@ -401,14 +420,14 @@ def optimize_with_risk_budget(alpha, B, beta, prev_w, F_cov, D_diag, risk_budget
 
     return w
 
-# ==================== 鎾?悎寮曟搸 ====================
+# ==================== 撮合引擎 ====================
 def execute_order_with_impact(w_target, prev_w, price, volume,
                               adv_ratio=0.02, impact_coeff=0.1,
                               portfolio_value=1e8, regime="sideways"):
-    """鎵ц?璁㈠崟骞惰?绠楀啿鍑绘垚鏈?
+    """执行订单并计算冲击成本
 
     Args:
-        regime: 甯傚満鐘舵€?("panic", "sideways", "trend_up")锛岀敤浜庤皟鏁村啿鍑绘垚鏈?
+        regime: 市场状态("panic", "sideways", "trend_up")，用于调整冲击成本
     """
     price = np.asarray(price, dtype=float)
     volume = np.asarray(volume, dtype=float)
@@ -417,7 +436,7 @@ def execute_order_with_impact(w_target, prev_w, price, volume,
     trade = w_target - prev_w
 
     valid_liquidity = np.isfinite(price) & np.isfinite(volume) & (price > 0) & (volume > 0)
-    # volume鍗曚綅鏄?墜锛?鎵?100鑲?
+    # volume单位是手，乘以100股
     dollar_vol = np.where(valid_liquidity, price * volume * 100, 0.0)
     max_trade_weight = np.where(
         dollar_vol > 0,
@@ -436,11 +455,11 @@ def execute_order_with_impact(w_target, prev_w, price, volume,
     # Cap turnover_ratio to prevent extreme impact cost from illiquid days
     turnover_ratio = np.clip(turnover_ratio, 0.0, 1.0)
 
-    # 甯傚満鐘舵€佽皟鑺傜郴鏁帮細鎭愭厡鏃舵祦鍔ㄦ€ф灟绔?紝鍐插嚮鎴愭湰鏇撮珮
+    # 市场状态调节系数：恐慌时流动性枯竭，冲击成本更高
     regime_multiplier = {
-        "panic": 1.5,      # 鎭愭厡甯傚満锛氭祦鍔ㄦ€ф灟绔?
-        "sideways": 1.0,   # 姝ｅ父甯傚満锛氬熀鍑?
-        "trend_up": 1.0    # 瓒嬪娍甯傚満锛氬熀鍑?
+        "panic": 1.5,      # 恐慌市场：流动性枯竭
+        "sideways": 1.0,   # 正常市场：基准
+        "trend_up": 1.0    # 趋势市场：基准
     }
     impact_coeff_adj = impact_coeff * regime_multiplier.get(regime, 1.0)
 
@@ -491,7 +510,7 @@ def build_universe_matrix(price_dict, vol_dict, all_codes):
             vol_mat[i] = vol_dict[code].reindex(all_dates).values
     return price_mat, vol_mat, all_dates, code2idx
 
-# ==================== 鍥炴祴涓诲嚱鏁?====================
+# ==================== 回测主函数====================
 def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
                             future_len=2, rebalance_freq=None, hist_window=60,
                             ewma_hl=20, adv_limit_ratio=0.02, adv_mode="execution",
@@ -499,27 +518,27 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
                             max_weight=0.05, lambda_t=0.05, lambda_b=0.2,
                             target_vol=0.15, impact_coeff=0.1, config=None,
                             portfolio_value=1e8):
-    # 鑷?姩纭?畾璋冧粨棰戠巼
+    # 自动确定调仓频率
     ic_decay = getattr(predictor, "ic_decay", None)
     if ic_decay is not None:
         ic_decay = np.asarray(ic_decay, dtype=float)
     if rebalance_freq is None and ic_decay is not None and len(ic_decay) > 0 and abs(ic_decay[0]) > 1e-8:
         ic_norm = ic_decay / (ic_decay[0] + 1e-8)
         for i in range(len(ic_norm)):
-            # 方法1锛氱粷瀵归槇鍊?- IC琛板噺鍒?0%以下
+            # 方法1：绝对阈值 - IC衰减到50%以下
             if ic_norm[i] < 0.5:
                 rebalance_freq = i + 1
                 break
-            # 方法2锛氳秼鍔挎?娴?- IC鏄捐憲涓嬮檷锛堜笅闄嶈秴杩?0%锛?
+            # 方法2：趋势检测 - IC显著下降（下降超过30%）
             if i > 0 and ic_norm[i] < ic_norm[i-1] * 0.7:
                 rebalance_freq = i + 1
                 break
         else:
-            # 閮芥湭瑙﹀彂锛氫娇鐢ㄩ粯璁や腑绛夊懆鏈?
+            # 都未触发：使用默认中等周期
             rebalance_freq = max(3, min(5, len(ic_decay)))
     if rebalance_freq is None:
         rebalance_freq = 5
-    print(f"棰勬祴鍣? {predictor.name}")
+    print(f"预测器 {predictor.name}")
     print(f"{rebalance_freq}")
     print(f"组合模式: {portfolio_mode} | top_frac={top_frac:.2%}")
     print(f"ADVģʽ: {adv_mode}")
@@ -600,11 +619,11 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
             alpha = predictor.predict_alpha(sample, valid, regime)
             alpha = np.nan_to_num(alpha, nan=0.0, posinf=0.0, neginf=0.0)
             if alpha.shape[0] != N:
-                raise ValueError(f"棰勬祴闀垮害涓嶅尮閰? alpha={alpha.shape[0]}, N={N}")
+                raise ValueError(f"预测长度不匹配 alpha={alpha.shape[0]}, N={N}")
             diag['valid_names'].append(N)
             diag['alpha_std'].append(float(np.std(alpha)))
 
-            # 甯傚満鎷╂椂锛氭勃娣?00指数低于60日均线时降低整体敞口
+            # 市场择时：沪深300指数低于60日均线时降低整体敞口
             market_mult = 1.0
             if portfolio_mode == "simple_long":
                 if col_cur >= 60 and np.isfinite(idx_close.iloc[col_cur]):
@@ -612,7 +631,7 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
                     idx_cur = idx_close.iloc[col_cur]
                     if idx_cur < idx_ma60:
                         market_mult = 0.7
-                    # 鏋佸害寮卞娍锛氳繛缁?涓?湀涓嬭穼锛岄檷鑷?.3
+                    # 极度弱势：连续6个月下跌，降至0.3
                     if col_cur >= 120:
                         idx_ret_6m = idx_close.iloc[col_cur] / idx_close.iloc[col_cur - 120] - 1
                         if idx_ret_6m < -0.10:
@@ -624,18 +643,17 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
                 idx_ret_hist = idx_daily.iloc[hist_start + 1:hist_end + 1].values
                 beta_vec = ewma_beta(rets, idx_ret_hist, ewma_hl)
 
-                # 浠呬娇鐢ㄤ釜鑲″洜瀛?0-2: size,vol,mom)鍜岃?ҵone-hot(87-169)作为风险模型因子
-                # 排除市场整体特征(3-86)锛屽洜涓烘墍鏈夎偂绁ㄥ叡浜?浉鍚屽€?
+                regime_dim = get_regime_dim(config)
                 B_style = np.hstack([
-                    sample['risk'][valid, :3],      # 涓?偂椋庢牸鍥犲瓙
-                    sample['risk'][valid, 87:]      # 行业one-hot
+                    sample['risk'][valid, :3],
+                    sample['risk'][valid, regime_dim:]
                 ])
                 F_cov, D_diag = compute_risk_model(B_style, R_mat)
 
                 max_w_arr = max_weight
-                # ⚠️ DEPRECATED: weight_cap妯″紡宸插純鐢?紝瀛樺湪璁捐?缺陷
-                # 闂??：优化器用历史ADV绾︽潫鏉冮噸锛屼絾鎵ц?鏃?00%成交(exec_adv_ratio=1e9)
-                # 褰撴棩娴佸姩鎬у樊鏃跺啿鍑绘垚鏈?垎鐐革紝瀵艰嚧鍥炴祴琛ㄧ幇鏋佸樊
+                # ⚠️ DEPRECATED: weight_cap模式已弃用，存在设计缺陷
+                # 问题：优化器用历史ADV约束权重，但执行时100%成交(exec_adv_ratio=1e9)
+                # 当日流动性差时冲击成本爆炸，导致回测表现极差
                 # 推荐使用execution模式（默认）
                 if adv_mode in ("weight_cap", "both") and vol_mat is not None and adv_limit_ratio > 0:
                     vol_hist = vol_mat[idx_full, hist_start:hist_end + 1]
@@ -644,7 +662,7 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
                     adv = np.nan_to_num(adv, nan=0.0, posinf=0.0, neginf=0.0)
                     dollar_vol = np.where(
                         (adv > 0) & np.isfinite(price_hist[:, -1]) & (price_hist[:, -1] > 0),
-                        adv * price_hist[:, -1] * 100,  # volume鏄?墜鏁帮紝闇€涔樹互100
+                        adv * price_hist[:, -1] * 100,  # volume是手数，需要乘以100
                         0.0,
                     )
                     max_w_adv = dollar_vol * adv_limit_ratio / portfolio_value
@@ -675,7 +693,7 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
 
             entry_day = col_cur + 1
             exit_day = entry_day + future_len
-            # 杈圭晫妫€鏌ワ細纭?繚exit_day涓嶈秴鍑鸿寖鍥?
+            # 边界检查：确保exit_day不超出范围
             if exit_day >= T_total:
                 exit_day = T_total - 1
             if entry_day >= T_total:
@@ -692,7 +710,7 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
                 w_target_tradable, prev_w, price_next, vol_next,
                 adv_ratio=exec_adv_ratio, impact_coeff=impact_coeff,
                 portfolio_value=portfolio_value,
-                regime=regime,  # 浼犲叆甯傚満鐘舵€佺敤浜庤皟鏁村啿鍑绘垚鏈?
+                regime=regime,  # 传入市场状态用于调整冲击成本
             )
             total_cost += impact_cost
             daily_costs[entry_day] += impact_cost
@@ -704,7 +722,10 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
                 diag['fill_ratio'].append(float(np.mean(fill_ratio[active_trade])))
             diag['untradable_ratio'].append(float(1.0 - np.mean(tradable)))
 
-            for d in range(entry_day + 1, min(exit_day + 1, T_total)):
+            hold_start = entry_day + 1
+            hold_end = min(exit_day, T_total - 1)
+            diag['holding_days_written'].append(max(0, hold_end - hold_start + 1))
+            for d in range(hold_start, hold_end + 1):
                 day_weights = daily_total_weights[d].copy()
                 day_weights[idx_full] = w_filled
                 daily_total_weights[d] = day_weights
@@ -728,7 +749,7 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
     port_ret = np.nan_to_num(np.array(daily_port_ret), nan=0.0)
     idx_ret_arr = np.nan_to_num(idx_daily.iloc[1:len(daily_port_ret) + 1].values, nan=0.0)
 
-    # 滚动Beta涓?€у寲
+    # 滚动Beta中性化
     neu_ret = []
     beta_estimates = []
     for i in range(len(port_ret)):
@@ -750,26 +771,26 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
         return float(np.mean(diag[key])) if diag[key] else 0.0
 
     print("\n========== 回测诊断 ==========")
-    print(f"棰勬祴鍣? {predictor.name} | 组合模式: {portfolio_mode}")
+    print(f"预测器 {predictor.name} | 组合模式: {portfolio_mode}")
     print(f"rebalance: attempts {diag_counts['rebalance_attempts']} | success {diag_counts['successful_rebalances']}")
-    print(f"骞冲潎鏈夋晥鑲＄エ鏁? {diag_mean('valid_names'):.1f}")
-    print(f"Alpha鏍囧噯宸? {diag_mean('alpha_std'):.4f}")
-    print(f"鐩?爣鏉犳潌: {diag_mean('target_leverage'):.3f} | 鎴愪氦鍚庢潬鏉? {diag_mean('filled_leverage'):.3f}")
-    print(f"平均换手/调仓: {diag_mean('turnover'):.3f} | 骞冲潎濉?厖鐜? {diag_mean('fill_ratio'):.3f}")
+    print(f"平均有效股票数 {diag_mean('valid_names'):.1f}")
+    print(f"Alpha标准差 {diag_mean('alpha_std'):.4f}")
+    print(f"目标杠杆: {diag_mean('target_leverage'):.3f} | 成交后杠杆 {diag_mean('filled_leverage'):.3f}")
+    print(f"平均换手/调仓: {diag_mean('turnover'):.3f} | 平均填充率 {diag_mean('fill_ratio'):.3f}")
     print(f"不可交易比例: {diag_mean('untradable_ratio'):.3%}")
     if diag['avg_adv_weight_cap']:
         print(f"平均ADV权重上限: {diag_mean('avg_adv_weight_cap'):.5f}")
     if portfolio_mode == "optimizer" and diag.get('opt_converged'):
         converged_rate = np.mean(diag['opt_converged']) if diag['opt_converged'] else 0.0
-        print(f"\n浼樺寲鍣ㄨ瘖鏂?")
-        print(f"  鏀舵暃鐜? {converged_rate:.1%}")
-        print(f"  骞冲潎杩?唬娆℃暟: {diag_mean('opt_iterations'):.1f}")
-        print(f"  椋庨櫓棰勭畻鍖归厤搴? {diag_mean('risk_budget_match'):.3f}")
+        print(f"\n优化器诊断")
+        print(f"  收敛率 {converged_rate:.1%}")
+        print(f"  平均迭代次数: {diag_mean('opt_iterations'):.1f}")
+        print(f"  风险预算匹配度 {diag_mean('risk_budget_match'):.3f}")
         print(f"  平均Beta暴露: {diag_mean('beta_exposure'):.4f}")
     print(f"非零持仓天数: {nonzero_days} / {T_total}")
     print(f"平均杠杆: {avg_leverage:.3f}")
-    print(f"骞冲潎浼拌?Beta: {(np.mean(beta_estimates) if beta_estimates else 0.0):.3f}")
-    print(f"鎬诲啿鍑绘垚鏈? {total_cost:.4f}")
+    print(f"平均估计Beta: {(np.mean(beta_estimates) if beta_estimates else 0.0):.3f}")
+    print(f"总冲击成本 {total_cost:.4f}")
     active = np.array([np.sum(np.abs(w)) > 0 for w in daily_total_weights[1:]], dtype=bool)
     if active.any():
         first_active = int(np.argmax(active))
@@ -810,7 +831,7 @@ def calc_metrics(returns):
 
 
 def calc_extended_metrics(returns):
-    """璁＄畻鎵╁睍鐨勯?闄╂寚鏍?"""
+    """计算扩展的风险指标"""
     if len(returns) == 0:
         return {}
 
@@ -819,7 +840,7 @@ def calc_extended_metrics(returns):
     days = len(returns)
     years = days / 252
 
-    # 鍩虹?指标
+    # 基础指标
     ann_ret = (cum[-1] ** (1 / years) - 1) * 100 if years > 0 and cum[-1] > 0 else 0.0
     sharpe = returns.mean() / (returns.std() + 1e-8) * np.sqrt(252)
     peak = np.maximum.accumulate(cum)
@@ -828,7 +849,7 @@ def calc_extended_metrics(returns):
     # Calmar比率
     calmar = ann_ret / (mdd * 100 + 1e-8) if mdd > 0 else 0.0
 
-    # Sortino姣旂巼锛堜笅琛屾尝鍔ㄧ巼锛?
+    # Sortino比率（下行波动率）
     downside_returns = returns[returns < 0]
     downside_std = np.std(downside_returns) if len(downside_returns) > 0 else 1e-8
     sortino = returns.mean() / (downside_std + 1e-8) * np.sqrt(252)
@@ -836,7 +857,7 @@ def calc_extended_metrics(returns):
     # 胜率
     win_rate = np.mean(returns > 0) if len(returns) > 0 else 0.0
 
-    # 鐩堜簭姣?
+    # 盈亏比
     avg_win = np.mean(returns[returns > 0]) if np.any(returns > 0) else 0.0
     avg_loss = np.mean(np.abs(returns[returns < 0])) if np.any(returns < 0) else 1e-8
     profit_loss_ratio = avg_win / (avg_loss + 1e-8)
@@ -909,7 +930,7 @@ def compare_predictors(all_results, output_dir="backtest_results"):
 
 
 def save_backtest_results(backtest_data, metrics, predictor_name, portfolio_mode, output_dir="backtest_results"):
-    """淇濆瓨鍥炴祴缁撴灉鍒版枃浠?"""
+    """保存回测结果到文件"""
     os.makedirs(output_dir, exist_ok=True)
     timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
     prefix = f"{output_dir}/{predictor_name}_{portfolio_mode}_{timestamp}"
@@ -923,7 +944,7 @@ def save_backtest_results(backtest_data, metrics, predictor_name, portfolio_mode
     })
     returns_df.to_csv(f"{prefix}_returns.csv", index=False)
 
-    # 淇濆瓨璇婃柇淇℃伅锛堝?鐞嗛暱搴︿笉涓€鑷寸殑鍒楄〃锛?
+    # 保存诊断信息（处理长度不一致的列表）
     diag_dict = backtest_data['diagnostics']
     if diag_dict:
         max_len = max(len(v) for v in diag_dict.values() if isinstance(v, list))
@@ -940,7 +961,7 @@ def save_backtest_results(backtest_data, metrics, predictor_name, portfolio_mode
     ext_metrics_raw = calc_extended_metrics(backtest_data['daily_returns'])
     ext_metrics_neu = calc_extended_metrics(backtest_data['neutral_returns'])
 
-    # 淇濆瓨鍒嗗勾搴﹀垎鏋?
+    # 保存分年度分析
     yearly_raw = analyze_by_period(
         backtest_data['daily_returns'],
         backtest_data['dates'][1:len(backtest_data['daily_returns'])+1],
@@ -952,43 +973,44 @@ def save_backtest_results(backtest_data, metrics, predictor_name, portfolio_mode
         period='year'
     )
 
-    # 淇濆瓨姹囨€绘寚鏍?
+    # 保存汇总指标
     with open(f"{prefix}_summary.txt", 'w', encoding='utf-8') as f:
-        f.write(f"棰勬祴鍣? {predictor_name}\n")
+        f.write(f"预测器 {predictor_name}\n")
         f.write(f"组合模式: {portfolio_mode}\n")
         f.write(f"\n========== 整体表现 ==========\n")
-        f.write(f"\n鍘熷?多空:\n")
+        f.write(f"\n原始多空:\n")
         for k, v in ext_metrics_raw.items():
             f.write(f"  {k}: {v:.4f}\n")
-        f.write(f"\n淇??涓?€?\n")
+        f.write(f"\n修正中性\n")
         for k, v in ext_metrics_neu.items():
             f.write(f"  {k}: {v:.4f}\n")
 
-        f.write(f"\n========== 鍒嗗勾搴﹁〃鐜帮紙鍘熷?锛?==========\n")
+        f.write(f"\n========== 分年度表现（原始）==========\n")
         for year, m in yearly_raw.items():
             f.write(f"\n{year}:\n")
             for k, v in m.items():
                 f.write(f"  {k}: {v:.4f}\n")
 
-        f.write(f"\n========== 璇婃柇缁熻? ==========\n")
+        f.write(f"\n========== 诊断统计 ==========\n")
         for k, v in backtest_data['diagnostic_counts'].items():
             f.write(f"{k}: {v}\n")
 
-    # 保存完整数据（pickle锛?
+    # 保存完整数据（pickle）
     with open(f"{prefix}_full_data.pkl", 'wb') as f:
         pickle.dump(backtest_data, f)
 
     print(f"\n结果已保存到: {prefix}_*")
     return prefix
 
-    parser = argparse.ArgumentParser(description="V9 DL model / LightGBM production backtest")
+
+def parse_args():
     parser = argparse.ArgumentParser(description="V9 DL model / LightGBM production backtest")
     parser.add_argument("--model-type", choices=["dl", "lgb", "both"], default="dl")
     parser.add_argument("--checkpoint", default="ultimate_v7_best.pt")
     parser.add_argument("--lgb-dir", default="models_multi_v9_tech_macro")
     parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
     parser.add_argument("--adv-mode", choices=["execution", "weight_cap", "both"], default="execution",
-                        help="ADV约束模式 (榛樿?: execution, 推荐). weight_cap宸插純鐢?紝瀛樺湪璁捐?缺陷导致冲击成本过高")
+                        help="ADV约束模式 (默认: execution, 推荐). weight_cap已弃用，存在设计缺陷导致冲击成本过高")
     parser.add_argument("--portfolio-mode", choices=["optimizer", "simple_ls", "simple_long"], default="optimizer")
     parser.add_argument("--top-frac", type=float, default=0.10)
     parser.add_argument("--rebalance-freq", type=int, default=None)
@@ -998,18 +1020,18 @@ def save_backtest_results(backtest_data, metrics, predictor_name, portfolio_mode
 def load_or_train_lgb(train, val, model_dir, horizon_list):
     expected_dim = train[0]['X'].shape[1]
     if not os.path.exists(f"{model_dir}/lgb_h1.txt"):
-        print("璁?粌澶氬懆鏈烲ightGBM模型...")
+        print("训练多周期LightGBM模型...")
         return train_multi_horizon_models(train, val, horizon_list, model_dir)
     print("加载已有LightGBM模型...")
     models, ic_decay = load_multi_horizon_models(horizon_list, model_dir)
     if not models_match_feature_dim(models, expected_dim):
-        print("已有LightGBM妯″瀷鐗瑰緛缁村害涓嶅尮閰嶏紝閲嶆柊璁?粌...")
+        print("已有LightGBM模型特征维度不匹配，重新训练...")
         models, ic_decay = train_multi_horizon_models(train, val, horizon_list, model_dir)
     return models, ic_decay
 
 
 def run_and_print_metrics(predictor, val, price_dict, vol_dict, cfg, args):
-    print(f"\n寮€濮嬬敓浜х骇鍥炴祴: {predictor.name}")
+    print(f"\n开始生产级回测: {predictor.name}")
     raw_ret, neu_ret, backtest_data = run_backtest_production(
         predictor, val, price_dict, vol_dict,
         future_len=cfg.target_horizon, rebalance_freq=args.rebalance_freq, hist_window=60,
@@ -1023,25 +1045,25 @@ def run_and_print_metrics(predictor, val, price_dict, vol_dict, cfg, args):
     ann_raw, sharpe_raw, mdd_raw = calc_metrics(raw_ret)
     ann_neu, sharpe_neu, mdd_neu = calc_metrics(neu_ret)
 
-    print(f"\n========== 鐢熶骇绾у洖娴嬬哗鏁?({predictor.name}, {args.portfolio_mode}) ==========")
-    print(f"鍘熷?多空: 年化 {ann_raw:.2f}% | 夏普 {sharpe_raw:.2f} | 回撤 {mdd_raw * 100:.2f}%")
-    print(f"淇??涓?€? 年化 {ann_neu:.2f}% | 夏普 {sharpe_neu:.2f} | 回撤 {mdd_neu * 100:.2f}%")
+    print(f"\n========== 生产级回测绩效({predictor.name}, {args.portfolio_mode}) ==========")
+    print(f"原始多空: 年化 {ann_raw:.2f}% | 夏普 {sharpe_raw:.2f} | 回撤 {mdd_raw * 100:.2f}%")
+    print(f"修正中性 年化 {ann_neu:.2f}% | 夏普 {sharpe_neu:.2f} | 回撤 {mdd_neu * 100:.2f}%")
 
-    # 璁＄畻骞舵樉绀烘墿灞曟寚鏍?
+    # 计算并显示扩展指标
     ext_metrics_raw = calc_extended_metrics(raw_ret)
     ext_metrics_neu = calc_extended_metrics(neu_ret)
 
     print(f"\n========== 扩展指标 ==========")
-    print(f"鍘熷?多空:")
+    print(f"原始多空:")
     print(f"  Calmar比率: {ext_metrics_raw.get('calmar', 0):.3f}")
     print(f"  Sortino比率: {ext_metrics_raw.get('sortino', 0):.3f}")
     print(f"  胜率: {ext_metrics_raw.get('win_rate', 0):.2f}%")
-    print(f"  鐩堜簭姣? {ext_metrics_raw.get('profit_loss_ratio', 0):.3f}")
-    print(f"淇??涓?€?")
+    print(f"  盈亏比 {ext_metrics_raw.get('profit_loss_ratio', 0):.3f}")
+    print(f"修正中性")
     print(f"  Calmar比率: {ext_metrics_neu.get('calmar', 0):.3f}")
     print(f"  Sortino比率: {ext_metrics_neu.get('sortino', 0):.3f}")
     print(f"  胜率: {ext_metrics_neu.get('win_rate', 0):.2f}%")
-    print(f"  鐩堜簭姣? {ext_metrics_neu.get('profit_loss_ratio', 0):.3f}")
+    print(f"  盈亏比 {ext_metrics_neu.get('profit_loss_ratio', 0):.3f}")
 
     # 保存结果
     metrics = {
@@ -1053,8 +1075,9 @@ def run_and_print_metrics(predictor, val, price_dict, vol_dict, cfg, args):
     return backtest_data, metrics
 
 
-# ==================== 涓荤▼搴?====================
+# ==================== 主程序====================
 def main():
+    os.chdir(PROJECT_ROOT)
     args = parse_args()
     cfg = DataConfig()
     cfg.use_technical_features = True
@@ -1065,12 +1088,12 @@ def main():
     cfg.seq_len = 40
     cfg.max_horizon = 10
 
-    print("鏋勫缓鎴?潰鏁版嵁闆?..")
+    print("构建截面数据集...")
     train, val = build_cross_section_dataset(cfg, use_cache=True)
 
     print("加载价格与成交量数据...")
     price_dict, vol_dict = load_price_volume(cfg)
-    print(f"鑲＄エ鏁? {len(price_dict)}")
+    print(f"股票数 {len(price_dict)}")
 
     predictors = []
     if args.model_type in ("dl", "both"):

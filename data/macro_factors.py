@@ -1,4 +1,4 @@
-# macro_factors.py 鈥?瀹忚?与资金流因子获取（akshare免费数据源）
+# macro_factors.py - 宏观与资金流因子获取（akshare免费数据源）
 import os
 import time
 import random
@@ -12,7 +12,7 @@ warnings.filterwarnings('ignore')
 CACHE_DIR = "cache"
 os.makedirs(CACHE_DIR, exist_ok=True)
 
-# ==================== 安全调用（参考TushareProLite闄愭祦閫昏緫锛?===================
+# ==================== 安全调用（参考TushareProLite限流逻辑===================
 _last_request_time = 0
 _min_interval = 1.5
 
@@ -33,9 +33,9 @@ def _safe_ak_call(func, *args, **kwargs):
             time.sleep(4 * (attempt + 1))
     return None
 
-# ==================== 鍖楀悜璧勯噾鍑EUR流入 ====================
+# ==================== 北向资金净流入 ====================
 def fetch_north_flow(save_path=None):
-    """鑾峰彇鍖楀悜璧勯噾鏃ラ?鍑EUR流入数据"""
+    """获取北向资金日频净流入数据"""
     import akshare as ak
     save_path = save_path or os.path.join(CACHE_DIR, "north_flow.csv")
 
@@ -49,24 +49,23 @@ def fetch_north_flow(save_path=None):
     df_sz = _safe_ak_call(ak.stock_hsgt_hist_em, symbol="shentong")
 
     if df is not None and not df.empty:
-        # 鍒楀悕锛氭棩鏈? 褰撴棩鎴愪氦鍑EUR涔伴?
+        # 列名：日期、当日成交净买额
         df['日期'] = pd.to_datetime(df['日期'])
-        net = pd.to_numeric(df['褰撴棩鎴愪氦鍑EUR涔伴?'], errors='coerce').fillna(0)
+        net = pd.to_numeric(df['当日成交净买额'], errors='coerce').fillna(0)
         result = pd.DataFrame({'net_flow': net.values}, index=df['日期'])
 
         if df_sz is not None and not df_sz.empty:
             df_sz['日期'] = pd.to_datetime(df_sz['日期'])
-            net_sz = pd.to_numeric(df_sz['褰撴棩鎴愪氦鍑EUR涔伴?'], errors='coerce').fillna(0)
+            net_sz = pd.to_numeric(df_sz['当日成交净买额'], errors='coerce').fillna(0)
             sz_series = pd.Series(net_sz.values, index=df_sz['日期'])
             result['net_flow'] = result['net_flow'].add(sz_series, fill_value=0)
 
         result = result.sort_index()
-        result['north_net_zscore'] = (
-            (result['net_flow'] - result['net_flow'].rolling(60).mean())
-            / (result['net_flow'].rolling(60).std() + 1e-8)
-        )
+        rolling_mean = result['net_flow'].rolling(60, min_periods=20).mean().shift(1)
+        rolling_std = result['net_flow'].rolling(60, min_periods=20).std().shift(1)
+        result['north_net_zscore'] = (result['net_flow'] - rolling_mean) / (rolling_std + 1e-8)
         result = result[['north_net_zscore']]
-        print(f"north flow saved: {len(result)} rows")
+        result.to_csv(save_path)
         print(f"north flow saved: {len(result)} rows")
         return result
 
@@ -76,9 +75,9 @@ def fetch_north_flow(save_path=None):
     return empty
 
 
-# ==================== 铻嶈祫铻嶅埜浣欓? ====================
+# ==================== 融资融券余额 ====================
 def fetch_margin_balance(save_path=None):
-    """鑾峰彇娌?繁铻嶈祫铻嶅埜浣欓?鏃ラ?数据"""
+    """获取沪深融资融券余额日频数据"""
     import akshare as ak
     save_path = save_path or os.path.join(CACHE_DIR, "margin_balance.csv")
 
@@ -88,15 +87,15 @@ def fetch_margin_balance(save_path=None):
         return df
 
     print("下载融资融券数据...")
-    # 浣跨敤瀹忚?接口：macro_china_market_margin_sh / sz
+    # 使用宏观接口：macro_china_market_margin_sh / sz
     df_sh = _safe_ak_call(ak.macro_china_market_margin_sh)
     df_sz = _safe_ak_call(ak.macro_china_market_margin_sz)
 
     frames = []
     for df, label in [(df_sh, 'sh'), (df_sz, 'sz')]:
-        if df is not None and not df.empty and '日期' in df.columns and '铻嶈祫铻嶅埜浣欓?' in df.columns:
+        if df is not None and not df.empty and '日期' in df.columns and '融资融券余额' in df.columns:
             df['日期'] = pd.to_datetime(df['日期'])
-            daily = df.groupby('日期')['铻嶈祫铻嶅埜浣欓?'].last()
+            daily = df.groupby('日期')['融资融券余额'].last()
             frames.append(daily)
 
     if frames:
@@ -105,23 +104,23 @@ def fetch_margin_balance(save_path=None):
         combined['margin_balance_change'] = combined['balance'].pct_change(5).fillna(0)
         result = combined[['margin_balance_change']]
         result.to_csv(save_path)
-        print(f"margin balance loaded: {len(df)} rows")
+        print(f"margin balance loaded: {len(result)} rows")
         return result
 
-    print("铻嶈祫铻嶅埜涓嬭浇澶辫触锛岀敓鎴愬崰浣嶆暟鎹?")
+    print("融资融券下载失败，生成占位数据")
     empty = pd.DataFrame(columns=['margin_balance_change'])
     empty.to_csv(save_path)
     return empty
 
 # ==================== PMI ====================
 def fetch_pmi(save_path=None):
-    """鑾峰彇鍒堕EUR犱笟PMI鏈堥?鏁版嵁锛屾寜淇濆畧鍙?幏寰楁棩鐢熸晥銆?"""
+    """获取制造业PMI月频数据，按保守可获得日生效。"""
     import akshare as ak
     save_path = save_path or os.path.join(CACHE_DIR, "pmi_pit_v2.csv")
 
     if os.path.exists(save_path):
         df = pd.read_csv(save_path, index_col=0, parse_dates=True)
-        print(f"从缓存加载PMI: {len(df)} 鏉?")
+        print(f"从缓存加载PMI: {len(df)} 条")
         return df
 
     print("下载PMI数据...")
@@ -135,7 +134,7 @@ def fetch_pmi(save_path=None):
             return pd.NaT
 
         df['month_date'] = df['月份'].apply(parse_pmi_month)
-        df['pmi'] = pd.to_numeric(df['鍒堕EUR犱笟-指数'], errors='coerce')
+        df['pmi'] = pd.to_numeric(df['制造业-指数'], errors='coerce')
         df = df.dropna(subset=['month_date', 'pmi']).sort_values('month_date')
         df['effective_date'] = df['month_date'] + pd.offsets.MonthBegin(1)
         expanding_mean = df['pmi'].expanding(min_periods=12).mean().shift(1)
@@ -144,19 +143,19 @@ def fetch_pmi(save_path=None):
         result = pd.DataFrame({'pmi_zscore': df['pmi_zscore'].values}, index=df['effective_date'])
         result = result.replace([np.inf, -np.inf], np.nan).sort_index()
         result.to_csv(save_path)
-        print(f"PMI宸蹭繚瀛? {len(result)} 鏉?")
+        print(f"PMI已保存: {len(result)} 条")
         return result
 
-    print("PMI涓嬭浇澶辫触锛岀敓鎴愬崰浣嶆暟鎹?")
+    print("PMI下载失败，生成占位数据")
     empty = pd.DataFrame(columns=['pmi_zscore'])
     empty.to_csv(save_path)
     return empty
 
 
-# ==================== 鏋勫缓瀹忚?特征 ====================
+# ==================== 构建宏观特征 ====================
 def build_macro_features(all_dates):
     """
-    灏嗗畯瑙傛暟鎹??齐到交易日历
+    将宏观数据对齐到交易日历
     all_dates: list/pd.Index of trade dates
     返回: DataFrame index=dates, columns=[north_net_zscore, margin_balance_change, pmi_zscore]
     """
@@ -179,7 +178,7 @@ def build_macro_features(all_dates):
     if not margin.empty and 'margin_balance_change' in margin.columns:
         macro['margin_balance_change'] = margin['margin_balance_change'].reindex(all_dates).fillna(0)
 
-    # 对齐PMI锛堟湀棰?鈫?鍓嶅悜濉?厖鍒版棩棰戯級
+    # 对齐PMI（月频 -> 前向填充到日频）
     if not pmi.empty and 'pmi_zscore' in pmi.columns:
         macro['pmi_zscore'] = pmi['pmi_zscore'].reindex(all_dates, method='ffill').fillna(0)
 
@@ -187,9 +186,9 @@ def build_macro_features(all_dates):
 
 
 if __name__ == "__main__":
-    print("=== 瀹忚?/璧勯噾娴佸洜瀛愭祴璇?===\n")
+    print("=== 宏观/资金流因子测试 ===\n")
     df = build_macro_features(pd.date_range('2020-01-01', '2025-12-31', freq='B'))
-    print(f"\n瀹忚?特征 shape: {df.shape}")
+    print(f"\n宏观特征 shape: {df.shape}")
     print(df.head(10))
-    print("\n缁熻?鎽樿?:")
+    print("\n统计摘要:")
     print(df.describe())
