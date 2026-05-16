@@ -292,21 +292,32 @@ Validation sample from `cache/cross_section_v13_config_key_tech_market_macro_all
 | union | simple_ls | 30.18% | 3.11 | 9.23% |
 | union | optimizer_projected | 28.43% | 3.07 | 8.97% |
 | union | optimizer_mvo_ra0p1 | 24.21% | 3.06 | 7.46% |
+| union | simple_long | 26.64% | 1.11 | 21.19% |
 
-**Concentrated ensemble (all top_frac tiers, simple_ls):**
+**Concentrated ensemble (all top_frac tiers, simple_ls and optimizer_projected):**
 
-| Strategy | top_frac | Raw ann | Raw Sharpe | Raw MDD |
-|----------|----------|---------|------------|---------|
-| top_union_bottom | 1% | **112.55%** | **5.49** | 9.06% |
-| avg_score | 1% | 108.62% | 5.44 | 8.17% |
-| top_union_bottom | 2% | 79.36% | 4.80 | 7.37% |
-| avg_score | 2% | 76.92% | 4.74 | 7.48% |
-| avg_score | 3% | 65.26% | 4.47 | 7.77% |
-| top_union_bottom | 3% | 64.91% | 4.39 | 8.37% |
-| avg_score | 5% | 52.32% | 4.14 | 7.32% |
-| top_union_bottom | 5% | 52.87% | 4.08 | 7.96% |
-| top_union_bottom | 10% | 41.08% | 3.76 | 8.39% |
-| avg_score | 10% | 38.33% | 3.51 | 8.96% |
+| Strategy | top_frac | Mode | Raw ann | Raw Sharpe | Raw MDD |
+|----------|----------|------|---------|------------|---------|
+| top_union_bottom | 1% | simple_ls | **112.55%** | **5.49** | 9.06% |
+| avg_score | 1% | simple_ls | 108.62% | 5.44 | 8.17% |
+| top_union_bottom | 1% | optimizer_projected | 104.90% | 5.40 | 8.71% |
+| avg_score | 1% | optimizer_projected | 101.17% | 5.34 | 7.92% |
+| top_union_bottom | 2% | simple_ls | 79.36% | 4.80 | 7.37% |
+| avg_score | 2% | simple_ls | 76.92% | 4.74 | 7.48% |
+| top_union_bottom | 2% | optimizer_projected | 74.33% | 4.73 | 7.18% |
+| avg_score | 2% | optimizer_projected | 71.78% | 4.66 | 7.33% |
+| avg_score | 3% | simple_ls | 65.26% | 4.47 | 7.77% |
+| top_union_bottom | 3% | simple_ls | 64.91% | 4.39 | 8.37% |
+| avg_score | 3% | optimizer_projected | 60.94% | 4.39 | 7.55% |
+| top_union_bottom | 3% | optimizer_projected | 60.64% | 4.32 | 8.08% |
+| avg_score | 5% | simple_ls | 52.32% | 4.14 | 7.32% |
+| top_union_bottom | 5% | simple_ls | 52.87% | 4.08 | 7.96% |
+| avg_score | 5% | optimizer_projected | 48.97% | 4.08 | 7.15% |
+| top_union_bottom | 5% | optimizer_projected | 49.48% | 4.01 | 7.74% |
+| top_union_bottom_intersection | 10% | simple_ls | 41.68% | 3.67 | 8.63% |
+| top_union_bottom_intersection | 10% | optimizer_projected | 39.31% | 3.63 | 8.37% |
+| avg_score | 10% | simple_ls | 38.33% | 3.51 | 8.96% |
+| avg_score | 10% | optimizer_projected | 36.03% | 3.47 | 8.72% |
 
 Key insight: alpha signal strength increases monotonically as selection narrows. 1% top_frac achieves 112%+ ann with Sharpe 5.49, but avg_long drops to ~29 stocks — execution liquidity becomes the binding constraint. 2-3% offers the best practical balance.
 
@@ -342,10 +353,14 @@ Tested layered portfolio rebalance strategy against traditional overwrite baseli
 
 | Frequency | Strategy | Ann Return | Sharpe | Max DD |
 |-----------|----------|------------|--------|--------|
-| r=5 | Overwrite (≈ensemble baseline) | ~37-41% | ~3.5-3.8 | ~8-9% |
+| r=1 | Overwrite | 49.24% | 4.06 | 10.83% |
+| r=1 | Layered | 34.82% | 3.57 | 5.63% |
+| r=2 | Overwrite | 44.67% | 3.74 | 10.43% |
+| r=2 | Layered | 32.30% | 3.64 | 4.88% |
+| r=5 | Overwrite | 34.93% | 3.20 | 8.91% |
 | r=5 | Layered | 34.97% | 3.20 | 8.91% |
 
-**Conclusion:** Layered strategy continues to underperform overwrite baseline. The weight decay mechanism dilutes alpha signals. Recommend sticking with overwrite rebalance.
+**Conclusion:** Layered strategy reduces drawdown at high rebalance frequency but gives up too much return (r=1/2). At r=5 it converges to overwrite behavior. Recommend overwrite for production unless explicitly optimizing for lower drawdown.
 
 ## Daily inference and recommendation (2026-05-15)
 
