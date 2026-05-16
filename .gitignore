@@ -14,6 +14,15 @@ data/raw/
 
 # Backtest results
 backtest_results/
+backtest_results_ensemble/
+backtest_results_intersection/
+backtest_results_layered/
+backtest_results_concentrated/
+backtest_results_persistent/
+backtest_results_single/
+
+# LightGBM models
+models_multi_v9_tech_macro/
 
 # Local settings
 .claude/
