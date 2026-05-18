@@ -110,6 +110,7 @@ EXPERIMENTS = {
 def parse_args():
     parser = argparse.ArgumentParser(description="Unified backtest entry for V9+GAT experiments")
     parser.add_argument("--experiment", choices=list(EXPERIMENTS.keys()), required=True)
+    parser.add_argument("--data-dir", default=None, help="Override data directory")
     return parser.parse_args()
 
 
@@ -211,6 +212,8 @@ def main():
     exp = EXPERIMENTS[args.experiment]
 
     cfg = build_v9_backtest_config()
+    if args.data_dir:
+        cfg.data_dir = args.data_dir
     print("加载数据...")
     runtime = load_backtest_runtime(cfg, use_cache=True)
 

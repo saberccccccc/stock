@@ -135,10 +135,11 @@ class UltimateV7Model(nn.Module):
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
 
-        # 多头Alpha
+        # 多头Alpha（exp: +Dropout +LayerNorm）
         self.alpha_heads = nn.ModuleList([
             nn.Sequential(
-                nn.Linear(hidden_dim, hidden_dim), nn.GELU(),
+                nn.Dropout(0.1),
+                nn.Linear(hidden_dim, hidden_dim), nn.LayerNorm(hidden_dim), nn.GELU(),
                 nn.Linear(hidden_dim, 1)
             )
             for _ in range(n_alpha)
@@ -147,10 +148,11 @@ class UltimateV7Model(nn.Module):
             nn.Linear(hidden_dim, n_alpha), nn.Softmax(dim=-1)
         )
 
-        # 多周期预测头
+        # 多周期预测头（exp: +Dropout +LayerNorm）
         self.horizon_heads = nn.ModuleList([
             nn.Sequential(
-                nn.Linear(hidden_dim, hidden_dim), nn.GELU(),
+                nn.Dropout(0.1),
+                nn.Linear(hidden_dim, hidden_dim), nn.LayerNorm(hidden_dim), nn.GELU(),
                 nn.Linear(hidden_dim, 1)
             )
             for _ in range(n_horizons)

@@ -110,12 +110,15 @@ def parse_args():
     parser.add_argument("--lr", type=float, default=3e-4, help="Learning rate")
     parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
     parser.add_argument("--output-dir", default=None, help="Override checkpoint directory")
+    parser.add_argument("--data-dir", default=None, help="Override data directory (e.g. ../deepseek_optimized/data/raw)")
     return parser.parse_args()
 
 
 # ── Core helpers ──────────────────────────────────────────
-def build_config(mc):
+def build_config(mc, data_dir=None):
     cfg = DataConfig()
+    if data_dir:
+        cfg.data_dir = data_dir
     cfg.use_technical_features = True
     cfg.min_stocks_per_time = 30
     cfg.target_horizon = 5
@@ -241,7 +244,7 @@ def train(args):
     try:
         print_banner(mc)
 
-        cfg = build_config(mc)
+        cfg = build_config(mc, data_dir=args.data_dir)
         if args.test_stocks is not None:
             cfg.test_mode = True
             cfg.test_stocks = args.test_stocks
