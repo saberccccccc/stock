@@ -7,19 +7,17 @@ __pycache__/
 *.log
 *.pth
 *.pt
+checkpoints/
+logs/
 
 # Cache & data
 cache/
 data/raw/
+data/tracking_raw/
+recommendations/
 
 # Backtest results
-backtest_results/
-backtest_results_ensemble/
-backtest_results_intersection/
-backtest_results_layered/
-backtest_results_concentrated/
-backtest_results_persistent/
-backtest_results_single/
+backtest_results*/
 
 # LightGBM models
 models_multi_v9_tech_macro/

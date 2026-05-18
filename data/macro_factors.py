@@ -1,11 +1,11 @@
 # macro_factors.py - 宏观与资金流因子获取（akshare免费数据源）
 import os
-import time
-import random
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import warnings
+
+from data.api_utils import SafeAPICaller
 
 warnings.filterwarnings('ignore')
 
@@ -13,25 +13,18 @@ CACHE_DIR = "cache"
 os.makedirs(CACHE_DIR, exist_ok=True)
 
 # ==================== 安全调用（参考TushareProLite限流逻辑===================
-_last_request_time = 0
-_min_interval = 1.5
+_ak_call = SafeAPICaller(
+    min_interval=1.5,
+    max_retries=3,
+    retry_base_delay=4.0,
+    jitter=(0.2, 0.5),
+    data_source="akshare",
+)
 
 
 def _safe_ak_call(func, *args, **kwargs):
     """带重试和限流的akshare调用"""
-    global _last_request_time
-    for attempt in range(3):
-        try:
-            elapsed = time.time() - _last_request_time
-            if elapsed < _min_interval:
-                time.sleep(_min_interval - elapsed)
-            _last_request_time = time.time()
-            time.sleep(random.uniform(0.2, 0.5))
-            return func(*args, **kwargs)
-        except Exception as e:
-            print(f"  请求失败 ({attempt+1}/3): {e}, 等待 {4*(attempt+1)}s")
-            time.sleep(4 * (attempt + 1))
-    return None
+    return _ak_call(func, *args, **kwargs)
 
 # ==================== 北向资金净流入 ====================
 def fetch_north_flow(save_path=None):
@@ -83,7 +76,7 @@ def fetch_margin_balance(save_path=None):
 
     if os.path.exists(save_path):
         df = pd.read_csv(save_path, index_col=0, parse_dates=True)
-        print("macro factor: PMI zscore range fixed")
+        print(f"cache: loaded margin balance {len(df)} rows")
         return df
 
     print("下载融资融券数据...")

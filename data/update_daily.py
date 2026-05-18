@@ -2,50 +2,42 @@
 # 用法: python update_daily_data.py [--workers 2]
 # 可随时 Ctrl+C 中断，重新运行会自动跳过已更新的股票
 
-import os, sys, time, random, argparse, json
-import pandas as pd
-import numpy as np
-from tqdm import tqdm
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta
+import argparse
+import json
+import os
+import sys
 import warnings
+from datetime import datetime, timedelta
+
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
+
+from data.api_utils import SafeAPICaller, resolve_tushare_token
 
 warnings.filterwarnings('ignore')
 
 # ==================== 配置 ====================
-DATA_DIR = "data/raw"
+DATA_DIR = "data/tracking_raw"  # 日更写入 tracking_raw，避免污染训练/回测全量数据
 START_DATE = "20100101"
 MIN_INTERVAL = 1.5       # API最小间隔（秒）
 BATCH_SLEEP = 60         # 批次间休息（秒）
+MIN_SAFE_ROWS = 200      # 如果本地已有文件超过此行数，绝不允许覆盖为更少的行
 
 PROGRESS_FILE = os.path.join(DATA_DIR, "_update_progress.json")
 os.makedirs(DATA_DIR, exist_ok=True)
 
+_api_call = SafeAPICaller(
+    min_interval=MIN_INTERVAL,
+    max_retries=3,
+    retry_base_delay=4.0,
+    jitter=(0.2, 0.4),
+    data_source="tushare",
+)
 
-def resolve_tushare_token(token=None):
-    resolved = token or os.getenv('TUSHARE_TOKEN')
-    if not resolved:
-        raise ValueError('缺少 TUSHARE_TOKEN，请设置环境变量或通过 --token 传入')
-    return resolved
-
-# ==================== 安全限流调用 ====================
-_last_request_time = 0
 
 def safe_call(func, *args, **kwargs):
-    global _last_request_time
-    for attempt in range(3):
-        try:
-            elapsed = time.time() - _last_request_time
-            if elapsed < MIN_INTERVAL:
-                time.sleep(MIN_INTERVAL - elapsed)
-            _last_request_time = time.time()
-            time.sleep(random.uniform(0.2, 0.4))
-            return func(*args, **kwargs)
-        except Exception as e:
-            wait = 4 * (attempt + 1)
-            print(f"  重试{attempt+1}/3: {e}, 等待{wait}s")
-            time.sleep(wait)
-    return None
+    return _api_call(func, *args, **kwargs)
 
 
 def fetch_one_stock(pro, ts_code, start_date, end_date):
@@ -64,6 +56,46 @@ def fetch_one_stock(pro, ts_code, start_date, end_date):
     df['factor'] = 1.0
     df['code'] = ts_code
     return df[['code', 'open', 'high', 'low', 'close', 'volume', 'money', 'factor']]
+
+
+def fetch_batch_stocks(pro, ts_codes, start_date, end_date):
+    """批量获取多只股票日线（单次API调用）"""
+    code_str = ','.join(ts_codes)
+    df = safe_call(
+        pro.daily, ts_code=code_str,
+        start_date=start_date, end_date=end_date,
+        fields='ts_code,trade_date,open,high,low,close,vol,amount'
+    )
+    if df is None or df.empty:
+        return {}
+    df['trade_date'] = pd.to_datetime(df['trade_date'])
+    df.set_index('trade_date', inplace=True)
+    df.sort_index(inplace=True)
+    df.rename(columns={'vol': 'volume', 'amount': 'money'}, inplace=True)
+    df['factor'] = 1.0
+    result = {}
+    for code, group in df.groupby('ts_code'):
+        group = group.copy()
+        group['code'] = code
+        result[code] = group[['code', 'open', 'high', 'low', 'close', 'volume', 'money', 'factor']]
+    return result
+
+
+def safe_to_csv(df, csv_path, min_rows=MIN_SAFE_ROWS):
+    """安全写入：如果本地已有更多行数据，则合并而非覆盖"""
+    if os.path.exists(csv_path):
+        try:
+            existing = pd.read_csv(csv_path, index_col=0, parse_dates=True)
+            if len(existing) > max(len(df), min_rows):
+                combined = pd.concat([existing, df])
+                combined = combined[~combined.index.duplicated(keep='last')]
+                combined.sort_index(inplace=True)
+                combined.to_csv(csv_path)
+                return len(combined)
+        except Exception:
+            pass
+    df.to_csv(csv_path)
+    return len(df)
 
 
 def needs_update(ts_code):
@@ -104,21 +136,26 @@ def update_one(pro, ts_code):
 
     if 'incremental' in info:
         # 只拉增量
-        local_df = pd.read_csv(csv_path, index_col=0, parse_dates=True)
-        next_day = (local_df.index.max() + timedelta(days=1)).strftime('%Y%m%d')
-        new_df = fetch_one_stock(pro, ts_code, next_day, end_date)
-        if new_df is not None and not new_df.empty:
-            combined = pd.concat([local_df, new_df])
-            combined = combined[~combined.index.duplicated(keep='last')]
-            combined.sort_index(inplace=True)
-            combined.to_csv(csv_path)
-            return ts_code, 'incremental', len(new_df)
-        return ts_code, 'skip', 0
+        try:
+            local_df = pd.read_csv(csv_path, index_col=0, parse_dates=True)
+        except Exception:
+            local_df = pd.DataFrame()
+        if not local_df.empty:
+            next_day = (local_df.index.max() + timedelta(days=1)).strftime('%Y%m%d')
+            new_df = fetch_one_stock(pro, ts_code, next_day, end_date)
+            if new_df is not None and not new_df.empty:
+                combined = pd.concat([local_df, new_df])
+                combined = combined[~combined.index.duplicated(keep='last')]
+                combined.sort_index(inplace=True)
+                safe_to_csv(combined, csv_path)
+                return ts_code, 'incremental', len(new_df)
+            return ts_code, 'skip', 0
+        # 本地文件无法读取或为空，回退到全量重拉
     else:
         # 全量重拉
         df = fetch_one_stock(pro, ts_code, START_DATE, end_date)
         if df is not None and not df.empty:
-            df.to_csv(csv_path)
+            safe_to_csv(df, csv_path)
             return ts_code, 'full', len(df)
         return ts_code, 'fail', 0
 
@@ -157,11 +194,24 @@ def get_stock_list(pro):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--workers', type=int, default=2)
-    parser.add_argument('--batch', type=int, default=30)
+    parser.add_argument('--batch', type=int, default=30,
+                        help='每批处理的股票数（用于进度保存粒度，非API批次大小）')
+    parser.add_argument('--api-batch', type=int, default=50,
+                        help='每次Tushare API调用包含的股票数（默认50）')
+    parser.add_argument('--api-sleep', type=int, default=5,
+                        help='API批次间休息秒数（默认5）')
     parser.add_argument('--test', type=int, default=0)
     parser.add_argument('--token', type=str, default=None,
                         help='Tushare token；未传入时读取 TUSHARE_TOKEN 环境变量')
+    parser.add_argument('--data-dir', type=str, default='data/tracking_raw',
+                        help='日更数据目录（默认 data/tracking_raw，避免污染 data/raw 训练数据）')
     args = parser.parse_args()
+
+    global DATA_DIR, PROGRESS_FILE
+    DATA_DIR = args.data_dir
+    PROGRESS_FILE = os.path.join(DATA_DIR, "_update_progress.json")
+    os.makedirs(DATA_DIR, exist_ok=True)
+
     token = resolve_tushare_token(args.token)
 
     import tushare as ts
@@ -179,53 +229,99 @@ def main():
 
     total = len(remaining)
     stats = progress['stats'].copy()
-    start_batch = progress.get('batch', 0)
 
     if total == 0:
         print("全部股票已更新完成！")
         print(f"统计: 全量{stats['full']} | 增量{stats['incremental']} | 跳过{stats['skip']} | 失败{stats['fail']}")
         return
 
-    print(f"待更新 {total} 只(共{len(stocks)} 只")
-    batch_count = (total + args.batch - 1) // args.batch
+    print(f"待更新 {total} 只(共{len(stocks)} 只)")
+    print(f"API批次大小: {args.api_batch} 只/调用, 批次间休息: {args.api_sleep}s")
 
-    for bi in range(batch_count):
-        batch = remaining[bi * args.batch: (bi + 1) * args.batch]
-        print(f"\n{'=' * 55}")
-        print(f"批次 {start_batch + bi + 1}/{start_batch + batch_count} | "
-              f"{bi * args.batch + 1}-{min((bi + 1) * args.batch, total)} / {total}")
+    end_date = datetime.today().strftime('%Y%m%d')
 
-        batch_updated = []
-        with ThreadPoolExecutor(max_workers=args.workers) as executor:
-            futures = {executor.submit(update_one, pro, code): code for code in batch}
-            for future in tqdm(as_completed(futures), total=len(batch), desc=f"进度"):
-                try:
-                    code, status, n_rows = future.result()
-                    stats[status] = stats.get(status, 0) + 1
-                    if status != 'fail':
-                        batch_updated.append(code)
-                except Exception as e:
-                    print(f"  异常: {e}")
-                    stats['fail'] += 1
+    # 预处理：分类股票并决定每只需要拉取的日期范围
+    tasks_full = []
+    tasks_incremental = []
+    skipped = 0
+    for code in tqdm(remaining, desc="分类股票"):
+        needs, info = needs_update(code)
+        if not needs:
+            skipped += 1
+            stats['skip'] = stats.get('skip', 0) + 1
+            continue
+        if 'full' in info:
+            tasks_full.append((code, START_DATE))
+        else:
+            csv_path = os.path.join(DATA_DIR, f"{code}.csv")
+            local_df = pd.read_csv(csv_path, index_col=0, parse_dates=True)
+            next_day = (local_df.index.max() + timedelta(days=1)).strftime('%Y%m%d')
+            tasks_incremental.append((code, next_day))
+    stats['skip'] = stats.get('skip', 0) + skipped
 
-        # 保存进度
-        updated_set.update(batch_updated)
-        progress['updated'] = list(updated_set)
-        progress['batch'] = start_batch + bi + 1
-        progress['stats'] = stats
-        save_progress(progress)
+    print(f"全量重拉: {len(tasks_full)} | 增量更新: {len(tasks_incremental)} | 跳过: {skipped}")
 
-        print(f"  全量:{stats['full']} | 增量:{stats['incremental']} | "
-              f"跳过:{stats['skip']} | 失败:{stats['fail']}")
+    api_batch_size = args.api_batch
+    api_sleep = args.api_sleep
 
-        if bi < batch_count - 1:
-            print(f"  休息 {BATCH_SLEEP}s ...")
-            time.sleep(BATCH_SLEEP)
+    def run_batches(task_list, batch_label):
+        nonlocal updated_set
+        task_map = {}  # date_range -> list of codes
+        for code, start in task_list:
+            task_map.setdefault(start, []).append(code)
+
+        for start_date, codes in task_map.items():
+            n_batches = (len(codes) + api_batch_size - 1) // api_batch_size
+            for bi in range(n_batches):
+                batch_codes = codes[bi * api_batch_size: (bi + 1) * api_batch_size]
+                i = bi + 1
+                print(f"\n{batch_label} {start_date}~{end_date}: "
+                      f"批次 {i}/{n_batches} ({len(batch_codes)} 只)")
+
+                result_map = fetch_batch_stocks(pro, batch_codes, start_date, end_date)
+                for code in batch_codes:
+                    if code in result_map and not result_map[code].empty:
+                        csv_path = os.path.join(DATA_DIR, f"{code}.csv")
+                        if start_date == START_DATE:
+                            safe_to_csv(result_map[code], csv_path)
+                            stats['full'] = stats.get('full', 0) + 1
+                        else:
+                            try:
+                                local_df = pd.read_csv(csv_path, index_col=0, parse_dates=True)
+                            except Exception:
+                                local_df = pd.DataFrame()
+                            if not local_df.empty:
+                                combined = pd.concat([local_df, result_map[code]])
+                                combined = combined[~combined.index.duplicated(keep='last')]
+                                combined.sort_index(inplace=True)
+                                safe_to_csv(combined, csv_path)
+                            else:
+                                safe_to_csv(result_map[code], csv_path)
+                            stats['incremental'] = stats.get('incremental', 0) + 1
+                    else:
+                        stats['fail'] = stats.get('fail', 0) + 1
+
+                # 保存进度
+                updated_set.update(batch_codes)
+                progress['updated'] = list(updated_set)
+                progress['stats'] = stats
+                save_progress(progress)
+
+                print(f"  全量:{stats.get('full', 0)} | 增量:{stats.get('incremental', 0)} | "
+                      f"跳过:{stats.get('skip', 0)} | 失败:{stats.get('fail', 0)}")
+                if i < n_batches:
+                    time.sleep(api_sleep)
+
+    # 先处理全量（如有），再处理增量
+    if tasks_full:
+        run_batches(tasks_full, "全量")
+    if tasks_incremental:
+        run_batches(tasks_incremental, "增量")
 
     print(f"\n{'=' * 55}")
     print("更新完成!")
-    print(f"  全量下载: {stats['full']} | 增量更新: {stats['incremental']}")
-    print(f"  跳过: {stats['skip']} | 失败: {stats['fail']}")
+    print(f"  全量下载: {stats.get('full', 0)} | 增量更新: {stats.get('incremental', 0)}")
+    print(f"  跳过: {stats.get('skip', 0)} | 失败: {stats.get('fail', 0)}")
 
     # 清理进度文件
     if os.path.exists(PROGRESS_FILE):

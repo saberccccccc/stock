@@ -18,7 +18,12 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 warnings.filterwarnings('ignore')
 
-from core.config import DataConfig
+from core.config import ADV_LIMIT_RATIO, DataConfig, EPS, IMPACT_COEFF, MAX_WEIGHT, TARGET_VOL, TRADING_DAYS
+
+
+def _sanitize(x, fill=0.0):
+    return np.nan_to_num(np.asarray(x, dtype=float), nan=fill, posinf=fill, neginf=fill)
+
 from core.model import UltimateV7Model
 from core.train_utils import get_regime_dim
 from data.pipeline import build_cross_section_dataset, N_AGGS, INDUSTRY_REL_FEATURES
@@ -192,7 +197,7 @@ class DLPredictor:
                 X, risk[..., :self.regime_dim], mask, industry_ids
             )
         pred = alpha_raw[0].detach().cpu().numpy()
-        pred = np.nan_to_num(pred, nan=0.0, posinf=0.0, neginf=0.0)
+        pred = _sanitize(pred)
         if pred.size > 1:
             pred = (pred - np.mean(pred)) / (np.std(pred) + 1e-8)
         return np.tanh(pred)
@@ -224,7 +229,7 @@ def fused_alpha(models, X, regime, ic_decay=None):
     alpha_dict = {}
     for h, model in models.items():
         pred = model.predict(X)
-        pred = np.nan_to_num(pred, nan=0.0, posinf=0.0, neginf=0.0)
+        pred = _sanitize(pred)
         pred = (pred - np.mean(pred)) / (np.std(pred) + 1e-8)
         alpha_dict[h] = np.tanh(pred)
 
@@ -271,14 +276,14 @@ def compute_risk_model(B, R, lam=1e-3, decay=0.94):
     f_scale = np.mean(np.diag(F_cov))
     if not np.isfinite(f_scale) or f_scale < 1e-8:
         f_scale = 1.0
-    F_cov = np.nan_to_num(F_cov / f_scale, nan=0.0, posinf=0.0, neginf=0.0)
+    F_cov = _sanitize(F_cov / f_scale)
     fitted = (B @ factor_returns).T
     residuals = R - fitted
     D_diag = np.var(residuals, axis=0) + 1e-8
     d_scale = np.mean(D_diag)
     if not np.isfinite(d_scale) or d_scale < 1e-8:
         d_scale = 1.0
-    D_diag = np.nan_to_num(D_diag / d_scale, nan=1.0, posinf=1.0, neginf=1.0)
+    D_diag = _sanitize(D_diag / d_scale, fill=1.0)
     return F_cov, D_diag
 
 
@@ -322,6 +327,273 @@ def build_simple_weights(alpha, mode="simple_ls", top_frac=0.10, max_leverage=1.
 
     return w
 
+
+def as_weight_cap_array(max_weight, n):
+    if np.isscalar(max_weight):
+        cap = np.full(n, float(max_weight), dtype=np.float64)
+    else:
+        cap = np.asarray(max_weight, dtype=np.float64).copy()
+        if cap.shape[0] != n:
+            raise ValueError(f"权重上限长度不匹配: cap={cap.shape[0]}, n={n}")
+    cap[~np.isfinite(cap)] = 0.0
+    return np.maximum(cap, 0.0)
+
+
+def clip_weights_by_mode(w, max_weight, long_only):
+    cap = as_weight_cap_array(max_weight, len(w))
+    if long_only:
+        return np.clip(w, 0.0, cap)
+    return np.clip(w, -cap, cap)
+
+
+def scale_side_to_target(w, max_weight, sign, target):
+    cap = as_weight_cap_array(max_weight, len(w))
+    out = w.copy()
+    mask = out * sign > 1e-12
+    if target <= 1e-12 or not np.any(mask):
+        out[mask] = 0.0
+        return out
+
+    side = np.abs(out[mask])
+    side_cap = cap[mask]
+    side = np.minimum(side, side_cap)
+    side_sum = float(np.sum(side))
+    if side_sum > target:
+        side *= target / (side_sum + 1e-12)
+    elif side_sum < target:
+        spare = np.maximum(side_cap - side, 0.0)
+        spare_sum = float(np.sum(spare))
+        if spare_sum > 1e-12:
+            add = spare / spare_sum * min(target - side_sum, spare_sum)
+            side += add
+    out[mask] = sign * side
+    return out
+
+
+def rescale_projected_weights(w, max_weight, target_long, target_short, long_only, dollar_neutral):
+    out = clip_weights_by_mode(w, max_weight, long_only)
+    if long_only:
+        return scale_side_to_target(out, max_weight, 1.0, target_long)
+
+    out = scale_side_to_target(out, max_weight, 1.0, target_long)
+    out = scale_side_to_target(out, max_weight, -1.0, target_short)
+    if dollar_neutral:
+        out = neutralize_long_short_by_scaling(out)
+    return clip_weights_by_mode(out, max_weight, False)
+
+
+def neutralize_long_short_by_scaling(w):
+    out = w.copy()
+    long_sum = float(np.sum(out[out > 0]))
+    short_sum = float(-np.sum(out[out < 0]))
+    if long_sum <= 1e-12 or short_sum <= 1e-12:
+        return out
+    target = min(long_sum, short_sum)
+    out[out > 0] *= target / (long_sum + 1e-12)
+    out[out < 0] *= target / (short_sum + 1e-12)
+    return out
+
+
+def weight_corr(a, b):
+    if len(a) == 0 or np.std(a) <= 1e-12 or np.std(b) <= 1e-12:
+        return 0.0
+    corr = np.corrcoef(a, b)[0, 1]
+    return float(corr) if np.isfinite(corr) else 0.0
+
+
+def cap_hit_ratio(w, max_weight):
+    cap = as_weight_cap_array(max_weight, len(w))
+    active = np.abs(w) > 1e-8
+    if not np.any(active):
+        return 0.0
+    hits = np.abs(w[active]) >= np.maximum(cap[active] - 1e-8, 0.0)
+    return float(np.mean(hits))
+
+
+def compute_adv_weight_cap(max_weight, adv_mode, adv_limit_ratio, vol_mat, idx_full,
+                           hist_start, hist_end, price_hist, portfolio_value):
+    if adv_mode not in ("weight_cap", "both") or vol_mat is None or adv_limit_ratio <= 0:
+        return max_weight, {}
+
+    base_cap = as_weight_cap_array(max_weight, len(idx_full))
+    vol_hist = vol_mat[idx_full, hist_start:hist_end + 1]
+    lookback = min(20, vol_hist.shape[1])
+    adv = np.nanmean(vol_hist[:, -lookback:], axis=1)
+    adv = _sanitize(adv)
+    dollar_vol = np.where(
+        (adv > 0) & np.isfinite(price_hist[:, -1]) & (price_hist[:, -1] > 0),
+        adv * price_hist[:, -1] * 100,
+        0.0,
+    )
+    max_w_adv = dollar_vol * adv_limit_ratio / portfolio_value
+    max_w_arr = np.minimum(base_cap, max_w_adv)
+    max_w_arr = np.where(dollar_vol > 0, max_w_arr, base_cap)
+    return max_w_arr, {
+        "avg_adv_weight_cap": float(np.mean(max_w_arr)),
+        "adv_cap_active_ratio": float(np.mean(max_w_arr < base_cap - 1e-12)),
+    }
+
+
+def optimize_projected_simple_weights(alpha, base_mode="simple_ls", beta=None, prev_w=None,
+                                      max_weight=0.05, max_leverage=1.0, top_frac=0.10,
+                                      regime="sideways", market_mult=1.0, lambda_t=0.05,
+                                      exposure_control="beta", beta_limit=0.05,
+                                      dollar_neutral=True, return_diagnostics=False):
+    alpha = np.asarray(alpha, dtype=np.float64)
+    n = len(alpha)
+    long_only = base_mode == "simple_long"
+    prev = np.zeros(n, dtype=np.float64) if prev_w is None else np.asarray(prev_w, dtype=np.float64)
+    w_seed = build_simple_weights(alpha, base_mode, top_frac, max_leverage, regime, market_mult)
+    cap = as_weight_cap_array(max_weight, n)
+    target_long = float(np.sum(w_seed[w_seed > 0]))
+    target_short = 0.0 if long_only else float(-np.sum(w_seed[w_seed < 0]))
+
+    w = rescale_projected_weights(w_seed, cap, target_long, target_short, long_only, dollar_neutral)
+    beta_vec = None if beta is None else _sanitize(beta)
+    beta_before = float(np.dot(w, beta_vec)) if beta_vec is not None else 0.0
+
+    if exposure_control == "beta" and beta_vec is not None and beta_limit is not None:
+        excess = abs(beta_before) - beta_limit
+        active = np.abs(w) > 1e-12
+        denom = float(np.dot(beta_vec[active], beta_vec[active])) if np.any(active) else 0.0
+        if excess > 0 and denom > 1e-12:
+            target_beta = np.sign(beta_before) * beta_limit
+            correction = beta_vec * ((beta_before - target_beta) / denom)
+            w = w.copy()
+            w[active] -= correction[active]
+            if long_only:
+                w = np.where(w_seed > 0, np.maximum(w, 0.0), 0.0)
+            else:
+                w = np.where(w_seed > 0, np.maximum(w, 0.0), w)
+                w = np.where(w_seed < 0, np.minimum(w, 0.0), w)
+                w = np.where(np.abs(w_seed) > 0, w, 0.0)
+            w = rescale_projected_weights(w, cap, target_long, target_short, long_only, dollar_neutral)
+
+    w_projected = w.copy()
+    turnover_raw = float(np.sum(np.abs(w_projected - prev)))
+    if lambda_t > 0 and prev_w is not None:
+        smooth = 1.0 / (1.0 + lambda_t)
+        w = prev + smooth * (w_projected - prev)
+        w = rescale_projected_weights(w, cap, target_long, target_short, long_only, dollar_neutral)
+    turnover_smoothed = float(np.sum(np.abs(w - prev)))
+
+    w[np.abs(w) < 1e-8] = 0.0
+    if not np.all(np.isfinite(w)):
+        w = np.zeros(n, dtype=np.float64)
+
+    if not return_diagnostics:
+        return w
+
+    seed_alpha = float(np.dot(alpha, w_seed))
+    final_alpha = float(np.dot(alpha, w))
+    target_gross = target_long + target_short
+    diagnostics = {
+        "project_alpha_retention": final_alpha / (abs(seed_alpha) + 1e-12),
+        "project_weight_corr_seed_final": weight_corr(w_seed, w),
+        "project_beta_before": beta_before,
+        "project_beta_after": float(np.dot(w, beta_vec)) if beta_vec is not None else 0.0,
+        "project_cap_hit_ratio": cap_hit_ratio(w, cap),
+        "project_net_after": float(np.sum(w)),
+        "project_turnover_raw": turnover_raw,
+        "project_turnover_smoothed": turnover_smoothed,
+        "project_leverage_shortfall": max(0.0, target_gross - float(np.sum(np.abs(w)))),
+    }
+    return w, diagnostics
+
+
+def portfolio_variance_and_sigma(w, B, F_cov, D_diag):
+    sigma_w = B @ (F_cov @ (B.T @ w)) + D_diag * w
+    return float(np.dot(w, sigma_w)), sigma_w
+
+
+def optimize_mean_variance(alpha, B, beta, prev_w, F_cov, D_diag, max_weight=0.05,
+                           max_leverage=1.0, base_mode="simple_ls", top_frac=0.10,
+                           regime="sideways", market_mult=1.0, lambda_risk=1.0,
+                           lambda_t=0.05, lambda_b=0.2, exposure_control="beta",
+                           beta_limit=0.05, dollar_neutral=True, lr0=0.02,
+                           n_iter=200, return_diagnostics=False):
+    alpha = np.asarray(alpha, dtype=np.float64)
+    n = len(alpha)
+    prev = np.zeros(n, dtype=np.float64) if prev_w is None else np.asarray(prev_w, dtype=np.float64)
+    beta_vec = np.zeros(n, dtype=np.float64) if beta is None else _sanitize(beta)
+    cap = as_weight_cap_array(max_weight, n)
+    long_only = base_mode == "simple_long"
+    w_seed = build_simple_weights(alpha, base_mode, top_frac, max_leverage, regime, market_mult)
+    target_long = float(np.sum(w_seed[w_seed > 0]))
+    target_short = 0.0 if long_only else float(-np.sum(w_seed[w_seed < 0]))
+
+    w, project_diag = optimize_projected_simple_weights(
+        alpha, base_mode=base_mode, beta=beta_vec, prev_w=prev_w,
+        max_weight=cap, max_leverage=max_leverage, top_frac=top_frac,
+        regime=regime, market_mult=market_mult, lambda_t=lambda_t,
+        exposure_control=exposure_control, beta_limit=beta_limit,
+        dollar_neutral=dollar_neutral, return_diagnostics=True,
+    )
+
+    converged = False
+    final_iter = n_iter
+    objective = np.nan
+    alpha_term = risk_term = turnover_penalty = beta_penalty = np.nan
+    for i in range(n_iter):
+        risk_var, sigma_w = portfolio_variance_and_sigma(w, B, F_cov, D_diag)
+        beta_exp = float(np.dot(w, beta_vec))
+        grad = -alpha + 2.0 * lambda_risk * sigma_w
+        if lambda_t > 0:
+            grad += 2.0 * lambda_t * (w - prev)
+        if lambda_b > 0:
+            grad += 2.0 * lambda_b * beta_exp * beta_vec
+
+        lr = lr0 / np.sqrt(i + 1)
+        w_new = w - lr * grad
+        w_new = rescale_projected_weights(w_new, cap, target_long, target_short, long_only, dollar_neutral)
+        if not np.all(np.isfinite(w_new)):
+            break
+
+        rel_change = np.linalg.norm(w_new - w) / (np.linalg.norm(w) + 1e-8)
+        w = w_new
+        if rel_change < 1e-4:
+            converged = True
+            final_iter = i + 1
+            break
+
+    w[np.abs(w) < 1e-8] = 0.0
+    if not np.all(np.isfinite(w)):
+        w = np.zeros(n, dtype=np.float64)
+
+    risk_var, _ = portfolio_variance_and_sigma(w, B, F_cov, D_diag)
+    beta_exp = float(np.dot(w, beta_vec))
+    alpha_term = -float(np.dot(alpha, w))
+    risk_term = float(lambda_risk * risk_var)
+    turnover_penalty = float(lambda_t * np.sum((w - prev) ** 2))
+    beta_penalty = float(lambda_b * beta_exp ** 2)
+    objective = alpha_term + risk_term + turnover_penalty + beta_penalty
+
+    if not return_diagnostics:
+        return w
+
+    seed_alpha = float(np.dot(alpha, w_seed))
+    final_alpha = float(np.dot(alpha, w))
+    target_gross = target_long + target_short
+    diagnostics = {
+        "mvo_converged": converged,
+        "mvo_iterations": final_iter,
+        "mvo_objective": objective,
+        "mvo_alpha_term": alpha_term,
+        "mvo_risk_term": risk_term,
+        "mvo_turnover_penalty": turnover_penalty,
+        "mvo_beta_penalty": beta_penalty,
+        "mvo_beta_exposure": beta_exp,
+        "mvo_cap_hit_ratio": cap_hit_ratio(w, cap),
+        "mvo_gross": float(np.sum(np.abs(w))),
+        "mvo_net": float(np.sum(w)),
+        "mvo_portfolio_vol_annual": float(np.sqrt(max(risk_var, 0.0) * float(TRADING_DAYS))),
+        "mvo_alpha_retention": final_alpha / (abs(seed_alpha) + 1e-12),
+        "mvo_weight_corr_seed_final": weight_corr(w_seed, w),
+        "mvo_leverage_shortfall": max(0.0, target_gross - float(np.sum(np.abs(w)))),
+        "mvo_init_alpha_retention": project_diag.get("project_alpha_retention", 0.0),
+    }
+    return w, diagnostics
+
 # ==================== 风险预算与优化====================
 def risk_budget_allocation(alpha, D_diag, target_vol=0.15):
     """基于alpha强度和个股残差风险分配风险预算
@@ -346,7 +618,7 @@ def risk_budget_allocation(alpha, D_diag, target_vol=0.15):
     blended = 0.5 * strength + 0.5 * inv_risk
     blended /= (np.sum(blended) + 1e-8)
 
-    target_var = (target_vol / np.sqrt(252)) ** 2
+    target_var = (target_vol / np.sqrt(TRADING_DAYS)) ** 2
     return blended * target_var
 
 
@@ -431,8 +703,8 @@ def execute_order_with_impact(w_target, prev_w, price, volume,
     """
     price = np.asarray(price, dtype=float)
     volume = np.asarray(volume, dtype=float)
-    w_target = np.nan_to_num(w_target, nan=0.0, posinf=0.0, neginf=0.0)
-    prev_w = np.nan_to_num(prev_w, nan=0.0, posinf=0.0, neginf=0.0)
+    w_target = _sanitize(w_target)
+    prev_w = _sanitize(prev_w)
     trade = w_target - prev_w
 
     valid_liquidity = np.isfinite(price) & np.isfinite(volume) & (price > 0) & (volume > 0)
@@ -464,8 +736,8 @@ def execute_order_with_impact(w_target, prev_w, price, volume,
     impact_coeff_adj = impact_coeff * regime_multiplier.get(regime, 1.0)
 
     impact_cost = impact_coeff_adj * (turnover_ratio ** 2) * np.abs(trade_exec)
-    impact_cost = np.nan_to_num(impact_cost, nan=0.0, posinf=0.0, neginf=0.0)
-    w_filled = np.nan_to_num(prev_w + trade_exec, nan=0.0, posinf=0.0, neginf=0.0)
+    impact_cost = _sanitize(impact_cost)
+    w_filled = _sanitize(prev_w + trade_exec)
     return w_filled, float(np.sum(impact_cost)), fill_ratio, trade_exec
 
 # ==================== 价格与成交量数据加载 ====================
@@ -510,6 +782,37 @@ def build_universe_matrix(price_dict, vol_dict, all_codes):
             vol_mat[i] = vol_dict[code].reindex(all_dates).values
     return price_mat, vol_mat, all_dates, code2idx
 
+def _compute_daily_portfolio_returns(daily_total_weights, ret_daily, daily_costs, T_total):
+    daily_port_ret = []
+    for day in range(1, T_total):
+        w_day = daily_total_weights[day].copy()
+        stock_ret = ret_daily[:, day - 1]
+        valid = np.isfinite(stock_ret)
+        w_day[~valid] = 0.0
+        stock_ret = _sanitize(stock_ret)
+        lev = np.sum(np.abs(w_day))
+        if lev > 1.0:
+            w_day = w_day / lev
+        daily_port_ret.append(np.dot(w_day, stock_ret) - daily_costs[day])
+    return _sanitize(np.array(daily_port_ret))
+
+
+def _rolling_beta_neutralize(port_ret, idx_ret_arr):
+    neu_ret = []
+    beta_estimates = []
+    for i in range(len(port_ret)):
+        start = max(0, i - 60)
+        if i - start < 20:
+            beta = 0.0
+        else:
+            cov_ = np.cov(port_ret[start:i], idx_ret_arr[start:i])[0, 1]
+            var_ = np.var(idx_ret_arr[start:i])
+            beta = cov_ / (var_ + 1e-8) if var_ > 1e-8 else 0.0
+            beta_estimates.append(beta)
+        neu_ret.append(port_ret[i] - beta * idx_ret_arr[i])
+    return neu_ret, beta_estimates
+
+
 # ==================== 回测主函数====================
 def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
                             future_len=2, rebalance_freq=None, hist_window=60,
@@ -517,7 +820,10 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
                             portfolio_mode="optimizer", top_frac=0.10,
                             max_weight=0.05, lambda_t=0.05, lambda_b=0.2,
                             target_vol=0.15, impact_coeff=0.1, config=None,
-                            portfolio_value=1e8):
+                            portfolio_value=1e8, optimizer_base_mode="simple_ls",
+                            optimizer_exposure_control="beta", optimizer_beta_limit=0.05,
+                            optimizer_dollar_neutral=True, mvo_risk_aversion=1.0,
+                            mvo_lr=0.02, mvo_n_iter=200):
     # 自动确定调仓频率
     ic_decay = getattr(predictor, "ic_decay", None)
     if ic_decay is not None:
@@ -541,7 +847,7 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
     print(f"预测器 {predictor.name}")
     print(f"{rebalance_freq}")
     print(f"组合模式: {portfolio_mode} | top_frac={top_frac:.2%}")
-    print(f"ADVģʽ: {adv_mode}")
+    print(f"ADV模式: {adv_mode}")
     print("return metric: next_close_to_next_close")
 
     all_codes = sorted(set(c for s in val_samples for c in s['codes']))
@@ -617,7 +923,7 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
 
             regime = detect_regime(sample)
             alpha = predictor.predict_alpha(sample, valid, regime)
-            alpha = np.nan_to_num(alpha, nan=0.0, posinf=0.0, neginf=0.0)
+            alpha = _sanitize(alpha)
             if alpha.shape[0] != N:
                 raise ValueError(f"预测长度不匹配 alpha={alpha.shape[0]}, N={N}")
             diag['valid_names'].append(N)
@@ -639,7 +945,7 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
 
             prev_w = daily_total_weights[col_cur][idx_full]
 
-            if portfolio_mode == "optimizer":
+            if portfolio_mode in ("optimizer", "optimizer_projected", "optimizer_mvo"):
                 idx_ret_hist = idx_daily.iloc[hist_start + 1:hist_end + 1].values
                 beta_vec = ewma_beta(rets, idx_ret_hist, ewma_hl)
 
@@ -650,38 +956,58 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
                 ])
                 F_cov, D_diag = compute_risk_model(B_style, R_mat)
 
-                max_w_arr = max_weight
                 # ⚠️ DEPRECATED: weight_cap模式已弃用，存在设计缺陷
                 # 问题：优化器用历史ADV约束权重，但执行时100%成交(exec_adv_ratio=1e9)
                 # 当日流动性差时冲击成本爆炸，导致回测表现极差
                 # 推荐使用execution模式（默认）
-                if adv_mode in ("weight_cap", "both") and vol_mat is not None and adv_limit_ratio > 0:
-                    vol_hist = vol_mat[idx_full, hist_start:hist_end + 1]
-                    lookback = min(20, vol_hist.shape[1])
-                    adv = np.nanmean(vol_hist[:, -lookback:], axis=1)
-                    adv = np.nan_to_num(adv, nan=0.0, posinf=0.0, neginf=0.0)
-                    dollar_vol = np.where(
-                        (adv > 0) & np.isfinite(price_hist[:, -1]) & (price_hist[:, -1] > 0),
-                        adv * price_hist[:, -1] * 100,  # volume是手数，需要乘以100
-                        0.0,
-                    )
-                    max_w_adv = dollar_vol * adv_limit_ratio / portfolio_value
-                    max_w_arr = np.minimum(max_weight, max_w_adv)
-                    max_w_arr = np.where(dollar_vol > 0, max_w_arr, max_weight)
-                    diag['avg_adv_weight_cap'].append(float(np.mean(max_w_arr)))
-
-                risk_budget = risk_budget_allocation(alpha, D_diag, target_vol)
-                w_target, opt_diag = optimize_with_risk_budget(
-                    alpha, B_style, beta_vec, prev_w,
-                    F_cov, D_diag, risk_budget,
-                    lambda_t, lambda_b,
-                    max_weight=max_w_arr, max_leverage=1.0,
-                    return_diagnostics=True,
+                max_w_arr, adv_diag = compute_adv_weight_cap(
+                    max_weight, adv_mode, adv_limit_ratio, vol_mat, idx_full,
+                    hist_start, hist_end, price_hist, portfolio_value,
                 )
-                diag['opt_converged'].append(opt_diag['converged'])
-                diag['opt_iterations'].append(opt_diag['iterations'])
-                diag['risk_budget_match'].append(opt_diag['risk_budget_match'])
-                diag['beta_exposure'].append(opt_diag['beta_exposure'])
+                if adv_diag:
+                    diag['avg_adv_weight_cap'].append(adv_diag['avg_adv_weight_cap'])
+
+                if portfolio_mode == "optimizer":
+                    risk_budget = risk_budget_allocation(alpha, D_diag, target_vol)
+                    w_target, opt_diag = optimize_with_risk_budget(
+                        alpha, B_style, beta_vec, prev_w,
+                        F_cov, D_diag, risk_budget,
+                        lambda_t, lambda_b,
+                        max_weight=max_w_arr, max_leverage=1.0,
+                        return_diagnostics=True,
+                    )
+                    diag['opt_converged'].append(opt_diag['converged'])
+                    diag['opt_iterations'].append(opt_diag['iterations'])
+                    diag['risk_budget_match'].append(opt_diag['risk_budget_match'])
+                    diag['beta_exposure'].append(opt_diag['beta_exposure'])
+                elif portfolio_mode == "optimizer_projected":
+                    w_target, project_diag = optimize_projected_simple_weights(
+                        alpha, base_mode=optimizer_base_mode, beta=beta_vec, prev_w=prev_w,
+                        max_weight=max_w_arr, max_leverage=1.0, top_frac=top_frac,
+                        regime=regime, market_mult=market_mult, lambda_t=lambda_t,
+                        exposure_control=optimizer_exposure_control,
+                        beta_limit=optimizer_beta_limit,
+                        dollar_neutral=optimizer_dollar_neutral,
+                        return_diagnostics=True,
+                    )
+                    for k, v in project_diag.items():
+                        diag[k].append(v)
+                else:
+                    w_target, mvo_diag = optimize_mean_variance(
+                        alpha, B_style, beta_vec, prev_w, F_cov, D_diag,
+                        max_weight=max_w_arr, max_leverage=1.0,
+                        base_mode=optimizer_base_mode, top_frac=top_frac,
+                        regime=regime, market_mult=market_mult,
+                        lambda_risk=mvo_risk_aversion, lambda_t=lambda_t,
+                        lambda_b=lambda_b,
+                        exposure_control=optimizer_exposure_control,
+                        beta_limit=optimizer_beta_limit,
+                        dollar_neutral=optimizer_dollar_neutral,
+                        lr0=mvo_lr, n_iter=mvo_n_iter,
+                        return_diagnostics=True,
+                    )
+                    for k, v in mvo_diag.items():
+                        diag[k].append(v)
             else:
                 w_target = build_simple_weights(alpha, portfolio_mode, top_frac,
                                                  max_leverage=1.0, regime=regime,
@@ -733,35 +1059,11 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
             last_signal_idx = t_idx
 
     # 计算每日收益
-    daily_port_ret = []
-    for day in range(1, T_total):
-        w_day = daily_total_weights[day].copy()
-        stock_ret = ret_daily[:, day - 1]
-        valid = np.isfinite(stock_ret)
-        w_day[~valid] = 0.0
-        stock_ret = np.nan_to_num(stock_ret, nan=0.0)
-        lev = np.sum(np.abs(w_day))
-        if lev > 1.0:
-            w_day = w_day / lev
-        port_ret_day = np.dot(w_day, stock_ret) - daily_costs[day]
-        daily_port_ret.append(port_ret_day)
-
-    port_ret = np.nan_to_num(np.array(daily_port_ret), nan=0.0)
-    idx_ret_arr = np.nan_to_num(idx_daily.iloc[1:len(daily_port_ret) + 1].values, nan=0.0)
+    port_ret = _compute_daily_portfolio_returns(daily_total_weights, ret_daily, daily_costs, T_total)
+    idx_ret_arr = _sanitize(idx_daily.iloc[1:len(port_ret) + 1].values)
 
     # 滚动Beta中性化
-    neu_ret = []
-    beta_estimates = []
-    for i in range(len(port_ret)):
-        start = max(0, i - 60)
-        if i - start < 20:
-            beta = 0.0
-        else:
-            cov_ = np.cov(port_ret[start:i], idx_ret_arr[start:i])[0, 1]
-            var_ = np.var(idx_ret_arr[start:i])
-            beta = cov_ / (var_ + 1e-8) if var_ > 1e-8 else 0.0
-            beta_estimates.append(beta)
-        neu_ret.append(port_ret[i] - beta * idx_ret_arr[i])
+    neu_ret, beta_estimates = _rolling_beta_neutralize(port_ret, idx_ret_arr)
 
     leverage_values = [np.sum(np.abs(w)) for w in daily_total_weights if np.sum(np.abs(w)) > 0]
     avg_leverage = np.mean(leverage_values) if leverage_values else 0.0
@@ -787,16 +1089,42 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
         print(f"  平均迭代次数: {diag_mean('opt_iterations'):.1f}")
         print(f"  风险预算匹配度 {diag_mean('risk_budget_match'):.3f}")
         print(f"  平均Beta暴露: {diag_mean('beta_exposure'):.4f}")
+    if portfolio_mode == "optimizer_projected" and diag.get('project_alpha_retention'):
+        print(f"\n投影优化器诊断")
+        print(f"  Alpha保留率: {diag_mean('project_alpha_retention'):.3f}")
+        print(f"  seed/final权重相关: {diag_mean('project_weight_corr_seed_final'):.3f}")
+        print(f"  Beta暴露 before/after: {diag_mean('project_beta_before'):.4f} / {diag_mean('project_beta_after'):.4f}")
+        print(f"  净敞口: {diag_mean('project_net_after'):.4f}")
+        print(f"  上限命中比例: {diag_mean('project_cap_hit_ratio'):.3%}")
+        print(f"  raw/smoothed换手: {diag_mean('project_turnover_raw'):.3f} / {diag_mean('project_turnover_smoothed'):.3f}")
+        print(f"  杠杆缺口: {diag_mean('project_leverage_shortfall'):.3f}")
+    if portfolio_mode == "optimizer_mvo" and diag.get('mvo_objective'):
+        converged_rate = np.mean(diag['mvo_converged']) if diag['mvo_converged'] else 0.0
+        print(f"\nMVO优化器诊断")
+        print(f"  收敛率 {converged_rate:.1%}")
+        print(f"  平均迭代次数: {diag_mean('mvo_iterations'):.1f}")
+        print(f"  目标函数: {diag_mean('mvo_objective'):.4f}")
+        print(f"  alpha/risk/turnover/beta: {diag_mean('mvo_alpha_term'):.4f} / {diag_mean('mvo_risk_term'):.6f} / {diag_mean('mvo_turnover_penalty'):.6f} / {diag_mean('mvo_beta_penalty'):.6f}")
+        print(f"  年化组合波动: {diag_mean('mvo_portfolio_vol_annual'):.3f}")
+        print(f"  Beta暴露: {diag_mean('mvo_beta_exposure'):.4f}")
+        print(f"  Alpha保留率: {diag_mean('mvo_alpha_retention'):.3f}")
+        print(f"  seed/final权重相关: {diag_mean('mvo_weight_corr_seed_final'):.3f}")
+        print(f"  gross/net: {diag_mean('mvo_gross'):.3f} / {diag_mean('mvo_net'):.4f}")
+        print(f"  上限命中比例: {diag_mean('mvo_cap_hit_ratio'):.3%}")
     print(f"非零持仓天数: {nonzero_days} / {T_total}")
     print(f"平均杠杆: {avg_leverage:.3f}")
     print(f"平均估计Beta: {(np.mean(beta_estimates) if beta_estimates else 0.0):.3f}")
     print(f"总冲击成本 {total_cost:.4f}")
+    return_dates = all_dates[1:]
+    return_costs = daily_costs[1:]
     active = np.array([np.sum(np.abs(w)) > 0 for w in daily_total_weights[1:]], dtype=bool)
     if active.any():
         first_active = int(np.argmax(active))
         last_active = len(active) - int(np.argmax(active[::-1]))
         port_ret = port_ret[first_active:last_active]
         neu_ret = np.array(neu_ret)[first_active:last_active]
+        return_dates = return_dates[first_active:last_active]
+        return_costs = return_costs[first_active:last_active]
     else:
         neu_ret = np.array(neu_ret)
 
@@ -804,6 +1132,8 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
     backtest_data = {
         'daily_returns': port_ret,
         'neutral_returns': neu_ret,
+        'return_dates': return_dates,
+        'return_costs': return_costs,
         'daily_weights': daily_total_weights,
         'daily_costs': daily_costs,
         'dates': all_dates,
@@ -816,204 +1146,34 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
     return port_ret, neu_ret, backtest_data
 
 
-def calc_metrics(returns):
-    if len(returns) == 0:
-        return 0, 0, 0
-    returns = np.nan_to_num(returns, nan=0.0)
-    cum = np.cumprod(1 + returns)
-    days = len(returns)
-    years = days / 252
-    ann = (cum[-1] ** (1 / years) - 1) * 100 if years > 0 and cum[-1] > 0 else np.nan
-    sharpe = returns.mean() / (returns.std() + 1e-8) * np.sqrt(252)
-    peak = np.maximum.accumulate(cum)
-    mdd = ((peak - cum) / (peak + 1e-12)).max()
-    return ann, sharpe, mdd
-
-
-def calc_extended_metrics(returns):
-    """计算扩展的风险指标"""
-    if len(returns) == 0:
-        return {}
-
-    returns = np.nan_to_num(returns, nan=0.0)
-    cum = np.cumprod(1 + returns)
-    days = len(returns)
-    years = days / 252
-
-    # 基础指标
-    ann_ret = (cum[-1] ** (1 / years) - 1) * 100 if years > 0 and cum[-1] > 0 else 0.0
-    sharpe = returns.mean() / (returns.std() + 1e-8) * np.sqrt(252)
-    peak = np.maximum.accumulate(cum)
-    mdd = ((peak - cum) / (peak + 1e-12)).max()
-
-    # Calmar比率
-    calmar = ann_ret / (mdd * 100 + 1e-8) if mdd > 0 else 0.0
-
-    # Sortino比率（下行波动率）
-    downside_returns = returns[returns < 0]
-    downside_std = np.std(downside_returns) if len(downside_returns) > 0 else 1e-8
-    sortino = returns.mean() / (downside_std + 1e-8) * np.sqrt(252)
-
-    # 胜率
-    win_rate = np.mean(returns > 0) if len(returns) > 0 else 0.0
-
-    # 盈亏比
-    avg_win = np.mean(returns[returns > 0]) if np.any(returns > 0) else 0.0
-    avg_loss = np.mean(np.abs(returns[returns < 0])) if np.any(returns < 0) else 1e-8
-    profit_loss_ratio = avg_win / (avg_loss + 1e-8)
-
-    return {
-        'ann_return': ann_ret,
-        'sharpe': sharpe,
-        'max_drawdown': mdd * 100,
-        'calmar': calmar,
-        'sortino': sortino,
-        'win_rate': win_rate * 100,
-        'profit_loss_ratio': profit_loss_ratio,
-        'total_days': days,
-    }
-
-
-def analyze_by_period(returns, dates, period='year'):
-    """鎸夋椂闂存?分析回测表现"""
-    if len(returns) == 0 or len(dates) == 0:
-        return {}
-
-    returns = np.array(returns)
-    dates = pd.DatetimeIndex(dates[:len(returns)])
-
-    results = {}
-    if period == 'year':
-        for year in dates.year.unique():
-            mask = dates.year == year
-            year_returns = returns[mask]
-            if len(year_returns) > 0:
-                results[str(year)] = calc_extended_metrics(year_returns)
-
-    return results
-
-
-def compare_predictors(all_results, output_dir="backtest_results"):
-    """对比多个预测器的表现"""
-    if len(all_results) < 2:
-        return
-
-    os.makedirs(output_dir, exist_ok=True)
-    timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
-
-    print("\n" + "="*60)
-    print("Predictor comparison")
-    print("="*60)
-
-    # Comparison table
-    comparison = []
-    for name, (data, metrics) in all_results.items():
-        ext_raw = calc_extended_metrics(data['daily_returns'])
-        ext_neu = calc_extended_metrics(data['neutral_returns'])
-        comparison.append({
-            'predictor': name,
-            'ann_return_raw': f"{ext_raw.get('ann_return', 0):.2f}%",
-            'sharpe_raw': f"{ext_raw.get('sharpe', 0):.2f}",
-            'mdd_raw': f"{ext_raw.get('max_drawdown', 0):.2f}%",
-            'calmar_raw': f"{ext_raw.get('calmar', 0):.2f}",
-            'ann_return_neu': f"{ext_neu.get('ann_return', 0):.2f}%",
-            'sharpe_neu': f"{ext_neu.get('sharpe', 0):.2f}",
-            'mdd_neu': f"{ext_neu.get('max_drawdown', 0):.2f}%",
-        })
-
-    df_comp = pd.DataFrame(comparison)
-    print("\n" + df_comp.to_string(index=False))
-
-    # 保存对比结果
-    df_comp.to_csv(f"{output_dir}/comparison_{timestamp}.csv", index=False)
-    print(f"\n对比结果已保存到: {output_dir}/comparison_{timestamp}.csv")
-
-
-def save_backtest_results(backtest_data, metrics, predictor_name, portfolio_mode, output_dir="backtest_results"):
-    """保存回测结果到文件"""
-    os.makedirs(output_dir, exist_ok=True)
-    timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
-    prefix = f"{output_dir}/{predictor_name}_{portfolio_mode}_{timestamp}"
-
-    # 保存日收益率
-    returns_df = pd.DataFrame({
-        'date': backtest_data['dates'][1:len(backtest_data['daily_returns'])+1],
-        'raw_return': backtest_data['daily_returns'],
-        'neutral_return': backtest_data['neutral_returns'],
-        'cost': backtest_data['daily_costs'][1:len(backtest_data['daily_returns'])+1],
-    })
-    returns_df.to_csv(f"{prefix}_returns.csv", index=False)
-
-    # 保存诊断信息（处理长度不一致的列表）
-    diag_dict = backtest_data['diagnostics']
-    if diag_dict:
-        max_len = max(len(v) for v in diag_dict.values() if isinstance(v, list))
-        diag_dict_padded = {}
-        for k, v in diag_dict.items():
-            if isinstance(v, list):
-                diag_dict_padded[k] = v + [np.nan] * (max_len - len(v))
-            else:
-                diag_dict_padded[k] = v
-        diag_df = pd.DataFrame(diag_dict_padded)
-        diag_df.to_csv(f"{prefix}_diagnostics.csv", index=False)
-
-    # 保存扩展指标
-    ext_metrics_raw = calc_extended_metrics(backtest_data['daily_returns'])
-    ext_metrics_neu = calc_extended_metrics(backtest_data['neutral_returns'])
-
-    # 保存分年度分析
-    yearly_raw = analyze_by_period(
-        backtest_data['daily_returns'],
-        backtest_data['dates'][1:len(backtest_data['daily_returns'])+1],
-        period='year'
-    )
-    yearly_neu = analyze_by_period(
-        backtest_data['neutral_returns'],
-        backtest_data['dates'][1:len(backtest_data['daily_returns'])+1],
-        period='year'
-    )
-
-    # 保存汇总指标
-    with open(f"{prefix}_summary.txt", 'w', encoding='utf-8') as f:
-        f.write(f"预测器 {predictor_name}\n")
-        f.write(f"组合模式: {portfolio_mode}\n")
-        f.write(f"\n========== 整体表现 ==========\n")
-        f.write(f"\n原始多空:\n")
-        for k, v in ext_metrics_raw.items():
-            f.write(f"  {k}: {v:.4f}\n")
-        f.write(f"\n修正中性\n")
-        for k, v in ext_metrics_neu.items():
-            f.write(f"  {k}: {v:.4f}\n")
-
-        f.write(f"\n========== 分年度表现（原始）==========\n")
-        for year, m in yearly_raw.items():
-            f.write(f"\n{year}:\n")
-            for k, v in m.items():
-                f.write(f"  {k}: {v:.4f}\n")
-
-        f.write(f"\n========== 诊断统计 ==========\n")
-        for k, v in backtest_data['diagnostic_counts'].items():
-            f.write(f"{k}: {v}\n")
-
-    # 保存完整数据（pickle）
-    with open(f"{prefix}_full_data.pkl", 'wb') as f:
-        pickle.dump(backtest_data, f)
-
-    print(f"\n结果已保存到: {prefix}_*")
-    return prefix
+from backtest.reports import (
+    analyze_by_period,
+    calc_extended_metrics,
+    calc_metrics,
+    compare_predictors,
+    save_backtest_results,
+)
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="V9 DL model / LightGBM production backtest")
     parser.add_argument("--model-type", choices=["dl", "lgb", "both"], default="dl")
-    parser.add_argument("--checkpoint", default="ultimate_v7_best.pt")
+    parser.add_argument("--checkpoint", default="checkpoints/ultimate_v7_best.pt")
     parser.add_argument("--lgb-dir", default="models_multi_v9_tech_macro")
     parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
     parser.add_argument("--adv-mode", choices=["execution", "weight_cap", "both"], default="execution",
                         help="ADV约束模式 (默认: execution, 推荐). weight_cap已弃用，存在设计缺陷导致冲击成本过高")
-    parser.add_argument("--portfolio-mode", choices=["optimizer", "simple_ls", "simple_long"], default="optimizer")
+    parser.add_argument("--portfolio-mode", choices=["optimizer", "optimizer_projected", "optimizer_mvo", "simple_ls", "simple_long"], default="optimizer")
     parser.add_argument("--top-frac", type=float, default=0.10)
     parser.add_argument("--rebalance-freq", type=int, default=None)
+    parser.add_argument("--optimizer-base-mode", choices=["simple_ls", "simple_long"], default="simple_ls")
+    parser.add_argument("--optimizer-exposure-control", choices=["none", "beta"], default="beta")
+    parser.add_argument("--optimizer-beta-limit", type=float, default=0.05)
+    parser.add_argument("--optimizer-dollar-neutral", dest="optimizer_dollar_neutral", action="store_true", default=True)
+    parser.add_argument("--no-optimizer-dollar-neutral", dest="optimizer_dollar_neutral", action="store_false")
+    parser.add_argument("--mvo-risk-aversion", type=float, default=1.0)
+    parser.add_argument("--mvo-lr", type=float, default=0.02)
+    parser.add_argument("--mvo-n-iter", type=int, default=200)
     return parser.parse_args()
 
 
@@ -1040,6 +1200,13 @@ def run_and_print_metrics(predictor, val, price_dict, vol_dict, cfg, args):
         max_weight=0.05, lambda_t=0.05, lambda_b=0.2,
         target_vol=0.15, impact_coeff=0.1,
         config=cfg,
+        optimizer_base_mode=args.optimizer_base_mode,
+        optimizer_exposure_control=args.optimizer_exposure_control,
+        optimizer_beta_limit=args.optimizer_beta_limit,
+        optimizer_dollar_neutral=args.optimizer_dollar_neutral,
+        mvo_risk_aversion=args.mvo_risk_aversion,
+        mvo_lr=args.mvo_lr,
+        mvo_n_iter=args.mvo_n_iter,
     )
 
     ann_raw, sharpe_raw, mdd_raw = calc_metrics(raw_ret)

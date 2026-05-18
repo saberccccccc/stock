@@ -34,33 +34,98 @@ TECH_FEATURES = [
 CACHE_VERSION = "v13_config_key"
 
 
-def _cache_config_digest(config, data_dir, stock_universe):
-    cache_config = {
-        'data_dir': os.path.abspath(data_dir),
-        'max_stocks': getattr(config, 'max_stocks', None),
-        'test_mode': getattr(config, 'test_mode', False),
-        'test_stocks': getattr(config, 'test_stocks', None),
-        'seq_len': getattr(config, 'seq_len', None),
-        'target_horizon': getattr(config, 'target_horizon', None),
-        'max_horizon': getattr(config, 'max_horizon', None),
-        'min_stocks_per_time': getattr(config, 'min_stocks_per_time', None),
-        'normalize_features': getattr(config, 'normalize_features', None),
-        'use_multi_horizon': getattr(config, 'use_multi_horizon', None),
-        'horizon_indices': tuple(getattr(config, 'horizon_indices', ())),
-        'horizon_weights': tuple(getattr(config, 'horizon_weights', ())),
-        'use_technical_features': getattr(config, 'use_technical_features', False),
-        'use_market_features': getattr(config, 'use_market_features', False),
-        'use_fundamental_features': getattr(config, 'use_fundamental_features', False),
-        'use_macro_features': getattr(config, 'use_macro_features', False),
-        'stock_universe': tuple(sorted(stock_universe)) if stock_universe else None,
-        'agg_names': tuple(AGG_NAMES),
-        'industry_rel_features': tuple(INDUSTRY_REL_FEATURES),
-        'tech_features': tuple(TECH_FEATURES),
-        'fundamental_cols': tuple(FUNDAMENTAL_COLS),
-        'macro_cols': tuple(MACRO_COLS),
-    }
-    payload = repr(sorted(cache_config.items())).encode('utf-8')
-    return hashlib.md5(payload).hexdigest()[:10]
+def _bool_tag(name, enabled):
+    return name if enabled else f"no{name}"
+
+
+def _cache_config_tag(config, data_dir, stock_universe):
+    norm_tag = "mad" if getattr(config, 'normalize_features', True) else "raw"
+    min_stocks = getattr(config, 'min_stocks_per_time', 30)
+    universe_tag = "all"
+    if stock_universe:
+        universe_digest = hashlib.md5("|".join(sorted(stock_universe)).encode()).hexdigest()[:6]
+        universe_tag = f"u{len(stock_universe)}_{universe_digest}"
+    return f"{universe_tag}_s{config.seq_len}_t{config.target_horizon}_h{getattr(config, 'max_horizon', 10)}_min{min_stocks}_{norm_tag}"
+
+
+def _compute_base_features(df_dict):
+    """Compute 12 base features in-place for every stock DataFrame."""
+    base_features = [
+        'ret_5d', 'ret_20d', 'vol_10d', 'vol_60d',
+        'price_momentum', 'log_volume', 'volume_spike',
+        'upper_shadow', 'lower_shadow', 'body_size', 'gap', 'amplitude'
+    ]
+    for code, df in df_dict.items():
+        close_safe = df['close'].where(df['close'] > 0)
+        prev_close_safe = df['close'].shift(1).where(df['close'].shift(1) > 0)
+        df['log_close'] = np.log(close_safe).replace([np.inf, -np.inf], np.nan)
+        df['log_volume'] = np.log(df['volume'].clip(lower=0) + 1)
+
+        daily_ret = close_safe.pct_change().replace([np.inf, -np.inf], np.nan).clip(-0.5, 0.5)
+        df['ret_5d'] = close_safe.pct_change(5).replace([np.inf, -np.inf], np.nan).clip(-1.0, 1.0)
+        df['ret_20d'] = close_safe.pct_change(20).replace([np.inf, -np.inf], np.nan).clip(-1.0, 1.0)
+        df['vol_10d'] = daily_ret.rolling(10).std().clip(0, 1.0)
+        df['vol_60d'] = daily_ret.rolling(60).std().clip(0, 1.0)
+        df['price_momentum'] = (close_safe / close_safe.rolling(20).mean() - 1).replace([np.inf, -np.inf], np.nan).clip(-1.0, 1.0)
+        df['volume_spike'] = df['log_volume'].pct_change(1).abs().replace([np.inf, -np.inf], np.nan).clip(0, 10)
+
+        hl_range_raw = df['high'] - df['low']
+        valid_range = hl_range_raw > (close_safe * 1e-4)
+        hl_range = hl_range_raw.where(valid_range)
+        df['upper_shadow'] = ((df['high'] - df[['open', 'close']].max(axis=1)) / hl_range).clip(0, 1)
+        df['lower_shadow'] = ((df[['open', 'close']].min(axis=1) - df['low']) / hl_range).clip(0, 1)
+        df['body_size'] = (abs(df['close'] - df['open']) / hl_range).clip(0, 1)
+        df['gap'] = ((df['open'] - df['close'].shift(1)) / prev_close_safe).replace([np.inf, -np.inf], np.nan).clip(-0.5, 0.5)
+        df['amplitude'] = (hl_range_raw / close_safe).replace([np.inf, -np.inf], np.nan).clip(0, 1)
+    return base_features
+
+
+def _load_industry_map(data_dir):
+    """Load stock industry CSV, return (industry_dict, all_industries, industry_to_idx, n_industries)."""
+    industry_file = os.path.join(os.path.dirname(str(data_dir)), "stock_industry.csv")
+    if not os.path.exists(industry_file):
+        industry_file = "stock_industry.csv"
+
+    industry_dict = {}
+    all_industries = []
+    if os.path.exists(industry_file):
+        industry_df = pd.read_csv(industry_file)
+        if 'code' in industry_df.columns:
+            industry_df['code_norm'] = industry_df['code'].apply(_normalize_ts_code)
+            industry_df = industry_df.dropna(subset=['industry', 'code_norm'])
+            industry_dict = dict(zip(industry_df['code_norm'], industry_df['industry']))
+            all_industries = sorted(set(industry_dict.values()))
+    n_industries = len(all_industries)
+    industry_to_idx = {ind: i for i, ind in enumerate(all_industries)}
+    return industry_dict, all_industries, industry_to_idx, n_industries
+
+
+def _normalize_and_assemble(X_t, X_rank, industry_relative, risk_vals, ind_ids, n_industries):
+    X_joined = np.concatenate([X_t, X_rank, industry_relative], axis=1)
+
+    median = np.median(X_joined, axis=0, keepdims=True)
+    mad = np.median(np.abs(X_joined - median), axis=0, keepdims=True) + 1e-8
+    X_norm = (X_joined - median) / mad
+    X_norm = np.nan_to_num(X_norm, nan=0.0, posinf=0.0, neginf=0.0)
+    X_norm = np.clip(X_norm, -10.0, 10.0)
+
+    risk_cont_norm = risk_vals.copy()
+    risk_mean = risk_vals[:, :3].mean(axis=0, keepdims=True)
+    risk_std = risk_vals[:, :3].std(axis=0, keepdims=True) + 1e-8
+    risk_cont_norm[:, :3] = (risk_vals[:, :3] - risk_mean) / risk_std
+    risk_cont_norm = np.nan_to_num(risk_cont_norm, nan=0.0, posinf=0.0, neginf=0.0)
+    risk_cont_norm[:, :3] = np.clip(risk_cont_norm[:, :3], -10.0, 10.0)
+
+    if n_industries > 0:
+        industry_onehot = np.zeros((len(ind_ids), n_industries), dtype=np.float32)
+        valid_ind = ind_ids >= 0
+        if valid_ind.any():
+            industry_onehot[valid_ind, ind_ids[valid_ind]] = 1.0
+        risk_factors = np.concatenate([risk_cont_norm, industry_onehot], axis=1)
+    else:
+        risk_factors = risk_cont_norm
+
+    return X_norm, risk_factors
 
 
 def _normalize_ts_code(code):
@@ -153,8 +218,8 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
     if stock_universe:
         universe_digest = hashlib.md5("|".join(sorted(stock_universe)).encode()).hexdigest()[:8]
         universe_tag = f"_universe{len(stock_universe)}_{universe_digest}"
-    config_digest = _cache_config_digest(config, data_dir, stock_universe)
-    cache_key = f"cross_section_{CACHE_VERSION}_{n_stocks}stocks{universe_tag}_{feat_str}_seq{seq_len}_target{config.target_horizon}_maxh{max_horizon}_cfg{config_digest}"
+    config_tag = _cache_config_tag(config, data_dir, stock_universe)
+    cache_key = f"cross_section_{CACHE_VERSION}_{feat_str}_{config_tag}"
     cache_file = os.path.join(cache_dir, cache_key + ".pkl")
     if use_cache and os.path.exists(cache_file) and not config.force_rebuild:
         print(f"加载缓存: {cache_file}")
@@ -207,37 +272,7 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
 
     # ========== 2. 构造多尺度特征 ==========
     print("构造多尺度特征...")
-    # V8: 减少冗余，增加微观结构特征
-    BASE_FEATURES = [
-        'ret_5d', 'ret_20d', 'vol_10d', 'vol_60d',
-        'price_momentum', 'log_volume', 'volume_spike',
-        'upper_shadow', 'lower_shadow', 'body_size', 'gap', 'amplitude'
-    ]
-
-    for code, df in df_dict.items():
-        close_safe = df['close'].where(df['close'] > 0)
-        prev_close_safe = df['close'].shift(1).where(df['close'].shift(1) > 0)
-        df['log_close'] = np.log(close_safe).replace([np.inf, -np.inf], np.nan)
-        df['log_volume'] = np.log(df['volume'].clip(lower=0) + 1)
-
-        # 收益率和波动率
-        daily_ret = close_safe.pct_change().replace([np.inf, -np.inf], np.nan).clip(-0.5, 0.5)
-        df['ret_5d'] = close_safe.pct_change(5).replace([np.inf, -np.inf], np.nan).clip(-1.0, 1.0)
-        df['ret_20d'] = close_safe.pct_change(20).replace([np.inf, -np.inf], np.nan).clip(-1.0, 1.0)
-        df['vol_10d'] = daily_ret.rolling(10).std().clip(0, 1.0)
-        df['vol_60d'] = daily_ret.rolling(60).std().clip(0, 1.0)
-        df['price_momentum'] = (close_safe / close_safe.rolling(20).mean() - 1).replace([np.inf, -np.inf], np.nan).clip(-1.0, 1.0)
-        df['volume_spike'] = df['log_volume'].pct_change(1).abs().replace([np.inf, -np.inf], np.nan).clip(0, 10)
-
-        # 微观结构特征
-        hl_range_raw = df['high'] - df['low']
-        valid_range = hl_range_raw > (close_safe * 1e-4)
-        hl_range = hl_range_raw.where(valid_range)
-        df['upper_shadow'] = ((df['high'] - df[['open', 'close']].max(axis=1)) / hl_range).clip(0, 1)
-        df['lower_shadow'] = ((df[['open', 'close']].min(axis=1) - df['low']) / hl_range).clip(0, 1)
-        df['body_size'] = (abs(df['close'] - df['open']) / hl_range).clip(0, 1)
-        df['gap'] = ((df['open'] - df['close'].shift(1)) / prev_close_safe).replace([np.inf, -np.inf], np.nan).clip(-0.5, 0.5)
-        df['amplitude'] = (hl_range_raw / close_safe).replace([np.inf, -np.inf], np.nan).clip(0, 1)
+    BASE_FEATURES = _compute_base_features(df_dict)
 
     if config.use_technical_features:
         FEATURE_COLS = BASE_FEATURES + TECH_FEATURES
@@ -262,21 +297,7 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
     print(f"全局日期数 {num_dates}")
 
     # ========== 5. 行业数据 ==========
-    industry_file = os.path.join(os.path.dirname(data_dir), "stock_industry.csv")
-    if not os.path.exists(industry_file):
-        industry_file = "stock_industry.csv"
-
-    industry_dict = {}
-    all_industries = []
-    if os.path.exists(industry_file):
-        industry_df = pd.read_csv(industry_file)
-        if 'code' in industry_df.columns:
-            industry_df['code_norm'] = industry_df['code'].apply(_normalize_ts_code)
-            industry_df = industry_df.dropna(subset=['industry', 'code_norm'])
-            industry_dict = dict(zip(industry_df['code_norm'], industry_df['industry']))
-            all_industries = sorted(set(industry_dict.values()))
-    n_industries = len(all_industries)
-    industry_to_idx = {ind: i for i, ind in enumerate(all_industries)}
+    industry_dict, all_industries, industry_to_idx, n_industries = _load_industry_map(data_dir)
     print(f"行业数 {n_industries}")
 
     # ========== 6. 填充特征矩阵 ==========
@@ -310,7 +331,7 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
             n_windows = windows.shape[0]
 
             # 5种多尺度聚合
-            last_val = windows[:, -1, :]                          # 鏈EUR鏂板EUR?
+            last_val = windows[:, -1, :]                          # 最新值
             sma5 = windows[:, -5:, :].mean(axis=1) if seq_len >= 5 else last_val
             sma20 = windows[:, -20:, :].mean(axis=1) if seq_len >= 20 else sma5
             vol5 = windows[:, -5:, :].std(axis=1) if seq_len >= 5 else np.zeros_like(last_val)
@@ -445,33 +466,7 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
         else:
             industry_relative = X_t[:, relative_indices]
 
-        # 拼接: 聚合特征 + rank特征 + 行业相对特征
-        X_t = np.concatenate([X_t, X_rank, industry_relative], axis=1)
-
-        # MAD鏍囧噯鍖?
-        median = np.median(X_t, axis=0, keepdims=True)
-        mad = np.median(np.abs(X_t - median), axis=0, keepdims=True) + 1e-8
-        X_norm = (X_t - median) / mad
-        X_norm = np.nan_to_num(X_norm, nan=0.0, posinf=0.0, neginf=0.0)
-        X_norm = np.clip(X_norm, -10.0, 10.0)
-
-        # 风险因子标准化（仅前3个股票级风险因子做截面标准化，市场特征保持原值
-        risk_cont_norm = risk_vals.copy()
-        risk_mean = risk_vals[:, :3].mean(axis=0, keepdims=True)
-        risk_std = risk_vals[:, :3].std(axis=0, keepdims=True) + 1e-8
-        risk_cont_norm[:, :3] = (risk_vals[:, :3] - risk_mean) / risk_std
-        risk_cont_norm = np.nan_to_num(risk_cont_norm, nan=0.0, posinf=0.0, neginf=0.0)
-        risk_cont_norm[:, :3] = np.clip(risk_cont_norm[:, :3], -10.0, 10.0)
-
-        # 行业one-hot
-        if n_industries > 0:
-            industry_onehot = np.zeros((len(ind_ids), n_industries), dtype=np.float32)
-            valid_ind = ind_ids >= 0
-            if valid_ind.any():
-                industry_onehot[valid_ind, ind_ids[valid_ind]] = 1.0
-            risk_factors = np.concatenate([risk_cont_norm, industry_onehot], axis=1)
-        else:
-            risk_factors = risk_cont_norm
+        X_norm, risk_factors = _normalize_and_assemble(X_t, X_rank, industry_relative, risk_vals, ind_ids, n_industries)
 
         # 标签：稳健缩放
         p_low, p_high = np.percentile(y_t, [1, 99])
@@ -559,3 +554,312 @@ def add_technical_features(df: "pd.DataFrame", config) -> "pd.DataFrame":
     df['volume_ratio'] = (volume / volume.rolling(20).mean()).replace([np.inf, -np.inf], np.nan).clip(0, 20)
 
     return df
+
+
+_inference_cache_path = os.path.join("cache", "inference_matrices_cache.pkl")
+
+
+def _save_inference_cache(matrices):
+    import pickle
+    try:
+        os.makedirs("cache", exist_ok=True)
+        with open(_inference_cache_path, "wb") as f:
+            pickle.dump(matrices, f, protocol=pickle.HIGHEST_PROTOCOL)
+    except Exception:
+        pass
+
+
+def _load_inference_cache():
+    import pickle
+    try:
+        if os.path.exists(_inference_cache_path):
+            with open(_inference_cache_path, "rb") as f:
+                return pickle.load(f)
+    except Exception:
+        pass
+    return None
+
+
+def _build_inference_matrices(config, stock_universe=None, max_lookback=None):
+    """Load CSVs, compute features, and build the full inference matrices once.
+
+    Returns a dict with all shared data used to produce cross-section samples.
+    If max_lookback is provided, only keep the most recent N dates to save memory.
+    """
+    cached = _load_inference_cache()
+    if cached is not None:
+        print(f"加载推理矩阵缓存: {_inference_cache_path}")
+        return cached
+
+    data_dir = config.data_dir
+    seq_len = config.seq_len
+    max_horizon = getattr(config, 'max_horizon', 10)
+    test_n = getattr(config, 'test_stocks', None) if getattr(config, 'test_mode', False) else None
+
+    print("读取股票数据...")
+    excluded = {'all_data_jq.csv', 'stable_stocks.csv', 'stable_stocks_industry.csv'}
+    csv_files = sorted(
+        f for f in os.listdir(data_dir)
+        if f.endswith('.csv') and f not in excluded and f[0].isdigit()
+    )
+    if config.max_stocks:
+        csv_files = csv_files[:config.max_stocks]
+    if test_n:
+        csv_files = csv_files[:test_n]
+        print(f"test mode: loading only {len(csv_files)} stocks")
+
+    df_dict = {}
+    for fname in tqdm(csv_files, desc="加载CSV", mininterval=10):
+        code = fname.replace('.csv', '')
+        if stock_universe and code not in stock_universe:
+            continue
+        file_path = os.path.join(data_dir, fname)
+        try:
+            df = pd.read_csv(file_path)
+            df.columns = df.columns.str.strip().str.lower()
+            if 'trade_date' in df.columns:
+                df['trade_date'] = pd.to_datetime(df['trade_date'])
+                df.set_index('trade_date', inplace=True)
+            if 'code' in df.columns:
+                df.drop(columns=['code'], inplace=True)
+        except Exception:
+            continue
+        required = ['open', 'high', 'low', 'close', 'volume']
+        if not all(c in df.columns for c in required):
+            continue
+        df = df.sort_index()
+        if config.use_technical_features:
+            df = add_technical_features(df, config)
+        if len(df) >= seq_len + 50:
+            df_dict[code] = df
+
+    if not df_dict:
+        raise ValueError("没有有效股票数据")
+    print(f"有效股票数 {len(df_dict)}")
+
+    print("构造多尺度特征...")
+    base_features = _compute_base_features(df_dict)
+
+    feature_cols = base_features + TECH_FEATURES if config.use_technical_features else base_features
+    feature_cols = list(dict.fromkeys(feature_cols))
+    all_dates = sorted(set().union(*[df.index for df in df_dict.values()]))
+    extra_feat_cols = _load_extra_features(config, df_dict, all_dates)
+    feature_cols = feature_cols + extra_feat_cols
+    base_feat_dim = len(feature_cols)
+    agg_feat_dim = base_feat_dim * N_AGGS
+    print(f"最终特征列数 {base_feat_dim}, 聚合特征数 {agg_feat_dim}")
+
+    num_dates = len(all_dates)
+    if max_lookback is not None and num_dates > max_lookback:
+        cutoff_date = all_dates[-max_lookback]
+        for code in list(df_dict.keys()):
+            df = df_dict[code]
+            df = df[df.index >= cutoff_date]
+            if len(df) < seq_len:
+                del df_dict[code]
+            else:
+                df_dict[code] = df
+        all_dates = sorted(set().union(*[df.index for df in df_dict.values()]))
+        num_dates = len(all_dates)
+        print(f"全局日期数 {num_dates} (截断最近 {max_lookback} 天)")
+    else:
+        print(f"全局日期数 {num_dates}")
+
+    industry_dict, all_industries, industry_to_idx, n_industries = _load_industry_map(data_dir)
+    print(f"行业数 {n_industries}")
+
+    all_codes = list(df_dict.keys())
+    num_stocks = len(all_codes)
+    code_to_idx = {code: i for i, code in enumerate(all_codes)}
+    date_to_idx = {date: i for i, date in enumerate(all_dates)}
+
+    feat_array = np.full((num_stocks, num_dates, agg_feat_dim), np.nan, dtype=np.float32)
+    macro_dim = len(MACRO_COLS) if getattr(config, 'use_macro_features', False) else 0
+    risk_cont_dim = 3 + N_MARKET + macro_dim
+    risk_raw_array = np.zeros((num_stocks, num_dates, risk_cont_dim), dtype=np.float32)
+    industry_array = np.full((num_stocks, num_dates), -1, dtype=np.int16)
+
+    print("填充特征矩阵...")
+    for code, df in tqdm(df_dict.items(), desc="填充数组", mininterval=10):
+        sidx = code_to_idx[code]
+        stock_dates = df.index
+        stock_idx = np.array([date_to_idx[d] for d in stock_dates], dtype=np.int32)
+        raw_feat = df.reindex(columns=feature_cols).values
+        if len(stock_dates) >= seq_len:
+            windows = sliding_window_view(raw_feat, seq_len, axis=0)
+            if windows.shape[1] != seq_len:
+                windows = windows.transpose(0, 2, 1)
+            n_windows = windows.shape[0]
+            last_val = windows[:, -1, :]
+            sma5 = windows[:, -5:, :].mean(axis=1) if seq_len >= 5 else last_val
+            sma20 = windows[:, -20:, :].mean(axis=1) if seq_len >= 20 else sma5
+            vol5 = windows[:, -5:, :].std(axis=1) if seq_len >= 5 else np.zeros_like(last_val)
+            vol20 = windows[:, -20:, :].std(axis=1) if seq_len >= 20 else vol5
+            agg_feat = np.concatenate([last_val, sma5, sma20, vol5, vol20], axis=1)
+            agg_dates_idx = stock_idx[seq_len - 1: seq_len - 1 + n_windows]
+            feat_array[sidx, agg_dates_idx, :] = agg_feat
+
+        size_vals = df['log_volume'].values.astype(np.float32)
+        vol_vals = df['vol_60d'].fillna(0).values.astype(np.float32)
+        mom_vals = df['ret_20d'].fillna(0).values.astype(np.float32)
+        risk_raw_array[sidx, stock_idx, :3] = np.column_stack([size_vals, vol_vals, mom_vals])
+
+        raw_ind = industry_dict.get(code)
+        ind_id = industry_to_idx.get(raw_ind, -1) if raw_ind else -1
+        industry_array[sidx, stock_idx] = ind_id
+
+    if getattr(config, 'use_market_features', True):
+        print("计算市场整体属性...")
+        close_matrix = np.full((num_stocks, num_dates), np.nan, dtype=np.float32)
+        for code, df in df_dict.items():
+            sidx = code_to_idx[code]
+            stock_idx = np.array([date_to_idx[d] for d in df.index], dtype=np.int32)
+            close_matrix[sidx, stock_idx] = df['close'].values.astype(np.float32)
+        breadth = compute_breadth_from_close_matrix(close_matrix)
+        del close_matrix
+        idx_feat = build_market_features_index_only(config.data_dir, all_dates)
+        for t_idx, date in enumerate(all_dates):
+            if date in idx_feat.index:
+                row = idx_feat.loc[date].values
+                risk_raw_array[:, t_idx, 3:19] = row[:16]
+                risk_raw_array[:, t_idx, 19:22] = breadth[t_idx]
+                risk_raw_array[:, t_idx, 22:3 + N_MARKET] = row[16:]
+        del breadth
+        print(f"已加载市场整体属性 {MARKET_COLS}")
+
+    if getattr(config, 'use_macro_features', False):
+        print("加载宏观/资金流特征到市场状态...")
+        try:
+            from data.macro_factors import build_macro_features
+            macro_df = build_macro_features(all_dates)
+            macro_start = 3 + N_MARKET
+            for j, col in enumerate(MACRO_COLS):
+                if col in macro_df.columns:
+                    vals = macro_df[col].reindex(all_dates).fillna(0).values.astype(np.float32)
+                    risk_raw_array[:, :, macro_start + j] = vals[None, :]
+            print(f"已加载宏观/资金流特征 {MACRO_COLS}")
+        except Exception as e:
+            print(f"宏观/资金流特征加载失败，使用0填充: {e}")
+
+    all_codes_np = np.array(all_codes)
+    matrices = {
+        'feat_array': feat_array,
+        'risk_raw_array': risk_raw_array,
+        'industry_array': industry_array,
+        'all_dates': all_dates,
+        'all_codes': all_codes_np,
+        'n_industries': n_industries,
+        'industry_to_idx': industry_to_idx,
+        'feature_cols': feature_cols,
+        'seq_len': seq_len,
+        'max_horizon': max_horizon,
+        'min_stocks': getattr(config, 'min_stocks_per_time', 30),
+    }
+    _save_inference_cache(matrices)
+    return matrices
+
+
+def _sample_from_matrices(m, t_idx):
+    """Extract a single cross-section sample at time index t_idx from pre-built matrices m."""
+    X_t_all = m['feat_array'][:, t_idx, :]
+    risk_all = m['risk_raw_array'][:, t_idx, :]
+    ind_all = m['industry_array'][:, t_idx]
+    feature_cols = m['feature_cols']
+    n_industries = m['n_industries']
+
+    valid_feat = ~np.isnan(X_t_all).any(axis=1)
+    valid_risk = ~np.isnan(risk_all).any(axis=1)
+    valid = valid_feat & valid_risk
+    valid_count = int(valid.sum())
+    if valid_count < m['min_stocks']:
+        return None
+
+    X_t = X_t_all[valid]
+    risk_vals = risk_all[valid]
+    ind_ids = ind_all[valid]
+    denom = max(X_t.shape[0] - 1, 1)
+    X_rank = np.argsort(np.argsort(X_t, axis=0), axis=0).astype(np.float32) / denom
+
+    relative_indices = [feature_cols.index(name) for name in INDUSTRY_REL_FEATURES if name in feature_cols]
+    industry_relative = np.zeros((X_t.shape[0], len(relative_indices)), dtype=np.float32)
+    if n_industries > 0:
+        for j, feat_idx in enumerate(relative_indices):
+            feat_vals = X_t[:, feat_idx].copy()
+            for ind in range(n_industries):
+                mask_ind = ind_ids == ind
+                if mask_ind.sum() > 1:
+                    feat_vals[mask_ind] -= np.mean(feat_vals[mask_ind])
+            unknown_mask = ind_ids == -1
+            if unknown_mask.sum() > 1:
+                feat_vals[unknown_mask] -= np.mean(feat_vals[unknown_mask])
+            industry_relative[:, j] = feat_vals
+
+    X_norm, risk_factors = _normalize_and_assemble(X_t, X_rank, industry_relative, risk_vals, ind_ids, n_industries)
+
+    n = X_norm.shape[0]
+    return {
+        'date': m['all_dates'][t_idx],
+        'X': X_norm,
+        'y': np.zeros(n, dtype=np.float32),
+        'y_seq': np.zeros((n, m['max_horizon']), dtype=np.float32),
+        'codes': m['all_codes'][valid].tolist(),
+        'raw_y': np.zeros(n, dtype=np.float32),
+        'risk': risk_factors,
+        'industry_ids': ind_ids,
+    }
+
+
+def build_inference_sample(config, stock_universe=None, as_of_date=None):
+    """Build a single label-free inference cross-section sample. Backward compatible."""
+    matrices = _build_inference_matrices(config, stock_universe)
+    all_dates = matrices['all_dates']
+    seq_len = matrices['seq_len']
+    num_dates = len(all_dates)
+
+    if as_of_date is None or str(as_of_date).lower() == "latest":
+        candidate_indices = range(num_dates - 1, seq_len - 1, -1)
+    else:
+        cutoff = pd.to_datetime(as_of_date)
+        candidate_indices = [i for i, date in enumerate(all_dates) if i >= seq_len and date <= cutoff]
+        candidate_indices = reversed(candidate_indices)
+
+    last_error = None
+    for t in candidate_indices:
+        sample = _sample_from_matrices(matrices, t)
+        if sample is None:
+            last_error = f"{all_dates[t].date()} 有效股票数不足 < {matrices['min_stocks']}"
+            continue
+        print(f"推理截面日期 {all_dates[t].date()}，有效股票数 {len(sample['codes'])}")
+        return sample
+
+    if as_of_date is None or str(as_of_date).lower() == "latest":
+        raise ValueError(last_error or "无法构造最新推理截面")
+    raise ValueError(last_error or f"无法在 {as_of_date} 及之前构造推理截面")
+
+
+def build_inference_samples(config, as_of_dates, stock_universe=None):
+    """Build inference samples for multiple dates efficiently (CSVs read once)."""
+    matrices = _build_inference_matrices(config, stock_universe)
+    all_dates = matrices['all_dates']
+    seq_len = matrices['seq_len']
+    all_dates_list = list(all_dates)
+
+    results = []
+    for as_of in as_of_dates:
+        cutoff = pd.to_datetime(as_of)
+        candidates = [i for i, d in enumerate(all_dates_list) if i >= seq_len and d <= cutoff]
+        found = None
+        for t in reversed(candidates):
+            sample = _sample_from_matrices(matrices, t)
+            if sample is not None:
+                found = sample
+                break
+        if found is not None:
+            actual_date = pd.Timestamp(found['date']).strftime('%Y-%m-%d')
+            print(f"  {as_of} -> 实际 {actual_date}, 股票数 {len(found['codes'])}")
+            found['_requested_date'] = as_of
+            results.append(found)
+        else:
+            print(f"  {as_of}: SKIP (不足最小股票数)")
+
+    return results

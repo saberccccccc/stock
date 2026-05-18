@@ -10,49 +10,37 @@
   python update_data.py --extend 20100101    # 扩展历史 + 更新最新
   python update_data.py --rebuild-cache      # 更新后重做缓存
 """
+import argparse
 import os
 import sys
 import time
-import random
-import argparse
-import threading
+from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta
 
+from data.api_utils import SafeAPICaller, resolve_tushare_token
 
-def resolve_tushare_token(token=None):
-    resolved = token or os.getenv('TUSHARE_TOKEN')
-    if not resolved:
-        raise ValueError('缺少 TUSHARE_TOKEN，请设置环境变量或通过 --token 传入')
-    return resolved
 
 # ==================== TushareProLite（精简自用版本）===================
 class TushareProLite:
-    def __init__(self, token, max_workers=3, min_interval=2.0):
+    def __init__(self, token, min_interval=2.0):
         import tushare as ts
         ts.set_token(token)
         self.pro = ts.pro_api()
-        self.max_workers = max_workers
         self.min_interval = min_interval
-        self.last_request_time = 0
-        self.request_lock = threading.Lock()
+        self.safe_call = SafeAPICaller(
+            min_interval=min_interval,
+            max_retries=3,
+            retry_base_delay=5.0,
+            jitter=(0.2, 0.5),
+            data_source="tushare",
+        )
 
     def _safe_call(self, func, *args, **kwargs):
-        for attempt in range(3):
-            try:
-                with self.request_lock:
-                    elapsed = time.time() - self.last_request_time
-                    if elapsed < self.min_interval:
-                        time.sleep(self.min_interval - elapsed + random.uniform(0.2, 0.5))
-                    self.last_request_time = time.time()
-                return func(*args, **kwargs)
-            except Exception as e:
-                print(f"  重试 {attempt+1}/3: {e}")
-                time.sleep(5 * (attempt + 1))
-        return None
+        return self.safe_call(func, *args, **kwargs)
 
     def get_stable_stocks(self, data_dir, min_years=1):
         path = os.path.join(data_dir, 'stable_stocks.csv')
@@ -164,7 +152,7 @@ class TushareProLite:
 
 # ==================== 批量更新 ====================
 def batch_update(data_dir, token, start_date='20100101', max_workers=3,
-                 batch_size=200, batch_sleep=30, limit=None):
+                 batch_size=200, batch_sleep=30, limit=None, stock_list=None):
     """
     批量增量更新所有股票
 
@@ -175,10 +163,20 @@ def batch_update(data_dir, token, start_date='20100101', max_workers=3,
         max_workers: 并发数
         batch_sleep: 批次间休眠秒数（避免限流）
         limit: 限制股票数（None=全部）
+        stock_list: 指定股票列表文件路径（每行一个代码），用于定向恢复
     """
-    td = TushareProLite(token, max_workers=max_workers)
+    td = TushareProLite(token)
     stocks = td.get_stable_stocks(data_dir)
-    print(f"稳定股票总数: {len(stocks)}")
+
+    # 如果指定了定向恢复列表，只处理列表中的股票（且必须存在于stable_stocks中）
+    if stock_list:
+        stock_list_path = stock_list if os.path.isabs(stock_list) else stock_list
+        with open(stock_list_path) as f:
+            wanted = set(line.strip().replace('.csv', '') for line in f if line.strip())
+        stocks = [s for s in stocks if s in wanted]
+        print(f"定向恢复模式: {len(wanted)} 个目标 → 命中 {len(stocks)} 个稳定股票")
+    else:
+        print(f"稳定股票总数: {len(stocks)}")
 
     if limit:
         stocks = stocks[:limit]
@@ -281,6 +279,8 @@ def main():
                         help='每批股票数（默认200）')
     parser.add_argument('--batch-sleep', type=int, default=45,
                         help='批次间休眠秒数（默认45）')
+    parser.add_argument('--stock-list', type=str, default=None,
+                        help='定向恢复列表文件（每行一个股票代码），只处理列表中的股票')
 
     args = parser.parse_args()
     start_date = args.extend if args.extend else args.start_date
@@ -302,6 +302,7 @@ def main():
         batch_size=args.batch_size,
         batch_sleep=args.batch_sleep,
         limit=args.limit,
+        stock_list=args.stock_list,
     )
 
     if args.update_macro:

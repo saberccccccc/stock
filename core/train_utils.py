@@ -118,8 +118,8 @@ def _masked_corr_loss_1d(pred, target, mask):
     return -(pred_z * target_z).mean()
 
 
-def correlation_rank_loss(pred, target, mask):
-    """Compute Pearson correlation loss"""
+def correlation_ic_loss(pred, target, mask):
+    """Compute negative Pearson IC loss"""
     if pred.dim() == 1:
         loss = _masked_corr_loss_1d(pred, target, mask)
         return loss if loss is not None else torch.tensor(0.0, device=pred.device)
@@ -176,13 +176,13 @@ def total_loss_v7(alpha_raw, alphas, horizon_preds, y, y_seq, mask, cfg):
     target_weighted, valid_indices, norm_weights = weighted_horizon_target(y_seq, cfg)
 
     # 主loss
-    main = correlation_rank_loss(alpha_raw, target_weighted, mask)
+    main = correlation_ic_loss(alpha_raw, target_weighted, mask)
 
     # 多周期loss
     multi = 0.0
     for j, (idx, w) in enumerate(zip(valid_indices, norm_weights)):
         if j < horizon_preds.shape[-1]:
-            multi = multi + w * correlation_rank_loss(
+            multi = multi + w * correlation_ic_loss(
                 horizon_preds[..., j], y_seq[..., idx], mask
             )
 
@@ -200,7 +200,7 @@ def _is_oom_error(error):
 
 @torch.no_grad()
 def evaluate(model, loader, cfg, device):
-    """Compute validation set Rank IC per horizon (chunked processing, memory cleanup)"""
+    """Compute validation set Pearson IC per horizon (chunked processing, memory cleanup)"""
     model.eval()
     h_indices = list(cfg.horizon_indices)
     all_ics = {f"h{h_indices[i]+1}": [] for i in range(len(h_indices))}
@@ -299,7 +299,7 @@ def train_model(train_loader, val_loader, input_dim, base_feat_dim, cfg,
     n_params = sum(p.numel() for p in model.parameters())
     print(f"UltimateV7Model 参数量: {n_params:,}")
 
-    best_model_path = save_path or "ultimate_v7_best.pt"
+    best_model_path = save_path or "checkpoints/ultimate_v7_best.pt"
     start_epoch = 0
     best_val_loss = float('inf')
 
@@ -321,7 +321,7 @@ def train_model(train_loader, val_loader, input_dim, base_feat_dim, cfg,
 
     if resume and os.path.exists(best_model_path):
         print(f"loading existing checkpoint {best_model_path}, continuing training...")
-        checkpoint = torch.load(best_model_path, map_location=device)
+        checkpoint = torch.load(best_model_path, map_location=device, weights_only=False)
         arch_config = checkpoint.get('arch_config', None)
 
         to_load = True
@@ -347,7 +347,7 @@ def train_model(train_loader, val_loader, input_dim, base_feat_dim, cfg,
                 optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
                 print(f"restored optimizer state")
             else:
-                print(f"  (检查点无optimizer状态，使用全新优化器")
+                print(f"  (检查点无optimizer状态，使用全新优化器)")
             if 'scheduler_state_dict' in checkpoint:
                 scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
                 print(f"restored optimizer state")
@@ -450,7 +450,7 @@ def train_model(train_loader, val_loader, input_dim, base_feat_dim, cfg,
         t_val = time.time()
         val_ics = evaluate(model, val_loader, cfg, device)
         print(f"--- VAL done in {time.time()-t_val:.1f}s ---")
-        val_loss = -val_ics["alpha"]  # 鐢?-RankIC 作为早停标准
+        val_loss = -val_ics["alpha"]  # negative alpha IC as early-stopping criterion
 
         scheduler.step()
 
@@ -465,7 +465,7 @@ def train_model(train_loader, val_loader, input_dim, base_feat_dim, cfg,
             f"预计剩余: {eta_seconds/3600:.2f} h"
         )
         ic_str = " | ".join([f"{k}: {v:.4f}" for k, v in val_ics.items()])
-        print(f"Epoch {epoch+1} | Train Loss: {train_loss:.4f} | Val IC 鈫?{ic_str}")
+        print(f"Epoch {epoch+1} | Train Loss: {train_loss:.4f} | Val IC -> {ic_str}")
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss

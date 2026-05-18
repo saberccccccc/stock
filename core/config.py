@@ -1,6 +1,23 @@
 # config.py - 截面数据集配置
+import os
+import sys
+import warnings
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Optional, List, Tuple
+
+# ── 全局常量 ──────────────────────────────────────────────
+TRADING_DAYS = 252          # 年化交易日数
+ADV_LIMIT_RATIO = 0.02      # 单日成交量占比上限
+MAX_WEIGHT = 0.05           # 单只持仓权重上限
+TARGET_VOL = 0.15           # 目标年化波动率
+IMPACT_COEFF = 0.1          # 交易冲击成本系数
+EPS = 1e-8                  # 数值稳定小量
+
+# 模型 checkpoint 路径
+V9_CKPT = "checkpoints/ultimate_v7_best.pt"
+GAT_CKPT = "checkpoints/ultimate_v7_gat_best.pt"
+LEGACY_CKPT = "checkpoints/ultimate_v7_legacy_best.pt"
 
 
 @dataclass
@@ -44,9 +61,6 @@ class DataConfig:
 
     # ==================== 新增：模型开关 ====================
     use_gat: bool = False                       # GAT产业链图网络
-    use_stacking: bool = False                  # Stacking集成（LGB→Transformer）
-    # ==================== 新增：动态风控 ====================
-    dynamic_risk_budget: bool = False           # 动态风险预算
     max_drawdown_limit: float = 0.15            # 最大回撤容忍度
     base_target_vol: float = 0.15               # 基础目标波动率
     # ==================== V8新增：市场整体属性 ====================
@@ -56,4 +70,15 @@ class DataConfig:
     test_stocks: int = 1000                     # 测试模式股票数
     use_multi_horizon: bool = True              # 多周期联合训练
     horizon_indices: Tuple[int, ...] = (0, 2, 4, 6)   # y_seq中的列索引 h1,h3,h5,h7
-    horizon_weights: Tuple[float, ...] = (0.15, 0.25, 0.35, 0.25)  # 各周期loss权重
+    horizon_weights: Tuple[float, ...] = (0.225, 0.225, 0.3, 0.25)  # 各周期loss权重
+
+
+# ── 项目环境初始化 ──────────────────────────────────────
+def setup_project_environment():
+    """设置 sys.path 和 cwd 到项目根目录，返回 PROJECT_ROOT Path。"""
+    root = Path(__file__).resolve().parents[1]
+    if str(root) not in sys.path:
+        sys.path.insert(0, str(root))
+    os.chdir(root)
+    warnings.filterwarnings("ignore")
+    return root

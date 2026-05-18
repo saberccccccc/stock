@@ -1,12 +1,12 @@
 # fundamental_factors.py - 基本面因子获取及PIT对齐
 import hashlib
 import os
-import time
-import random
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 import warnings
+
+from data.api_utils import SafeAPICaller, resolve_tushare_token
 
 warnings.filterwarnings('ignore')
 
@@ -16,15 +16,13 @@ CACHE_VERSION = "pit_v3_schema"
 FACTOR_SCHEMA = ('roe', 'revenue_yoy', 'pe_percentile')
 FACTOR_SCHEMA_VERSION = "schema_v1"
 
-_last_request_time = 0
-_min_interval = 2.0
-
-
-def resolve_tushare_token(token=None):
-    resolved = token or os.getenv('TUSHARE_TOKEN')
-    if not resolved:
-        raise ValueError('缺少 TUSHARE_TOKEN，请设置环境变量或传入token')
-    return resolved
+_ts_call = SafeAPICaller(
+    min_interval=2.0,
+    max_retries=3,
+    retry_base_delay=5.0,
+    jitter=(0.3, 0.6),
+    data_source="tushare",
+)
 
 
 def _cache_path(codes, start_date, end_date):
@@ -36,20 +34,8 @@ def _cache_path(codes, start_date, end_date):
 
 
 def _safe_ts_call(pro, func_name, *args, **kwargs):
-    global _last_request_time
-    for attempt in range(3):
-        try:
-            elapsed = time.time() - _last_request_time
-            if elapsed < _min_interval:
-                time.sleep(_min_interval - elapsed)
-            _last_request_time = time.time()
-            time.sleep(random.uniform(0.3, 0.6))
-            func = getattr(pro, func_name)
-            return func(*args, **kwargs)
-        except Exception as e:
-            print(f"  请求失败 ({attempt+1}/3): {e}, 等待 {5*(attempt+1)}s")
-            time.sleep(5 * (attempt + 1))
-    return None
+    func = getattr(pro, func_name)
+    return _ts_call(func, *args, **kwargs)
 
 
 def _to_datetime(series):
