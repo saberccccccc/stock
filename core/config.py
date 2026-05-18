@@ -14,10 +14,10 @@ TARGET_VOL = 0.15           # 目标年化波动率
 IMPACT_COEFF = 0.1          # 交易冲击成本系数
 EPS = 1e-8                  # 数值稳定小量
 
-# 模型 checkpoint 路径
-V9_CKPT = "checkpoints/ultimate_v7_best.pt"
-GAT_CKPT = "checkpoints/ultimate_v7_gat_best.pt"
-LEGACY_CKPT = "checkpoints/ultimate_v7_legacy_best.pt"
+# 模型 checkpoint 路径（实验分支用 exp 子目录，与主项目隔离）
+V9_CKPT = "checkpoints_exp/ultimate_v7_best.pt"
+GAT_CKPT = "checkpoints_exp/ultimate_v7_gat_best.pt"
+LEGACY_CKPT = "checkpoints_exp/ultimate_v7_legacy_best.pt"
 
 
 @dataclass

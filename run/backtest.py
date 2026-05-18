@@ -30,7 +30,7 @@ EXPERIMENTS = {
             {"label": "optimizer_projected", "portfolio_mode": "optimizer_projected"},
             {"label": "optimizer_mvo_ra0p1", "portfolio_mode": "optimizer_mvo", "mvo_risk_aversion": 0.1},
         ],
-        "output_dir": "backtest_results_ensemble",
+        "output_dir": "backtest_results_exp_ensemble",
         "csv_name": "v9_gat_ensemble_modes_summary.csv",
         "display_columns": [
             "strategy", "mode",
@@ -51,7 +51,7 @@ EXPERIMENTS = {
             {"label": "optimizer_mvo_ra0p1", "portfolio_mode": "optimizer_mvo", "mvo_risk_aversion": 0.1},
             {"label": "optimizer", "portfolio_mode": "optimizer"},
         ],
-        "output_dir": "backtest_results_intersection",
+        "output_dir": "backtest_results_exp_intersection",
         "csv_name": "v9_gat_intersection_modes_summary.csv",
         "display_columns": [
             "mode",
@@ -73,7 +73,7 @@ EXPERIMENTS = {
             {"label": "simple_ls", "portfolio_mode": "simple_ls"},
             {"label": "optimizer_projected", "portfolio_mode": "optimizer_projected"},
         ],
-        "output_dir": "backtest_results_concentrated",
+        "output_dir": "backtest_results_exp_concentrated",
         "csv_name": "v9_gat_concentrated_modes_summary.csv",
         "display_columns": [
             "strategy", "variant", "mode", "signal_top_pct", "run_top_frac",
@@ -94,7 +94,7 @@ EXPERIMENTS = {
             {"persistent": "average", "window": 5, "label_tag": "average_w5"},
             {"persistent": "composite", "window": 5, "label_tag": "composite_w5"},
         ],
-        "output_dir": "backtest_results_persistent",
+        "output_dir": "backtest_results_exp_persistent",
         "csv_name": "v9_gat_persistent_summary.csv",
         "display_columns": [
             "strategy", "persistent", "window", "mode",
