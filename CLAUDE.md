@@ -30,7 +30,7 @@ The environment has PyTorch `2.7.1+cu118` with CUDA available on an RTX 2060-cla
 Data update commands require a Tushare token supplied outside source code:
 
 ```bash
-export TUSHARE_TOKEN="<set-in-your-shell>"
+export TUSHARE_TOKEN="65209d394f51051f94f8a9eeeb3396048121ecf94080eda0e33d06e5"
 C:/Users/x/miniconda3/envs/torch/python data/update.py
 C:/Users/x/miniconda3/envs/torch/python data/update_daily.py
 C:/Users/x/miniconda3/envs/torch/python data/update.py --init
