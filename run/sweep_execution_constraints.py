@@ -110,7 +110,7 @@ def main():
                         })
                         summary_rows.append(row)
                         tag = (
-                            f"pv{int(portfolio_value / 1e6):04d}m_cap{int(cap * 1000):03d}_"
+                            f"pv{int(portfolio_value / 1e4):04d}w_cap{int(cap * 1000):03d}_"
                             f"minadv{int(min_adv / 1e6):03d}m_"
                             f"target{int(round(target_frac * 1000)):03d}_hold{int(round(hold_frac * 1000)):03d}"
                         )
@@ -119,7 +119,8 @@ def main():
                         returns_df.to_csv(out_dir / f"returns_{tag}.csv", index=False)
                         done += 1
                         print(
-                            f"{done}/{total} pv={portfolio_value/1e6:.0f}m cap={cap:.2%} minadv={min_adv/1e6:.0f}m "
+                            f"{done}/{total} pv={portfolio_value/1e4:.0f}w CNY cap={cap:.2%} "
+                            f"minadv={min_adv/1e6:.0f}m "
                             f"target={target_frac:.3f} hold={hold_frac:.3f} ann={row['ann']:.2f}% "
                             f"sharpe={row['sharpe']:.3f} exec_to={row['avg_executed_turnover']:.3f} "
                             f"unfilled={row['avg_unfilled_turnover']:.3f}",
@@ -151,7 +152,7 @@ def main():
     ]
     for row in top.to_dict("records"):
         lines.append(
-            f"| {row['portfolio_value']/1e6:.0f}M | {row['adv_participation_cap']:.2%} | "
+            f"| {row['portfolio_value']/1e4:.0f}万 | {row['adv_participation_cap']:.2%} | "
             f"{row['min_adv_cny']/1e6:.0f}M | {row['target_frac']:.3f} | {row['hold_frac']:.3f} | "
             f"{row['ann']:.2f}% | {row['sharpe']:.3f} | {row['mdd']*100:.2f}% | "
             f"{row['avg_executed_turnover']:.3f} | {row['avg_unfilled_turnover']:.3f} |"
