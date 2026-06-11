@@ -10,6 +10,8 @@ import hashlib
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
+from core.research_protocol import cached_dates_within_research
+
 warnings.filterwarnings('ignore')
 
 # 宏观特征列名
@@ -320,18 +322,31 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
     config_tag = _cache_config_tag(config, data_dir, stock_universe)
     cache_key = f"cross_section_{CACHE_VERSION}_{feat_str}_{config_tag}"
     meta_path = os.path.join(cache_dir, cache_key + "_meta.pkl")
-    if use_cache and os.path.exists(meta_path) and not config.force_rebuild:
+    legacy_meta_path = meta_path.replace(
+        f"_end{pd.Timestamp(config.research_end_date).strftime('%Y%m%d')}_meta.pkl",
+        "_meta.pkl",
+    )
+    cache_candidates = [meta_path]
+    if legacy_meta_path != meta_path:
+        cache_candidates.append(legacy_meta_path)
+    if use_cache and not config.force_rebuild:
         # 验证所有 .dat 文件存在，防止手动删文件后缓存静默失败
-        with open(meta_path, 'rb') as f:
-            cached = pickle.load(f)
-        dat_keys = ('feat_path', 'risk_path', 'ret_path',
-                    'x_norm_path', 'risk_full_path', 'y_norm_path', 'y_seq_norm_path')
-        dat_files = [cached[k] for k in dat_keys if k in cached]
-        missing = [p for p in dat_files if not os.path.exists(p)]
-        if missing:
-            print(f"缓存不完整（{len(missing)} 个 .dat 文件缺失），重建: {missing[0]}")
-        else:
-            print(f"加载缓存元数据: {meta_path}")
+        for candidate in cache_candidates:
+            if not os.path.exists(candidate):
+                continue
+            with open(candidate, 'rb') as f:
+                cached = pickle.load(f)
+            dat_keys = ('feat_path', 'risk_path', 'ret_path',
+                        'x_norm_path', 'risk_full_path', 'y_norm_path', 'y_seq_norm_path')
+            dat_files = [cached[k] for k in dat_keys if k in cached]
+            missing = [p for p in dat_files if not os.path.exists(p)]
+            if missing:
+                print(f"缓存不完整（{len(missing)} 个 .dat 文件缺失），重建: {missing[0]}")
+                continue
+            if not cached_dates_within_research(cached):
+                print(f"缓存超过研究截止日，拒绝使用: {candidate}")
+                continue
+            print(f"加载缓存元数据: {candidate}")
             return cached
 
     # ========== 1. 读取股票数据 ==========

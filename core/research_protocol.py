@@ -37,3 +37,8 @@ def assert_alpha_rows_within_research(rows, context: str = "backtest") -> None:
             f"{context} contains signal date {max(dates).date()} after frozen research "
             f"boundary {RESEARCH_END_DATE.date()}."
         )
+
+
+def cached_dates_within_research(metadata) -> bool:
+    dates = metadata.get("all_dates", [])
+    return not dates or pd.Timestamp(max(dates)) <= RESEARCH_END_DATE

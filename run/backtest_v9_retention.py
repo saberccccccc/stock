@@ -87,19 +87,40 @@ def load_v9_samples_and_predictor(args):
     if not isinstance(result, dict):
         train_samples, val_samples = result
         all_samples = train_samples + val_samples
+        base = load_dl_predictor(args.checkpoint, train_samples, cfg, args.device)
+        samples = filter_samples_by_date(all_samples, args)
     else:
-        cfg.low_feat_dim = result.get("low_agg_dim", getattr(cfg, "low_feat_dim", 14))
-        train_samples = samples_from_precomputed_metadata(result, "train")
-        val_samples = samples_from_precomputed_metadata(result, "val")
-        all_samples = train_samples + val_samples
+        meta = result
+        cfg.low_feat_dim = meta.get("low_agg_dim", getattr(cfg, "low_feat_dim", 14))
+        all_indices = list(meta["train_indices"]) + list(meta["val_indices"])
+        start, end = split_bounds(args)
+        selected_indices = []
+        for idx in all_indices:
+            date = pd.Timestamp(meta["all_dates"][idx])
+            if start is not None and date < start:
+                continue
+            if end is not None and date >= end:
+                continue
+            selected_indices.append(idx)
+        if args.limit_dates is not None:
+            selected_indices = selected_indices[: int(args.limit_dates)]
+        if not selected_indices:
+            raise ValueError("No cached samples match the requested date range")
 
-    base = load_dl_predictor(args.checkpoint, train_samples, cfg, args.device)
+        schema_meta = dict(meta)
+        schema_meta["train_indices"] = [meta["train_indices"][0]]
+        schema_samples = samples_from_precomputed_metadata(schema_meta, "train")
+        base = load_dl_predictor(args.checkpoint, schema_samples, cfg, args.device)
+
+        eval_meta = dict(meta)
+        eval_meta["val_indices"] = selected_indices
+        samples = samples_from_precomputed_metadata(eval_meta, "val")
+
     raw = V9RankPredictor(base, "v9_raw", cache={})
     if args.predictor_mode == "none":
         predictor = raw
     else:
         predictor = PersistentPredictor(raw, window=args.window, mode=args.predictor_mode)
-    samples = filter_samples_by_date(all_samples, args)
     samples.sort(key=lambda s: pd.Timestamp(s["date"]))
     return cfg, samples, predictor
 

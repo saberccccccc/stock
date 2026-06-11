@@ -41,6 +41,8 @@ def parse_args():
     parser.add_argument("--adv-window", type=int, default=20)
     parser.add_argument("--money-scale", type=float, default=1000.0)
     parser.add_argument("--limit-threshold", type=float, default=0.095)
+    parser.add_argument("--lot-size", type=int, default=100)
+    parser.add_argument("--min-commission-cny", type=float, default=5.0)
     parser.add_argument("--execution-lag", type=int, default=0)
     parser.add_argument("--market-timing-mode", default="legacy", choices=["none", "legacy", "dynamic"])
     parser.add_argument("--market-min-mult", type=float, default=0.20)
@@ -92,6 +94,8 @@ def main():
                     min_adv_cny=min_adv,
                     limit_threshold=args.limit_threshold,
                     execution_lag=args.execution_lag,
+                    lot_size=args.lot_size,
+                    min_commission_cny=args.min_commission_cny,
                 )
                 for target_frac in target_fracs:
                     for hold_frac in hold_fracs:
@@ -107,6 +111,8 @@ def main():
                             "min_adv_cny": min_adv,
                             "limit_threshold": args.limit_threshold,
                             "execution_lag": args.execution_lag,
+                            "lot_size": args.lot_size,
+                            "min_commission_cny": args.min_commission_cny,
                         })
                         summary_rows.append(row)
                         tag = (

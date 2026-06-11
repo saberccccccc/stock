@@ -21,7 +21,6 @@ os.chdir(ROOT)
 
 from backtest.reports import calc_extended_metrics, calc_metrics
 from core.research_protocol import assert_alpha_rows_within_research
-from run.backtest_temporal_daily_top import explicit_cost
 from run.backtest_temporal_retention import compute_market_multiplier, load_index_returns
 
 
@@ -47,6 +46,8 @@ def parse_args():
     parser.add_argument("--min-adv-cny", type=float, default=3000000.0)
     parser.add_argument("--money-scale", type=float, default=1000.0)
     parser.add_argument("--limit-threshold", type=float, default=0.095)
+    parser.add_argument("--lot-size", type=int, default=100)
+    parser.add_argument("--min-commission-cny", type=float, default=5.0)
     parser.add_argument("--execution-lag", type=int, default=0, help="Extra trading-day delay after the next tradable day")
     parser.add_argument("--progress-every", type=int, default=1000)
     return parser.parse_args()
@@ -149,23 +150,44 @@ def limit_trade_mask(close_df, day_pos, codes, code2idx, threshold):
 
 
 def apply_execution_constraints(
-    desired,
-    current,
+    desired_weights,
+    current_shares,
+    cash,
+    equity,
     close_df,
     adv_df,
     day_pos,
     args,
 ):
     codes = list(close_df.columns)
+    prices = close_df.iloc[day_pos].to_numpy(dtype=np.float64)
+    safe_prices = np.where(np.isfinite(prices) & (prices > 0), prices, 0.0)
     adv_row = adv_df.iloc[day_pos].to_numpy(dtype=np.float64)
     buy_block, sell_block = limit_trade_mask(close_df, day_pos, codes, None, args.limit_threshold)
-    delta = desired - current
-    executed = np.zeros_like(delta)
-    blocked_buy = blocked_sell = adv_blocked = capped = 0
+    lot_size = max(int(getattr(args, "lot_size", 1)), 1)
+    desired_shares = np.zeros_like(current_shares, dtype=np.float64)
+    valid_price = np.isfinite(prices) & (prices > 0)
+    desired_shares[valid_price] = (
+        np.floor(
+            desired_weights[valid_price] * float(equity)
+            / prices[valid_price]
+            / lot_size
+        )
+        * lot_size
+    )
+    share_delta = desired_shares - current_shares
+    executed_shares = np.zeros_like(share_delta)
+    blocked_buy = blocked_sell = adv_blocked = capped = lot_blocked = 0
     missing_adv = 0
 
-    for i, raw_delta in enumerate(delta):
-        if abs(raw_delta) <= 1e-12:
+    # Sells are processed first so their proceeds can fund buys on the same close.
+    order = np.concatenate((np.where(share_delta < 0)[0], np.where(share_delta > 0)[0]))
+    for i in order:
+        raw_shares = share_delta[i]
+        if abs(raw_shares) < 1:
+            continue
+        price = prices[i]
+        if not np.isfinite(price) or price <= 0:
             continue
         adv_cny = adv_row[i]
         if not np.isfinite(adv_cny) or adv_cny <= 0:
@@ -174,35 +196,114 @@ def apply_execution_constraints(
         if adv_cny < args.min_adv_cny:
             adv_blocked += 1
             continue
-        if raw_delta > 0 and buy_block[i]:
+        if raw_shares > 0 and buy_block[i]:
             blocked_buy += 1
             continue
-        if raw_delta < 0 and sell_block[i]:
+        if raw_shares < 0 and sell_block[i]:
             blocked_sell += 1
             continue
 
-        max_abs_delta = float(args.adv_participation_cap) * adv_cny / max(float(args.portfolio_value), 1.0)
-        if max_abs_delta < abs(raw_delta):
+        max_trade_shares = (
+            np.floor(float(args.adv_participation_cap) * adv_cny / price / lot_size)
+            * lot_size
+        )
+        if max_trade_shares < lot_size:
+            lot_blocked += 1
+            continue
+        if max_trade_shares < abs(raw_shares):
             capped += 1
-            executed[i] = np.sign(raw_delta) * max_abs_delta
+            candidate_shares = np.sign(raw_shares) * max_trade_shares
         else:
-            executed[i] = raw_delta
+            candidate_shares = raw_shares
 
-    new_current = current + executed
-    gross = np.sum(np.abs(new_current))
-    if gross > 1.0:
-        new_current = new_current / gross
+        candidate_shares = np.sign(candidate_shares) * (
+            np.floor(abs(candidate_shares) / lot_size) * lot_size
+        )
+        if abs(candidate_shares) < lot_size:
+            lot_blocked += 1
+            continue
+
+        trade_value = abs(candidate_shares) * price
+        commission = max(
+            trade_value * float(args.commission_rate),
+            float(getattr(args, "min_commission_cny", 0.0)),
+        )
+        stamp_tax = trade_value * float(args.stamp_tax_rate) if candidate_shares < 0 else 0.0
+        slippage = trade_value * float(args.slippage_rate)
+        fees = commission + stamp_tax + slippage
+
+        if candidate_shares > 0:
+            affordable = np.floor(
+                max(cash - float(getattr(args, "min_commission_cny", 0.0)), 0.0)
+                / (price * (1.0 + float(args.commission_rate) + float(args.slippage_rate)))
+                / lot_size
+            ) * lot_size
+            if affordable < candidate_shares:
+                candidate_shares = affordable
+                if candidate_shares < lot_size:
+                    lot_blocked += 1
+                    continue
+                trade_value = candidate_shares * price
+                commission = max(
+                    trade_value * float(args.commission_rate),
+                    float(getattr(args, "min_commission_cny", 0.0)),
+                )
+                slippage = trade_value * float(args.slippage_rate)
+                stamp_tax = 0.0
+                fees = commission + slippage
+            cash -= trade_value + fees
+        else:
+            candidate_shares = -min(abs(candidate_shares), current_shares[i])
+            if abs(candidate_shares) < lot_size:
+                lot_blocked += 1
+                continue
+            trade_value = abs(candidate_shares) * price
+            commission = max(
+                trade_value * float(args.commission_rate),
+                float(getattr(args, "min_commission_cny", 0.0)),
+            )
+            stamp_tax = trade_value * float(args.stamp_tax_rate)
+            slippage = trade_value * float(args.slippage_rate)
+            fees = commission + stamp_tax + slippage
+            cash += trade_value - fees
+        executed_shares[i] = candidate_shares
+
+    new_shares = current_shares + executed_shares
+    executed_values = executed_shares * safe_prices
+    desired_values = share_delta * safe_prices
+    total_commission = 0.0
+    total_stamp_tax = 0.0
+    total_slippage = 0.0
+    for shares, price in zip(executed_shares, prices):
+        if abs(shares) < 1 or not np.isfinite(price):
+            continue
+        value = abs(shares) * price
+        total_commission += max(
+            value * float(args.commission_rate),
+            float(getattr(args, "min_commission_cny", 0.0)),
+        )
+        total_stamp_tax += value * float(args.stamp_tax_rate) if shares < 0 else 0.0
+        total_slippage += value * float(args.slippage_rate)
+    total_cost = total_commission + total_stamp_tax + total_slippage
     info = {
         "blocked_buy": blocked_buy,
         "blocked_sell": blocked_sell,
         "adv_blocked": adv_blocked,
         "missing_adv": missing_adv,
         "capped": capped,
-        "desired_turnover": float(np.sum(np.abs(delta))),
-        "executed_turnover": float(np.sum(np.abs(executed))),
-        "unfilled_turnover": float(np.sum(np.abs(delta - executed))),
+        "lot_blocked": lot_blocked,
+        "turnover": float(np.sum(np.abs(executed_values)) / max(equity, 1.0)),
+        "desired_turnover": float(np.sum(np.abs(desired_values)) / max(equity, 1.0)),
+        "executed_turnover": float(np.sum(np.abs(executed_values)) / max(equity, 1.0)),
+        "unfilled_turnover": float(
+            np.sum(np.abs((share_delta - executed_shares) * safe_prices)) / max(equity, 1.0)
+        ),
+        "cost": float(total_cost / max(equity, 1.0)),
+        "commission": float(total_commission / max(equity, 1.0)),
+        "stamp_tax": float(total_stamp_tax / max(equity, 1.0)),
+        "slippage": float(total_slippage / max(equity, 1.0)),
     }
-    return new_current, executed, info
+    return new_shares, cash, executed_shares, info
 
 
 def run_constrained(alpha_rows, close_df, adv_df, target_frac, hold_frac, args, idx_close, idx_daily):
@@ -211,6 +312,8 @@ def run_constrained(alpha_rows, close_df, adv_df, target_frac, hold_frac, args, 
     all_dates = close_df.index
     n_codes, t_total = len(codes), len(all_dates)
     close_mat = close_df.to_numpy(dtype=np.float64).T
+    valuation_mat = close_df.ffill().to_numpy(dtype=np.float64, copy=True)
+    valuation_mat[~np.isfinite(valuation_mat)] = 0.0
     with np.errstate(divide="ignore", invalid="ignore"):
         ret_daily = close_mat[:, 1:] / close_mat[:, :-1] - 1.0
     ret_daily[~np.isfinite(ret_daily)] = 0.0
@@ -224,10 +327,10 @@ def run_constrained(alpha_rows, close_df, adv_df, target_frac, hold_frac, args, 
     if not entry_days:
         return {}, np.asarray([], dtype=np.float64), pd.DataFrame()
 
-    current = np.zeros(n_codes, dtype=np.float64)
+    current_shares = np.zeros(n_codes, dtype=np.float64)
+    cash = float(args.portfolio_value)
     current_selected = []
-    weights = np.zeros((t_total, n_codes), dtype=np.float32)
-    daily_costs = np.zeros(t_total, dtype=np.float64)
+    equity_curve = np.full(t_total, np.nan, dtype=np.float64)
     diag_rows = []
     closed_ages = []
     holding_ages = {}
@@ -239,6 +342,8 @@ def run_constrained(alpha_rows, close_df, adv_df, target_frac, hold_frac, args, 
     )
 
     for day in range(t_total):
+        marked_prices = valuation_mat[day]
+        equity_before_trade = float(cash + np.dot(current_shares, marked_prices))
         row = row_by_day.get(day)
         if row is not None:
             selected, kept, target_n, hold_n, _ = build_desired_target(row, current_selected, target_frac, hold_frac)
@@ -254,13 +359,17 @@ def run_constrained(alpha_rows, close_df, adv_df, target_frac, hold_frac, args, 
                     market_args.market_max_mult,
                 )
             desired = weights_from_selected(selected, code2idx, n_codes, market_mult, args.max_weight)
-            new_current, executed, exec_info = apply_execution_constraints(
-                desired, current, close_df, adv_df, day, args
+            new_shares, cash, executed_shares, exec_info = apply_execution_constraints(
+                desired,
+                current_shares,
+                cash,
+                equity_before_trade,
+                close_df,
+                adv_df,
+                day,
+                args,
             )
-            cost = explicit_cost(executed, args.commission_rate, args.stamp_tax_rate, args.slippage_rate)
-            daily_costs[day] = cost["cost"]
-
-            live_idx = np.where(np.abs(new_current) > 1e-12)[0]
+            live_idx = np.where(new_shares >= max(int(args.lot_size), 1))[0]
             live_codes = [codes[i] for i in live_idx]
             prev_set = set(current_selected)
             live_set = set(live_codes)
@@ -270,7 +379,9 @@ def run_constrained(alpha_rows, close_df, adv_df, target_frac, hold_frac, args, 
             for code in live_codes:
                 holding_ages[code] = holding_ages.get(code, 0) + 1
             current_selected = live_codes
-            current = new_current
+            current_shares = new_shares
+            equity_after_trade = float(cash + np.dot(current_shares, marked_prices))
+            invested_value = float(np.dot(current_shares, marked_prices))
 
             diag_rows.append({
                 "day": int(day),
@@ -280,19 +391,18 @@ def run_constrained(alpha_rows, close_df, adv_df, target_frac, hold_frac, args, 
                 "kept_n": int(len(kept)),
                 "selected_n": int(len(live_codes)),
                 "desired_selected_n": int(len(selected)),
-                "gross_weight": float(np.sum(np.abs(current))),
+                "gross_weight": invested_value / max(equity_after_trade, 1.0),
+                "cash_cny": float(cash),
+                "equity_cny": equity_after_trade,
                 "market_mult": float(market_mult),
                 "avg_live_age": float(np.mean(list(holding_ages.values()))) if holding_ages else 0.0,
-                **cost,
                 **exec_info,
             })
-        weights[day] = current.astype(np.float32)
+        equity_curve[day] = float(cash + np.dot(current_shares, marked_prices))
 
-    returns = []
-    for day in range(1, t_total):
-        w = weights[day].astype(np.float64)
-        returns.append(float(np.dot(w, ret_daily[:, day - 1]) - daily_costs[day]))
-    returns = np.asarray(returns, dtype=np.float64)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        returns = equity_curve[1:] / equity_curve[:-1] - 1.0
+    returns[~np.isfinite(returns)] = 0.0
     first_entry = entry_days[0]
     last_return_day = min(entry_days[-1] + 1, t_total - 1)
     returns_active = returns[max(first_entry - 1, 0):last_return_day]
@@ -323,7 +433,7 @@ def run_constrained(alpha_rows, close_df, adv_df, target_frac, hold_frac, args, 
         "avg_gross_weight": float(diag_df["gross_weight"].mean()) if "gross_weight" in diag_df else 0.0,
         "market_timing_mode": args.market_timing_mode,
         "avg_market_mult": float(diag_df["market_mult"].mean()) if "market_mult" in diag_df else 1.0,
-        "total_cost": float(daily_costs.sum()),
+        "total_cost": float(diag_df["cost"].sum()) if "cost" in diag_df else 0.0,
         "total_commission": float(diag_df["commission"].sum()) if "commission" in diag_df else 0.0,
         "total_stamp_tax": float(diag_df["stamp_tax"].sum()) if "stamp_tax" in diag_df else 0.0,
         "total_slippage": float(diag_df["slippage"].sum()) if "slippage" in diag_df else 0.0,
@@ -332,7 +442,10 @@ def run_constrained(alpha_rows, close_df, adv_df, target_frac, hold_frac, args, 
         "adv_blocked": int(diag_df["adv_blocked"].sum()) if "adv_blocked" in diag_df else 0,
         "missing_adv": int(diag_df["missing_adv"].sum()) if "missing_adv" in diag_df else 0,
         "capped": int(diag_df["capped"].sum()) if "capped" in diag_df else 0,
+        "lot_blocked": int(diag_df["lot_blocked"].sum()) if "lot_blocked" in diag_df else 0,
         "execution_lag": int(getattr(args, "execution_lag", 0)),
+        "lot_size": int(getattr(args, "lot_size", 1)),
+        "min_commission_cny": float(getattr(args, "min_commission_cny", 0.0)),
     }
     returns_df = pd.DataFrame({"date": active_dates, "return": returns_active})
     return row, returns_df, diag_df
@@ -414,6 +527,8 @@ def main():
                 "min_adv_cny": args.min_adv_cny,
                 "limit_threshold": args.limit_threshold,
                 "execution_lag": args.execution_lag,
+                "lot_size": args.lot_size,
+                "min_commission_cny": args.min_commission_cny,
             })
             summary_rows.append(row)
             tag = f"target{int(round(target_frac * 1000)):03d}_hold{int(round(hold_frac * 1000)):03d}"

@@ -18,7 +18,7 @@ from numpy.lib.stride_tricks import sliding_window_view
 from tqdm import tqdm
 
 from data.market_features import N_MARKET, build_market_features_index_only, compute_breadth_from_close_matrix
-from core.research_protocol import assert_research_end_date
+from core.research_protocol import assert_research_end_date, cached_dates_within_research
 from data.pipeline import (
     CACHE_VERSION,
     INDUSTRY_REL_FEATURES,
@@ -249,20 +249,34 @@ def build_temporal_cross_section_dataset(config, stock_universe=None, use_cache=
     os.makedirs(cache_dir, exist_ok=True)
     cache_key = _temporal_cache_key(config, stock_universe)
     meta_path = os.path.join(cache_dir, cache_key + "_meta.pkl")
+    legacy_meta_path = meta_path.replace(
+        f"_end{_date_token(getattr(config, 'temporal_end_date', None))}_",
+        "_endnone_",
+    )
+    cache_candidates = [meta_path]
+    if legacy_meta_path != meta_path:
+        cache_candidates.append(legacy_meta_path)
 
-    if use_cache and os.path.exists(meta_path) and not getattr(config, "force_rebuild", False):
-        with open(meta_path, "rb") as f:
-            cached = pickle.load(f)
-        dat_keys = (
-            "feat_path", "risk_path", "ret_path", "seq_raw_path",
-            "x_norm_path", "risk_full_path", "y_norm_path",
-            "y_seq_norm_path", "seq_norm_path",
-        )
-        missing = [cached[k] for k in dat_keys if k in cached and not os.path.exists(cached[k])]
-        if not missing:
-            print(f"Loaded temporal metadata cache: {meta_path}")
+    if use_cache and not getattr(config, "force_rebuild", False):
+        for candidate in cache_candidates:
+            if not os.path.exists(candidate):
+                continue
+            with open(candidate, "rb") as f:
+                cached = pickle.load(f)
+            dat_keys = (
+                "feat_path", "risk_path", "ret_path", "seq_raw_path",
+                "x_norm_path", "risk_full_path", "y_norm_path",
+                "y_seq_norm_path", "seq_norm_path",
+            )
+            missing = [cached[k] for k in dat_keys if k in cached and not os.path.exists(cached[k])]
+            if missing:
+                print(f"Temporal cache incomplete, rebuilding: {missing[0]}")
+                continue
+            if not cached_dates_within_research(cached):
+                print(f"Temporal cache exceeds research cutoff, refusing: {candidate}")
+                continue
+            print(f"Loaded temporal metadata cache: {candidate}")
             return cached
-        print(f"Temporal cache incomplete, rebuilding: {missing[0]}")
 
     data_dir = getattr(config, "data_dir", "data/raw")
     seq_len = getattr(config, "seq_len", 40)
