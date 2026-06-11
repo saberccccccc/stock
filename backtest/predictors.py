@@ -100,7 +100,7 @@ class V9GATEnsemblePredictor:
         v9_bottom = set(v9_order[:k])
         gat_bottom = set(gat_order[:k])
 
-        if self.strategy == "union":
+        if self.strategy in ("union", "union_max_score"):
             long_idx = sorted(v9_top | gat_top)
             short_idx = sorted(v9_bottom | gat_bottom)
         elif self.strategy == "top_union_bottom_intersection":
@@ -113,9 +113,15 @@ class V9GATEnsemblePredictor:
         rank_gat = np.argsort(np.argsort(alpha_gat)).astype(np.float64) / max(n - 1, 1)
         score = np.zeros(n, dtype=np.float32)
         if long_idx:
-            score[long_idx] = ((rank_v9[long_idx] + rank_gat[long_idx]) / 2.0).astype(np.float32)
+            if self.strategy == "union_max_score":
+                score[long_idx] = np.maximum(rank_v9[long_idx], rank_gat[long_idx]).astype(np.float32)
+            else:
+                score[long_idx] = ((rank_v9[long_idx] + rank_gat[long_idx]) / 2.0).astype(np.float32)
         if short_idx:
-            score[short_idx] = (-((1.0 - rank_v9[short_idx]) + (1.0 - rank_gat[short_idx])) / 2.0).astype(np.float32)
+            if self.strategy == "union_max_score":
+                score[short_idx] = -np.maximum(1.0 - rank_v9[short_idx], 1.0 - rank_gat[short_idx]).astype(np.float32)
+            else:
+                score[short_idx] = (-((1.0 - rank_v9[short_idx]) + (1.0 - rank_gat[short_idx])) / 2.0).astype(np.float32)
 
         self.n_counts.append(n)
         self.long_counts.append(len(long_idx))

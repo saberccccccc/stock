@@ -17,7 +17,28 @@ def test_data_config_defaults():
     assert cfg.max_horizon == 10
     assert cfg.min_stocks_per_time == 30
     assert cfg.test_mode is False
+    assert cfg.research_end_date == "2026-05-18"
     print("  DataConfig defaults: OK")
+
+
+def test_research_protocol():
+    from core.research_protocol import (
+        FORWARD_START_DATE,
+        RESEARCH_END_DATE,
+        SMALL_ACCOUNT_VALUES,
+        assert_research_end_date,
+    )
+    assert str(RESEARCH_END_DATE.date()) == "2026-05-18"
+    assert str(FORWARD_START_DATE.date()) == "2026-05-19"
+    assert SMALL_ACCOUNT_VALUES == (500_000.0, 1_000_000.0)
+    assert assert_research_end_date(None) == RESEARCH_END_DATE
+    try:
+        assert_research_end_date("2026-05-19")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("research boundary must reject dates after 2026-05-18")
+    print("  research protocol: OK")
 
 
 def test_build_v9_config():
@@ -44,6 +65,7 @@ def test_global_constants():
 
 if __name__ == "__main__":
     test_data_config_defaults()
+    test_research_protocol()
     test_build_v9_config()
     test_global_constants()
     print("test_config.py: ALL PASSED")

@@ -1,6 +1,7 @@
 # fundamental_factors.py - 基本面因子获取及PIT对齐
 import hashlib
 import os
+import time
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -72,30 +73,33 @@ def fetch_fundamentals(codes, token=None, start_date='20100101', end_date='20261
     ts.set_token(token)
     pro = ts.pro_api()
 
-    print("获取利润表数据...")
-    income_list = []
-    for code in tqdm(codes, desc="income_table"):
-        df = _safe_ts_call(
-            pro, 'income', ts_code=code, start_date=start_date, end_date=end_date,
-            fields='ts_code,ann_date,end_date,revenue,n_income'
-        )
-        if df is not None and not df.empty:
-            income_list.append(df)
+    def _batch_fetch(pro, api_name, fields, chunk_size=200, sleep_between=65):
+        """批量拉取：每次200只股票，间隔65秒（基础用户1次/分钟限制）"""
+        all_frames = []
+        chunks = [codes[i:i+chunk_size] for i in range(0, len(codes), chunk_size)]
+        n_chunks = len(chunks)
+        for ci, chunk in enumerate(tqdm(chunks, desc=f"{api_name} (batch {chunk_size})")):
+            code_str = ','.join(chunk)
+            df = _safe_ts_call(
+                pro, api_name, ts_code=code_str,
+                start_date=start_date, end_date=end_date, fields=fields
+            )
+            if df is not None and not df.empty:
+                all_frames.append(df)
+            if ci < n_chunks - 1:
+                time.sleep(sleep_between)
+        return pd.concat(all_frames, ignore_index=True) if all_frames else pd.DataFrame()
 
-    print("获取资产负债表数据...")
-    balance_list = []
-    for code in tqdm(codes, desc="资产负债表"):
-        df = _safe_ts_call(
-            pro, 'balancesheet', ts_code=code, start_date=start_date, end_date=end_date,
-            fields='ts_code,ann_date,end_date,total_hldr_eqy_exc_min_int'
-        )
-        if df is not None and not df.empty:
-            balance_list.append(df)
+    print("获取利润表数据（批量）...")
+    income_all = _batch_fetch(pro, 'income',
+        fields='ts_code,ann_date,end_date,revenue,n_income')
+
+    print("获取资产负债表数据（批量）...")
+    balance_all = _batch_fetch(pro, 'balancesheet',
+        fields='ts_code,ann_date,end_date,total_hldr_eqy_exc_min_int')
 
     funda_frames = []
-    if income_list and balance_list:
-        income_all = pd.concat(income_list, ignore_index=True)
-        balance_all = pd.concat(balance_list, ignore_index=True)
+    if not income_all.empty and not balance_all.empty:
 
         for df in (income_all, balance_all):
             df['ann_date'] = _to_datetime(df['ann_date'])
@@ -199,6 +203,48 @@ def merge_to_daily(funda_df, code_list, all_dates):
             series = series.drop_duplicates('effective_date', keep='last').set_index('effective_date')[col]
             aligned = series.sort_index().reindex(dates, method='ffill')
             result[out_col] = aligned.replace([np.inf, -np.inf], np.nan).fillna(0.0).values
+
+    return result
+
+
+def merge_to_daily_akshare(funda_df, codes, all_dates):
+    """
+    PIT 对齐：akshare 下载的基本面数据合并到日频。
+    funda_df columns: ts_code, effective_date, end_date, roe, revenue_yoy
+    对每个交易日，取 effective_date <= 当日的最新 end_date 数据，前向填充。
+
+    Returns: DataFrame index=all_dates, columns=[{code}_roe, {code}_revenue_yoy]
+    """
+    df = funda_df.copy()
+    df = df.dropna(subset=['effective_date']).sort_values('effective_date')
+    all_dates = pd.DatetimeIndex(all_dates)
+    result = pd.DataFrame(index=all_dates, dtype=np.float32)
+
+    cols = ['roe', 'revenue_yoy']
+
+    for code in codes:
+        pure = code.replace('.SH', '').replace('.SZ', '')
+        code_data = df[df['ts_code'] == code].copy()
+
+        if code_data.empty:
+            for col in cols:
+                result[f'{code}_{col}'] = 0.0
+            continue
+
+        code_data = code_data.sort_values(['effective_date', 'end_date'])
+        code_data = code_data.drop_duplicates(subset=['effective_date'], keep='last')
+        code_data = code_data.set_index('effective_date').sort_index()
+
+        for col in cols:
+            if col not in code_data.columns:
+                result[f'{code}_{col}'] = 0.0
+                continue
+            series = code_data[col].dropna()
+            if series.empty:
+                result[f'{code}_{col}'] = 0.0
+                continue
+            daily = series.reindex(all_dates, method='ffill').fillna(0.0)
+            result[f'{code}_{col}'] = daily.values
 
     return result
 

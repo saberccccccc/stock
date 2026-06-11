@@ -27,6 +27,7 @@ EXPERIMENTS = {
         ],
         "modes": [
             {"label": "simple_ls", "portfolio_mode": "simple_ls"},
+            {"label": "simple_long", "portfolio_mode": "simple_long"},
             {"label": "optimizer_projected", "portfolio_mode": "optimizer_projected"},
             {"label": "optimizer_mvo_ra0p1", "portfolio_mode": "optimizer_mvo", "mvo_risk_aversion": 0.1},
         ],
@@ -64,13 +65,23 @@ EXPERIMENTS = {
         "predictor_class": "ensemble",
         "use_cache": True,
         "strategies": [
+            {"name": "avg_score", "signal_top_pct": 0.10, "run_top_frac": 0.10, "variant": "run_top_10pct"},
             {"name": "avg_score", "signal_top_pct": 0.10, "run_top_frac": 0.05, "variant": "run_top_5pct"},
+            {"name": "avg_score", "signal_top_pct": 0.10, "run_top_frac": 0.04, "variant": "run_top_4pct"},
             {"name": "avg_score", "signal_top_pct": 0.10, "run_top_frac": 0.03, "variant": "run_top_3pct"},
+            {"name": "avg_score", "signal_top_pct": 0.10, "run_top_frac": 0.02, "variant": "run_top_2pct"},
+            {"name": "avg_score", "signal_top_pct": 0.10, "run_top_frac": 0.01, "variant": "run_top_1pct"},
+            {"name": "top_union_bottom_intersection", "signal_top_pct": 0.10, "run_top_frac": 0.10, "variant": "run_top_10pct"},
             {"name": "top_union_bottom_intersection", "signal_top_pct": 0.10, "run_top_frac": 0.05, "variant": "run_top_5pct"},
+            {"name": "top_union_bottom_intersection", "signal_top_pct": 0.10, "run_top_frac": 0.04, "variant": "run_top_4pct"},
             {"name": "top_union_bottom_intersection", "signal_top_pct": 0.10, "run_top_frac": 0.03, "variant": "run_top_3pct"},
+            {"name": "top_union_bottom_intersection", "signal_top_pct": 0.10, "run_top_frac": 0.02, "variant": "run_top_2pct"},
+            {"name": "top_union_bottom_intersection", "signal_top_pct": 0.10, "run_top_frac": 0.01, "variant": "run_top_1pct"},
+            {"name": "top_union_bottom_intersection", "signal_top_pct": 0.10, "run_top_frac": 0.005, "variant": "run_top_0.5pct"},
         ],
         "modes": [
             {"label": "simple_ls", "portfolio_mode": "simple_ls"},
+            {"label": "simple_long", "portfolio_mode": "simple_long"},
             {"label": "optimizer_projected", "portfolio_mode": "optimizer_projected"},
         ],
         "output_dir": "backtest_results_exp_concentrated",
@@ -103,6 +114,48 @@ EXPERIMENTS = {
             "avg_long_count", "avg_short_count",
         ],
     },
+    "long_only": {
+        "predictor_class": "ensemble",
+        "use_cache": True,
+        "strategies": [
+            {"name": "avg_score", "signal_top_pct": 0.10, "run_top_frac": 0.10, "variant": "long_top_10pct"},
+            {"name": "avg_score", "signal_top_pct": 0.10, "run_top_frac": 0.05, "variant": "long_top_5pct"},
+            {"name": "avg_score", "signal_top_pct": 0.10, "run_top_frac": 0.03, "variant": "long_top_3pct"},
+            {"name": "avg_score", "signal_top_pct": 0.10, "run_top_frac": 0.02, "variant": "long_top_2pct"},
+            {"name": "avg_score", "signal_top_pct": 0.10, "run_top_frac": 0.01, "variant": "long_top_1pct"},
+            {"name": "top_union_bottom_intersection", "signal_top_pct": 0.10, "run_top_frac": 0.10, "variant": "long_top_10pct"},
+            {"name": "top_union_bottom_intersection", "signal_top_pct": 0.10, "run_top_frac": 0.05, "variant": "long_top_5pct"},
+            {"name": "top_union_bottom_intersection", "signal_top_pct": 0.10, "run_top_frac": 0.03, "variant": "long_top_3pct"},
+            {"name": "top_union_bottom_intersection", "signal_top_pct": 0.10, "run_top_frac": 0.02, "variant": "long_top_2pct"},
+            {"name": "top_union_bottom_intersection", "signal_top_pct": 0.10, "run_top_frac": 0.01, "variant": "long_top_1pct"},
+        ],
+        "modes": [
+            {"label": "simple_long", "portfolio_mode": "simple_long"},
+            {
+                "label": "optimizer_projected_long",
+                "portfolio_mode": "optimizer_projected",
+                "optimizer_base_mode": "simple_long",
+                "optimizer_dollar_neutral": False,
+                "optimizer_beta_limit": 0.30,
+            },
+            {
+                "label": "optimizer_mvo_long_ra0p1",
+                "portfolio_mode": "optimizer_mvo",
+                "optimizer_base_mode": "simple_long",
+                "optimizer_dollar_neutral": False,
+                "optimizer_beta_limit": 0.30,
+                "mvo_risk_aversion": 0.1,
+            },
+        ],
+        "output_dir": "backtest_results_exp_long_only",
+        "csv_name": "v9_gat_long_only_modes_summary.csv",
+        "display_columns": [
+            "strategy", "variant", "mode", "signal_top_pct", "run_top_frac",
+            "ann_raw", "sharpe_raw", "mdd_raw",
+            "ann_neu", "sharpe_neu", "mdd_neu",
+            "avg_long_count", "avg_short_count",
+        ],
+    },
 }
 
 
@@ -111,11 +164,35 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Unified backtest entry for V9+GAT experiments")
     parser.add_argument("--experiment", choices=list(EXPERIMENTS.keys()), required=True)
     parser.add_argument("--data-dir", default=None, help="Override data directory")
+    parser.add_argument("--exclude-st", action="store_true", help="Exclude ST/*ST stocks from rebalance candidates")
+    parser.add_argument("--min-listing-days", type=int, default=0)
+    parser.add_argument("--block-limit-trades", action="store_true")
+    parser.add_argument("--limit-pct", type=float, default=0.098)
+    parser.add_argument("--capacity-values", default="", help="Comma-separated portfolio values, e.g. 1e7,5e7,1e8,5e8")
+    parser.add_argument("--v9-checkpoint", default=None)
+    parser.add_argument("--gat-checkpoint", default=None)
+    parser.add_argument("--test-stocks", type=int, default=None, help="Limit stocks for a smoke backtest.")
+    parser.add_argument("--limit-val", type=int, default=None, help="Limit validation samples for a smoke backtest.")
+    parser.add_argument("--no-full-data", action="store_true", help="Skip large *_full_data.pkl files.")
+    parser.add_argument("--market-timing-mode", choices=["legacy", "dynamic"], default="legacy")
+    parser.add_argument("--market-min-mult", type=float, default=0.20)
+    parser.add_argument("--market-max-mult", type=float, default=1.00)
+    parser.add_argument("--long-risk-filter", choices=["none", "vol", "beta", "vol_beta"], default="none")
+    parser.add_argument("--risk-filter-vol-quantile", type=float, default=1.0)
+    parser.add_argument("--risk-filter-beta-abs-max", type=float, default=None)
+    parser.add_argument("--alpha-vol-power", type=float, default=0.0)
+    parser.add_argument("--long-hold-frac", type=float, default=None, help="Long-only hysteresis hold threshold, e.g. 0.15 keeps existing names until top15%.")
     return parser.parse_args()
 
 
 # ── Runner ────────────────────────────────────────────────
-def run_experiment(exp, runtime, predictors):
+def _parse_capacity_values(text):
+    if not text:
+        return ()
+    return tuple(float(x) for x in text.split(",") if x.strip())
+
+
+def run_experiment(exp, runtime, predictors, args):
     shared_cache = {} if exp.get("use_cache") else None
     results = []
 
@@ -188,13 +265,29 @@ def run_experiment(exp, runtime, predictors):
                 portfolio_mode=mode["portfolio_mode"],
                 top_frac=top_frac,
                 optimizer_base_mode=mode.get("optimizer_base_mode", "simple_ls"),
+                optimizer_dollar_neutral=mode.get("optimizer_dollar_neutral", True),
+                optimizer_beta_limit=mode.get("optimizer_beta_limit", 0.05),
                 mvo_risk_aversion=mode.get("mvo_risk_aversion", 1.0),
+                exclude_st=args.exclude_st,
+                min_listing_days=args.min_listing_days,
+                block_limit_trades=args.block_limit_trades,
+                limit_pct=args.limit_pct,
+                capacity_values=_parse_capacity_values(args.capacity_values),
+                market_timing_mode=args.market_timing_mode,
+                market_min_mult=args.market_min_mult,
+                market_max_mult=args.market_max_mult,
+                long_risk_filter=args.long_risk_filter,
+                risk_filter_vol_quantile=args.risk_filter_vol_quantile,
+                risk_filter_beta_abs_max=args.risk_filter_beta_abs_max,
+                alpha_vol_power=args.alpha_vol_power,
+                long_hold_frac=args.long_hold_frac,
             )
 
             row, _ = run_production_backtest_once(
                 pred, runtime.val, runtime.price_dict, runtime.vol_dict,
                 runtime.cfg, params, label=label,
                 output_dir=exp["output_dir"],
+                save_full_data=not args.no_full_data,
                 extra_fields=extra,
             )
             results.append(row)
@@ -214,13 +307,25 @@ def main():
     cfg = build_v9_backtest_config()
     if args.data_dir:
         cfg.data_dir = args.data_dir
+    if args.test_stocks:
+        cfg.test_mode = True
+        cfg.test_stocks = args.test_stocks
+        cfg.max_stocks = args.test_stocks
+        cfg.min_stocks_per_time = max(10, min(cfg.min_stocks_per_time, args.test_stocks // 2))
     print("加载数据...")
     runtime = load_backtest_runtime(cfg, use_cache=True)
+    if args.limit_val:
+        runtime.val = runtime.val[:args.limit_val]
 
     print("加载 V9 Transformer 和 GAT...")
-    predictors = load_v9_gat_predictors(runtime.train, runtime.cfg)
+    predictor_kwargs = {}
+    if args.v9_checkpoint:
+        predictor_kwargs["v9_checkpoint"] = args.v9_checkpoint
+    if args.gat_checkpoint:
+        predictor_kwargs["gat_checkpoint"] = args.gat_checkpoint
+    predictors = load_v9_gat_predictors(runtime.train, runtime.cfg, **predictor_kwargs)
 
-    run_experiment(exp, runtime, predictors)
+    run_experiment(exp, runtime, predictors, args)
 
 
 if __name__ == "__main__":

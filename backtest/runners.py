@@ -28,6 +28,20 @@ class ProductionBacktestParams:
     mvo_risk_aversion: float = 1.0
     mvo_lr: float = 0.02
     mvo_n_iter: int = 200
+    exclude_st: bool = False
+    min_listing_days: int = 0
+    block_limit_trades: bool = False
+    limit_pct: float = 0.098
+    capacity_values: tuple[float, ...] = ()
+    market_timing_mode: str = "legacy"
+    market_min_mult: float = 0.20
+    market_max_mult: float = 1.00
+    long_risk_filter: str = "none"
+    risk_filter_vol_quantile: float = 1.0
+    risk_filter_beta_abs_max: float | None = None
+    alpha_vol_power: float = 0.0
+    long_hold_frac: float | None = None
+    long_stop_loss_pct: float | None = None
 
 
 @dataclass
@@ -94,6 +108,7 @@ def run_production_backtest_once(
     label: str,
     output_dir: str,
     save_results: bool = True,
+    save_full_data: bool = True,
     extra_fields: dict | None = None,
 ) -> tuple[dict, dict]:
     if hasattr(predictor, "reset_stats"):
@@ -126,6 +141,20 @@ def run_production_backtest_once(
         mvo_risk_aversion=params.mvo_risk_aversion,
         mvo_lr=params.mvo_lr,
         mvo_n_iter=params.mvo_n_iter,
+        exclude_st=params.exclude_st,
+        min_listing_days=params.min_listing_days,
+        block_limit_trades=params.block_limit_trades,
+        limit_pct=params.limit_pct,
+        capacity_values=params.capacity_values,
+        market_timing_mode=params.market_timing_mode,
+        market_min_mult=params.market_min_mult,
+        market_max_mult=params.market_max_mult,
+        long_risk_filter=params.long_risk_filter,
+        risk_filter_vol_quantile=params.risk_filter_vol_quantile,
+        risk_filter_beta_abs_max=params.risk_filter_beta_abs_max,
+        alpha_vol_power=params.alpha_vol_power,
+        long_hold_frac=params.long_hold_frac,
+        long_stop_loss_pct=params.long_stop_loss_pct,
     )
 
     metrics = metrics_from_returns(raw_ret, neu_ret)
@@ -136,6 +165,7 @@ def run_production_backtest_once(
             predictor.name,
             label,
             output_dir=output_dir,
+            save_full_data=save_full_data,
         )
 
     stats = predictor.stats() if hasattr(predictor, "stats") else {}
@@ -160,6 +190,7 @@ def run_layered_backtest_once(
     label: str,
     output_dir: str,
     save_results: bool = True,
+    save_full_data: bool = True,
     extra_fields: dict | None = None,
     print_extended: bool = False,
 ) -> tuple[dict, dict]:
@@ -206,6 +237,7 @@ def run_layered_backtest_once(
             predictor.name,
             label,
             output_dir=output_dir,
+            save_full_data=save_full_data,
         )
 
     stats = predictor.stats() if hasattr(predictor, "stats") else {}

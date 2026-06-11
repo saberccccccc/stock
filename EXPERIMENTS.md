@@ -1,6 +1,9 @@
-# Model Experiments Branch
+﻿# Model Experiments Branch
 
-Isolated from main project (`F:/stock_prediction/deepseek_optimized`, branch `master`).
+Isolated from main project (`C:/Users/x/code/stock_prediction/deepseek_optimized`, branch `master`).
+
+Research data is frozen through `2026-05-18`. Observations beginning
+`2026-05-19` belong only to the forward-test set; see `RESEARCH_PROTOCOL.md`.
 
 ## Isolation
 
@@ -14,7 +17,7 @@ Isolated from main project (`F:/stock_prediction/deepseek_optimized`, branch `ma
 ## Quick start
 
 ```bash
-cd F:/stock_prediction/deepseek_model_exp
+cd C:/Users/x/code/stock_prediction/deepseek_model_exp
 
 # Run experiment (same commands as main, outputs go to exp_ directories)
 python run/train.py --model v9 --epochs 25

@@ -207,7 +207,7 @@ def train_stacking(train_samples, val_samples, input_dim, horizon=10, epochs=15,
     regime_dim = get_regime_dim(cfg)
     num_industries = train_samples[0]['risk'].shape[1] - regime_dim
     model = UltimateV7Model(
-        stacking_dim, base_feat_dim, n_aggs=N_AGGS,
+        stacking_dim, agg_groups=[(23, 5, 0.1), (7, 2, 0.0)], low_feat_dim=14,
         hidden_dim=256, n_heads=8, n_layers=4,
         n_horizons=horizon, n_alpha=4, use_gat=False,
         regime_dim=regime_dim, num_industries=num_industries

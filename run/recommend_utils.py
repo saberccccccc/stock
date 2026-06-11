@@ -56,8 +56,8 @@ def build_recommendation_predictor(
     train_samples,
     cfg,
     *,
-    v9_checkpoint="checkpoints/ultimate_v7_best.pt",
-    gat_checkpoint="checkpoints/ultimate_v7_gat_best.pt",
+    v9_checkpoint="checkpoints_exp/ultimate_v7_best.pt",
+    gat_checkpoint="checkpoints_exp/ultimate_v7_gat_best.pt",
     device="auto",
     signal_top_pct=0.10,
 ):

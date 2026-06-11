@@ -26,7 +26,12 @@ def _sanitize(x, fill=0.0):
 
 from core.model import UltimateV7Model
 from core.train_utils import get_regime_dim
-from data.pipeline import build_cross_section_dataset, N_AGGS, INDUSTRY_REL_FEATURES
+from data.pipeline import (
+    build_cross_section_dataset,
+    samples_from_precomputed_metadata,
+    N_AGGS,
+    INDUSTRY_REL_FEATURES,
+)
 
 # ==================== 多周期模型训练与加载 ====================
 def _stack_horizon_samples(samples, h):
@@ -131,19 +136,25 @@ def load_v9_checkpoint(checkpoint_path, train_samples, cfg, device_arg="auto"):
         raise FileNotFoundError(f"V9 checkpoint不存在 {checkpoint_path}")
 
     device = resolve_device(device_arg)
-    input_dim = train_samples[0]["X"].shape[1]
-    industry_rel_dim = len(INDUSTRY_REL_FEATURES)
-    total_agg = (input_dim - industry_rel_dim) // 2
-    base_feat_dim = total_agg // N_AGGS
-    regime_dim = get_regime_dim(cfg)
-    num_industries = train_samples[0]["risk"].shape[1] - regime_dim
-    if num_industries <= 0:
-        raise ValueError(
-            f"行业维度异常: risk_dim={train_samples[0]['risk'].shape[1]}, regime_dim={regime_dim}"
-        )
-
     checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
     state_dict = checkpoint["model_state_dict"] if "model_state_dict" in checkpoint else checkpoint
+    arch_config = checkpoint.get("arch_config", {}) if isinstance(checkpoint, dict) else {}
+
+    input_dim = train_samples[0]["X"].shape[1]
+    low_feat_dim = int(arch_config.get("low_feat_dim", getattr(cfg, "low_feat_dim", 14)))
+    base_feat_dim = int(arch_config.get(
+        "base_feat_dim",
+        ((input_dim - low_feat_dim - len(INDUSTRY_REL_FEATURES)) // 2) // N_AGGS,
+    ))
+    regime_dim = get_regime_dim(cfg)
+    if "regime_dim" in arch_config:
+        regime_dim = int(arch_config["regime_dim"])
+    if "num_industries" in arch_config:
+        num_industries = int(arch_config["num_industries"])
+    else:
+        known_ids = np.concatenate([s["industry_ids"] for s in train_samples])
+        known_ids = known_ids[known_ids >= 0]
+        num_industries = int(known_ids.max()) + 1 if known_ids.size else 1
 
     # 从state_dict自动检测是否有GAT层，不依赖cfg.use_gat
     has_gat = any(
@@ -151,12 +162,17 @@ def load_v9_checkpoint(checkpoint_path, train_samples, cfg, device_arg="auto"):
         for k in state_dict.keys()
     )
 
+    agg_groups = arch_config.get("agg_groups", [(23, 5, 0.1), (7, 2, 0.0)])
     model = UltimateV7Model(
-        input_dim, base_feat_dim, n_aggs=N_AGGS,
-        hidden_dim=256, n_heads=8, n_layers=4,
+        input_dim, agg_groups=agg_groups,
+        low_feat_dim=low_feat_dim,
+        hidden_dim=arch_config.get("hidden_dim", 256),
+        n_heads=arch_config.get("n_heads", 8),
+        n_layers=arch_config.get("n_layers", 2),
         n_horizons=len(cfg.horizon_indices), n_alpha=4,
         use_gat=has_gat,
         regime_dim=regime_dim, num_industries=num_industries,
+        dropout=arch_config.get("dropout", 0.5),
     ).to(device)
 
     model.load_state_dict(state_dict)
@@ -328,6 +344,154 @@ def build_simple_weights(alpha, mode="simple_ls", top_frac=0.10, max_leverage=1.
     return w
 
 
+def compute_long_market_multiplier(
+    idx_close,
+    idx_daily,
+    ret_daily,
+    col_cur,
+    mode="legacy",
+    min_mult=0.20,
+    max_mult=1.00,
+):
+    if mode in (None, "", "legacy"):
+        market_mult = 1.0
+        if col_cur >= 60 and np.isfinite(idx_close.iloc[col_cur]):
+            idx_ma60 = idx_close.iloc[col_cur - 60:col_cur].mean()
+            idx_cur = idx_close.iloc[col_cur]
+            if idx_cur < idx_ma60:
+                market_mult = 0.7
+            if col_cur >= 120:
+                idx_ret_6m = idx_close.iloc[col_cur] / idx_close.iloc[col_cur - 120] - 1
+                if idx_ret_6m < -0.10:
+                    market_mult = min(market_mult, 0.3)
+        return float(np.clip(market_mult, 0.0, max_mult))
+
+    if mode != "dynamic":
+        raise ValueError(f"Unknown market_timing_mode: {mode}")
+
+    if col_cur < 60 or not np.isfinite(idx_close.iloc[col_cur]):
+        return float(max_mult)
+
+    idx_cur = float(idx_close.iloc[col_cur])
+    idx_ma60 = float(idx_close.iloc[col_cur - 60:col_cur].mean())
+    ma_score = 1.0 if idx_cur >= idx_ma60 else 0.0
+
+    mom_score = 0.5
+    if col_cur >= 20 and np.isfinite(idx_close.iloc[col_cur - 20]) and idx_close.iloc[col_cur - 20] > 0:
+        mom20 = idx_cur / float(idx_close.iloc[col_cur - 20]) - 1.0
+        mom_score = float(np.clip((mom20 + 0.08) / 0.16, 0.0, 1.0))
+
+    breadth_score = 0.5
+    if col_cur >= 20 and ret_daily.shape[1] >= col_cur:
+        recent_rets = ret_daily[:, col_cur - 20:col_cur]
+        finite = np.isfinite(recent_rets)
+        if np.any(finite):
+            breadth_score = float(np.nanmean(recent_rets[finite] > 0))
+
+    vol_score = 0.5
+    if col_cur >= 20:
+        recent_idx_ret = np.asarray(idx_daily.iloc[col_cur - 20:col_cur], dtype=float)
+        recent_idx_ret = recent_idx_ret[np.isfinite(recent_idx_ret)]
+        if len(recent_idx_ret) > 5:
+            ann_vol = float(np.std(recent_idx_ret) * np.sqrt(TRADING_DAYS))
+            vol_score = float(1.0 - np.clip((ann_vol - 0.15) / 0.25, 0.0, 1.0))
+
+    score = 0.4 * ma_score + 0.3 * mom_score + 0.2 * breadth_score + 0.1 * vol_score
+    market_mult = min_mult + (max_mult - min_mult) * score
+
+    if col_cur >= 120 and np.isfinite(idx_close.iloc[col_cur - 120]) and idx_close.iloc[col_cur - 120] > 0:
+        idx_ret_6m = idx_cur / float(idx_close.iloc[col_cur - 120]) - 1.0
+        if idx_ret_6m < -0.10:
+            market_mult = min(market_mult, max(min_mult, 0.35))
+
+    return float(np.clip(market_mult, min_mult, max_mult))
+
+
+def apply_long_risk_filter(
+    alpha,
+    R_mat,
+    beta_vec=None,
+    mode="none",
+    vol_quantile=1.0,
+    beta_abs_max=None,
+    min_keep_frac=0.20,
+):
+    if mode in (None, "", "none"):
+        return alpha, {}
+
+    alpha_out = np.asarray(alpha, dtype=float).copy()
+    keep = np.ones(alpha_out.shape[0], dtype=bool)
+
+    if mode in ("vol", "vol_beta"):
+        vol = np.std(R_mat, axis=0)
+        if 0.0 < vol_quantile < 1.0 and np.any(np.isfinite(vol)):
+            vol_cut = np.nanquantile(vol, vol_quantile)
+            keep &= vol <= vol_cut
+
+    if mode in ("beta", "vol_beta") and beta_abs_max is not None and beta_vec is not None:
+        keep &= np.abs(beta_vec) <= beta_abs_max
+
+    min_keep = max(1, int(len(alpha_out) * min_keep_frac))
+    if np.sum(keep) < min_keep:
+        return alpha_out, {"risk_filter_applied": 0.0, "risk_filter_keep_ratio": 1.0}
+
+    finite_alpha = alpha_out[np.isfinite(alpha_out)]
+    low = float(np.min(finite_alpha)) if len(finite_alpha) else 0.0
+    span = float(np.ptp(finite_alpha)) if len(finite_alpha) else 1.0
+    alpha_out[~keep] = low - max(span, 1.0)
+    return alpha_out, {
+        "risk_filter_applied": 1.0,
+        "risk_filter_keep_ratio": float(np.mean(keep)),
+    }
+
+
+def apply_alpha_vol_scaling(alpha, R_mat, power=0.0, min_scale=0.25, max_scale=4.0):
+    if power is None or power <= 0:
+        return alpha, {}
+    alpha_out = np.asarray(alpha, dtype=float).copy()
+    vol = np.std(R_mat, axis=0)
+    finite = np.isfinite(vol) & (vol > 1e-12)
+    if not np.any(finite):
+        return alpha_out, {"alpha_vol_scale_mean": 1.0}
+    med_vol = float(np.nanmedian(vol[finite]))
+    scale = med_vol / np.maximum(vol, 1e-12)
+    scale = np.clip(scale, min_scale, max_scale) ** power
+    scale[~np.isfinite(scale)] = 1.0
+    alpha_out *= scale
+    return alpha_out, {
+        "alpha_vol_scale_mean": float(np.mean(scale)),
+        "alpha_vol_scale_std": float(np.std(scale)),
+    }
+
+
+def apply_long_hysteresis(alpha, prev_w, buy_frac, hold_frac):
+    if hold_frac is None or hold_frac <= buy_frac or prev_w is None or len(alpha) == 0:
+        return alpha, {}
+
+    alpha_out = np.asarray(alpha, dtype=float).copy()
+    prev_long = np.asarray(prev_w) > 1e-8
+    if not np.any(prev_long):
+        return alpha_out, {"hysteresis_keep_count": 0.0, "hysteresis_keep_ratio": 0.0}
+
+    n = len(alpha_out)
+    buy_k = max(1, int(n * buy_frac))
+    hold_k = max(buy_k, int(n * hold_frac))
+    order = np.argsort(alpha_out)
+    descending = order[::-1]
+    hold_eligible = np.zeros(n, dtype=bool)
+    hold_eligible[descending[:hold_k]] = True
+    keep = prev_long & hold_eligible
+    if not np.any(keep):
+        return alpha_out, {"hysteresis_keep_count": 0.0, "hysteresis_keep_ratio": 0.0}
+
+    buy_threshold = alpha_out[descending[buy_k - 1]]
+    alpha_out[keep] = np.maximum(alpha_out[keep], buy_threshold + 1e-6)
+    return alpha_out, {
+        "hysteresis_keep_count": float(np.sum(keep)),
+        "hysteresis_keep_ratio": float(np.mean(keep)),
+    }
+
+
 def as_weight_cap_array(max_weight, n):
     if np.isscalar(max_weight):
         cap = np.full(n, float(max_weight), dtype=np.float64)
@@ -380,6 +544,15 @@ def rescale_projected_weights(w, max_weight, target_long, target_short, long_onl
     if dollar_neutral:
         out = neutralize_long_short_by_scaling(out)
     return clip_weights_by_mode(out, max_weight, False)
+
+
+def restrict_to_seed_universe(w, w_seed, long_only):
+    out = w.copy()
+    if long_only:
+        return np.where(w_seed > 0, np.maximum(out, 0.0), 0.0)
+    out = np.where(w_seed > 0, np.maximum(out, 0.0), out)
+    out = np.where(w_seed < 0, np.minimum(out, 0.0), out)
+    return np.where(np.abs(w_seed) > 0, out, 0.0)
 
 
 def neutralize_long_short_by_scaling(w):
@@ -474,6 +647,7 @@ def optimize_projected_simple_weights(alpha, base_mode="simple_ls", beta=None, p
     if lambda_t > 0 and prev_w is not None:
         smooth = 1.0 / (1.0 + lambda_t)
         w = prev + smooth * (w_projected - prev)
+        w = restrict_to_seed_universe(w, w_seed, long_only)
         w = rescale_projected_weights(w, cap, target_long, target_short, long_only, dollar_neutral)
     turnover_smoothed = float(np.sum(np.abs(w - prev)))
 
@@ -545,6 +719,7 @@ def optimize_mean_variance(alpha, B, beta, prev_w, F_cov, D_diag, max_weight=0.0
 
         lr = lr0 / np.sqrt(i + 1)
         w_new = w - lr * grad
+        w_new = restrict_to_seed_universe(w_new, w_seed, long_only)
         w_new = rescale_projected_weights(w_new, cap, target_long, target_short, long_only, dollar_neutral)
         if not np.all(np.isfinite(w_new)):
             break
@@ -782,6 +957,88 @@ def build_universe_matrix(price_dict, vol_dict, all_codes):
             vol_mat[i] = vol_dict[code].reindex(all_dates).values
     return price_mat, vol_mat, all_dates, code2idx
 
+
+def load_stock_name_map(data_dir):
+    path = os.path.join(data_dir, "stable_stocks.csv")
+    if not os.path.exists(path):
+        return {}
+    try:
+        df = pd.read_csv(path, dtype=str)
+    except Exception:
+        return {}
+    if "ts_code" not in df.columns or "name" not in df.columns:
+        return {}
+    return dict(zip(df["ts_code"].astype(str), df["name"].fillna("").astype(str)))
+
+
+def build_static_universe_mask(all_codes, data_dir, exclude_st=False):
+    if not exclude_st:
+        return np.ones(len(all_codes), dtype=bool), {}
+    names = load_stock_name_map(data_dir)
+    is_st = np.array(["ST" in names.get(code, "").upper() for code in all_codes], dtype=bool)
+    return ~is_st, {"st_excluded": int(is_st.sum())}
+
+
+def first_valid_price_indices(price_mat):
+    valid = np.isfinite(price_mat)
+    has_valid = valid.any(axis=1)
+    first = np.argmax(valid, axis=1)
+    first = np.where(has_valid, first, price_mat.shape[1])
+    return first
+
+
+def listing_age_mask(first_valid_idx, idx_full, col_cur, min_listing_days):
+    if min_listing_days <= 0:
+        return np.ones(len(idx_full), dtype=bool)
+    ages = col_cur - first_valid_idx[idx_full]
+    return ages >= min_listing_days
+
+
+def apply_limit_trade_constraints(w_target, prev_w, price_mat, idx_full, entry_day, limit_pct):
+    """Block buy-on-limit-up and sell-on-limit-down using close-to-close proxy."""
+    if limit_pct is None or limit_pct <= 0 or entry_day <= 0:
+        return w_target, np.ones(len(idx_full), dtype=bool), 0.0, 0.0
+    prev_price = price_mat[idx_full, entry_day - 1]
+    entry_price = price_mat[idx_full, entry_day]
+    with np.errstate(divide="ignore", invalid="ignore"):
+        entry_ret = entry_price / prev_price - 1.0
+    trade = w_target - prev_w
+    blocked_buy = (trade > 1e-8) & (entry_ret >= limit_pct)
+    blocked_sell = (trade < -1e-8) & (entry_ret <= -limit_pct)
+    allowed = ~(blocked_buy | blocked_sell)
+    adjusted = prev_w + np.where(allowed, trade, 0.0)
+    attempted = np.abs(trade) > 1e-8
+    buy_ratio = float(blocked_buy.sum() / max(attempted.sum(), 1))
+    sell_ratio = float(blocked_sell.sum() / max(attempted.sum(), 1))
+    return adjusted, allowed, buy_ratio, sell_ratio
+
+
+def parse_capacity_values(values):
+    if values is None:
+        return []
+    if isinstance(values, str):
+        if not values.strip():
+            return []
+        return [float(v) for v in values.split(",") if v.strip()]
+    return [float(v) for v in values]
+
+
+def append_capacity_diagnostics(diag, w_target, prev_w, price, volume, adv_ratio,
+                                impact_coeff, regime, capacity_values):
+    for pv in capacity_values:
+        _, impact, fill_ratio, trade_exec = execute_order_with_impact(
+            w_target, prev_w, price, volume,
+            adv_ratio=adv_ratio,
+            impact_coeff=impact_coeff,
+            portfolio_value=pv,
+            regime=regime,
+        )
+        active = np.abs(w_target - prev_w) > 1e-8
+        key = f"cap_{int(pv):d}"
+        diag[f"{key}_fill_ratio"].append(float(np.mean(fill_ratio[active])) if np.any(active) else 0.0)
+        diag[f"{key}_turnover"].append(float(np.sum(np.abs(trade_exec))))
+        diag[f"{key}_impact_cost"].append(float(impact))
+
 def _compute_daily_portfolio_returns(daily_total_weights, ret_daily, daily_costs, T_total):
     daily_port_ret = []
     for day in range(1, T_total):
@@ -823,7 +1080,19 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
                             portfolio_value=1e8, optimizer_base_mode="simple_ls",
                             optimizer_exposure_control="beta", optimizer_beta_limit=0.05,
                             optimizer_dollar_neutral=True, mvo_risk_aversion=1.0,
-                            mvo_lr=0.02, mvo_n_iter=200):
+                            mvo_lr=0.02, mvo_n_iter=200,
+                            exclude_st=False, min_listing_days=0,
+                            block_limit_trades=False, limit_pct=0.098,
+                            capacity_values=None,
+                            market_timing_mode="legacy",
+                            market_min_mult=0.20,
+                            market_max_mult=1.00,
+                            long_risk_filter="none",
+                            risk_filter_vol_quantile=1.0,
+                            risk_filter_beta_abs_max=None,
+                            alpha_vol_power=0.0,
+                            long_hold_frac=None,
+                            long_stop_loss_pct=None):
     # 自动确定调仓频率
     ic_decay = getattr(predictor, "ic_decay", None)
     if ic_decay is not None:
@@ -848,15 +1117,22 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
     print(f"{rebalance_freq}")
     print(f"组合模式: {portfolio_mode} | top_frac={top_frac:.2%}")
     print(f"ADV模式: {adv_mode}")
+    if exclude_st or min_listing_days > 0 or block_limit_trades:
+        print(f"Universe filters: exclude_st={exclude_st} | min_listing_days={min_listing_days} | block_limit_trades={block_limit_trades}")
     print("return metric: next_close_to_next_close")
+    capacity_values = parse_capacity_values(capacity_values)
 
+    config = config or DataConfig()
     all_codes = sorted(set(c for s in val_samples for c in s['codes']))
     price_mat, vol_mat, all_dates, code2idx = build_universe_matrix(
         price_dict, vol_dict, all_codes)
     T_total = len(all_dates)
+    static_universe_mask, static_diag = build_static_universe_mask(all_codes, config.data_dir if config else "data/raw", exclude_st)
+    first_valid_idx = first_valid_price_indices(price_mat)
+    if static_diag:
+        print(f"Static exclusions: {static_diag}")
 
     # 加载指数数据
-    config = config or DataConfig()
     idx_path = os.path.join(config.data_dir, "hs300_index.csv")
     if os.path.exists(idx_path):
         idx_df = pd.read_csv(idx_path)
@@ -908,6 +1184,12 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
 
             price_hist = price_mat[idx_full, hist_start:hist_end + 1]
             valid = np.sum(~np.isnan(price_hist), axis=1) >= 0.7 * hist_window
+            if exclude_st:
+                valid &= static_universe_mask[idx_full]
+            if min_listing_days > 0:
+                valid &= listing_age_mask(first_valid_idx, idx_full, col_cur, min_listing_days)
+            diag['pre_filter_names'].append(N)
+            diag['universe_filter_ratio'].append(float(1.0 - valid.mean()) if len(valid) else 0.0)
             if not np.any(valid):
                 continue
 
@@ -929,9 +1211,13 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
             diag['valid_names'].append(N)
             diag['alpha_std'].append(float(np.std(alpha)))
 
-            # 市场择时：沪深300指数低于60日均线时降低整体敞口
+            # 市场择时：做多组合在弱势市场降低整体敞口
             market_mult = 1.0
-            if portfolio_mode == "simple_long":
+            is_long_only = portfolio_mode == "simple_long" or (
+                portfolio_mode in ("optimizer_projected", "optimizer_mvo")
+                and optimizer_base_mode == "simple_long"
+            )
+            if is_long_only and market_timing_mode == "legacy":
                 if col_cur >= 60 and np.isfinite(idx_close.iloc[col_cur]):
                     idx_ma60 = idx_close.iloc[col_cur - 60:col_cur].mean()
                     idx_cur = idx_close.iloc[col_cur]
@@ -942,12 +1228,56 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
                         idx_ret_6m = idx_close.iloc[col_cur] / idx_close.iloc[col_cur - 120] - 1
                         if idx_ret_6m < -0.10:
                             market_mult = min(market_mult, 0.3)
+            elif is_long_only:
+                market_mult = compute_long_market_multiplier(
+                    idx_close,
+                    idx_daily,
+                    ret_daily,
+                    col_cur,
+                    mode=market_timing_mode,
+                    min_mult=market_min_mult,
+                    max_mult=market_max_mult,
+                )
+            if is_long_only:
+                diag['market_mult'].append(float(market_mult))
+                prev_w = daily_total_weights[col_cur][idx_full]
+                if long_hold_frac is not None and long_hold_frac > top_frac:
+                    alpha, hyst_diag = apply_long_hysteresis(alpha, prev_w, top_frac, long_hold_frac)
+                    for k, v in hyst_diag.items():
+                        diag[k].append(v)
+                if alpha_vol_power > 0 and portfolio_mode == "simple_long":
+                    alpha, alpha_vol_diag = apply_alpha_vol_scaling(
+                        alpha,
+                        R_mat,
+                        power=alpha_vol_power,
+                    )
+                    for k, v in alpha_vol_diag.items():
+                        diag[k].append(v)
 
             prev_w = daily_total_weights[col_cur][idx_full]
 
             if portfolio_mode in ("optimizer", "optimizer_projected", "optimizer_mvo"):
                 idx_ret_hist = idx_daily.iloc[hist_start + 1:hist_end + 1].values
                 beta_vec = ewma_beta(rets, idx_ret_hist, ewma_hl)
+                if is_long_only and alpha_vol_power > 0:
+                    alpha, alpha_vol_diag = apply_alpha_vol_scaling(
+                        alpha,
+                        R_mat,
+                        power=alpha_vol_power,
+                    )
+                    for k, v in alpha_vol_diag.items():
+                        diag[k].append(v)
+                if is_long_only and long_risk_filter not in (None, "", "none"):
+                    alpha, filter_diag = apply_long_risk_filter(
+                        alpha,
+                        R_mat,
+                        beta_vec=beta_vec,
+                        mode=long_risk_filter,
+                        vol_quantile=risk_filter_vol_quantile,
+                        beta_abs_max=risk_filter_beta_abs_max,
+                    )
+                    for k, v in filter_diag.items():
+                        diag[k].append(v)
 
                 regime_dim = get_regime_dim(config)
                 B_style = np.hstack([
@@ -1029,9 +1359,21 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
             vol_next = (vol_mat[idx_full, entry_day]
                         if vol_mat is not None else np.ones(N) * 1e9)
             tradable = np.isfinite(price_next) & (vol_next > 0)
-            w_target_tradable = np.where(tradable, w_target, prev_w)
+            w_target_tradable = prev_w + np.where(tradable, w_target - prev_w, 0.0)
+            if block_limit_trades:
+                w_target_tradable, limit_allowed, block_buy_ratio, block_sell_ratio = apply_limit_trade_constraints(
+                    w_target_tradable, prev_w, price_mat, idx_full, entry_day, limit_pct,
+                )
+                diag['limit_block_buy_ratio'].append(block_buy_ratio)
+                diag['limit_block_sell_ratio'].append(block_sell_ratio)
+                tradable = tradable & limit_allowed
 
             exec_adv_ratio = adv_limit_ratio if adv_mode in ("execution", "both") else 1e9
+            if capacity_values:
+                append_capacity_diagnostics(
+                    diag, w_target_tradable, prev_w, price_next, vol_next,
+                    exec_adv_ratio, impact_coeff, regime, capacity_values,
+                )
             w_filled, impact_cost, fill_ratio, trade_exec = execute_order_with_impact(
                 w_target_tradable, prev_w, price_next, vol_next,
                 adv_ratio=exec_adv_ratio, impact_coeff=impact_coeff,
@@ -1051,10 +1393,38 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
             hold_start = entry_day + 1
             hold_end = min(exit_day, T_total - 1)
             diag['holding_days_written'].append(max(0, hold_end - hold_start + 1))
+            stop_active = (
+                is_long_only
+                and long_stop_loss_pct is not None
+                and long_stop_loss_pct > 0
+                and portfolio_mode == "simple_long"
+            )
+            if stop_active:
+                entry_price = np.asarray(price_next, dtype=float)
+                stopped = np.zeros(len(idx_full), dtype=bool)
+                stop_hits = 0
+            else:
+                entry_price = None
+                stopped = None
+                stop_hits = 0
             for d in range(hold_start, hold_end + 1):
                 day_weights = daily_total_weights[d].copy()
-                day_weights[idx_full] = w_filled
+                if stop_active:
+                    current_weights = np.asarray(w_filled, dtype=float).copy()
+                    current_weights[stopped] = 0.0
+                    day_weights[idx_full] = current_weights
+                    px = price_mat[idx_full, d]
+                    long_live = (current_weights > 1e-12) & np.isfinite(px) & np.isfinite(entry_price) & (entry_price > 0)
+                    hit = long_live & (px / entry_price - 1.0 <= -float(long_stop_loss_pct))
+                    if np.any(hit):
+                        stopped |= hit
+                        stop_hits += int(np.sum(hit))
+                else:
+                    day_weights[idx_full] = w_filled
                 daily_total_weights[d] = day_weights
+            if stop_active:
+                diag['stop_loss_hits'].append(float(stop_hits))
+                diag['stop_loss_hit_ratio'].append(float(stop_hits / max(np.sum(w_filled > 1e-12), 1)))
 
             last_signal_idx = t_idx
 
@@ -1080,8 +1450,19 @@ def run_backtest_production(predictor, val_samples, price_dict, vol_dict,
     print(f"目标杠杆: {diag_mean('target_leverage'):.3f} | 成交后杠杆 {diag_mean('filled_leverage'):.3f}")
     print(f"平均换手/调仓: {diag_mean('turnover'):.3f} | 平均填充率 {diag_mean('fill_ratio'):.3f}")
     print(f"不可交易比例: {diag_mean('untradable_ratio'):.3%}")
+    if diag['universe_filter_ratio']:
+        print(f"Universe过滤比例: {diag_mean('universe_filter_ratio'):.3%}")
+    if diag['limit_block_buy_ratio'] or diag['limit_block_sell_ratio']:
+        print(f"涨跌停阻断: buy {diag_mean('limit_block_buy_ratio'):.3%} | sell {diag_mean('limit_block_sell_ratio'):.3%}")
     if diag['avg_adv_weight_cap']:
         print(f"平均ADV权重上限: {diag_mean('avg_adv_weight_cap'):.5f}")
+    for pv in capacity_values:
+        key = f"cap_{int(pv):d}"
+        if diag[f"{key}_fill_ratio"]:
+            print(
+                f"容量 {pv/1e8:.2f}亿: fill {diag_mean(f'{key}_fill_ratio'):.3f} | "
+                f"turnover {diag_mean(f'{key}_turnover'):.3f} | impact {diag_mean(f'{key}_impact_cost'):.5f}"
+            )
     if portfolio_mode == "optimizer" and diag.get('opt_converged'):
         converged_rate = np.mean(diag['opt_converged']) if diag['opt_converged'] else 0.0
         print(f"\n优化器诊断")
@@ -1158,7 +1539,7 @@ from backtest.reports import (
 def parse_args():
     parser = argparse.ArgumentParser(description="V9 DL model / LightGBM production backtest")
     parser.add_argument("--model-type", choices=["dl", "lgb", "both"], default="dl")
-    parser.add_argument("--checkpoint", default="checkpoints/ultimate_v7_best.pt")
+    parser.add_argument("--checkpoint", default="checkpoints_exp/ultimate_v7_best.pt")
     parser.add_argument("--lgb-dir", default="models_multi_v9_tech_macro")
     parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
     parser.add_argument("--adv-mode", choices=["execution", "weight_cap", "both"], default="execution",
@@ -1174,6 +1555,11 @@ def parse_args():
     parser.add_argument("--mvo-risk-aversion", type=float, default=1.0)
     parser.add_argument("--mvo-lr", type=float, default=0.02)
     parser.add_argument("--mvo-n-iter", type=int, default=200)
+    parser.add_argument("--exclude-st", action="store_true", help="Exclude ST/*ST stocks from rebalance candidates")
+    parser.add_argument("--min-listing-days", type=int, default=0, help="Minimum observed listing/history days before a stock can be traded")
+    parser.add_argument("--block-limit-trades", action="store_true", help="Block buy-on-limit-up and sell-on-limit-down using close-to-close proxy")
+    parser.add_argument("--limit-pct", type=float, default=0.098, help="Close-to-close limit threshold used by --block-limit-trades")
+    parser.add_argument("--capacity-values", default="", help="Comma-separated portfolio values for capacity diagnostics, e.g. 1e7,5e7,1e8,5e8")
     return parser.parse_args()
 
 
@@ -1207,6 +1593,11 @@ def run_and_print_metrics(predictor, val, price_dict, vol_dict, cfg, args):
         mvo_risk_aversion=args.mvo_risk_aversion,
         mvo_lr=args.mvo_lr,
         mvo_n_iter=args.mvo_n_iter,
+        exclude_st=args.exclude_st,
+        min_listing_days=args.min_listing_days,
+        block_limit_trades=args.block_limit_trades,
+        limit_pct=args.limit_pct,
+        capacity_values=args.capacity_values,
     )
 
     ann_raw, sharpe_raw, mdd_raw = calc_metrics(raw_ret)
@@ -1250,13 +1641,22 @@ def main():
     cfg.use_technical_features = True
     cfg.use_market_features = True
     cfg.use_macro_features = True
+    cfg.use_fundamental_features = True
+    cfg.use_shareholder_features = True
+    cfg.use_restricted_features = True
     cfg.min_stocks_per_time = 30
     cfg.target_horizon = 5
     cfg.seq_len = 40
     cfg.max_horizon = 10
 
     print("构建截面数据集...")
-    train, val = build_cross_section_dataset(cfg, use_cache=True)
+    result = build_cross_section_dataset(cfg, use_cache=True)
+    if isinstance(result, dict):
+        cfg.low_feat_dim = result.get('low_agg_dim', getattr(cfg, 'low_feat_dim', 14))
+        train = samples_from_precomputed_metadata(result, 'train')
+        val = samples_from_precomputed_metadata(result, 'val')
+    else:
+        train, val = result
 
     print("加载价格与成交量数据...")
     price_dict, vol_dict = load_price_volume(cfg)

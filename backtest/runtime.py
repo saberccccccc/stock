@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from core.config import DataConfig, GAT_CKPT, V9_CKPT
-from data.pipeline import build_cross_section_dataset
+from data.pipeline import build_cross_section_dataset, samples_from_precomputed_metadata
 from backtest.engine import DLPredictor, load_price_volume, load_v9_checkpoint
 
 
@@ -30,6 +30,9 @@ def build_v9_backtest_config(
     cfg.use_technical_features = True
     cfg.use_market_features = True
     cfg.use_macro_features = True
+    cfg.use_fundamental_features = True
+    cfg.use_shareholder_features = True
+    cfg.use_restricted_features = True
     cfg.min_stocks_per_time = min_stocks_per_time
     cfg.target_horizon = target_horizon
     cfg.seq_len = seq_len
@@ -39,7 +42,13 @@ def build_v9_backtest_config(
 
 def load_backtest_runtime(cfg: DataConfig | None = None, use_cache: bool = True) -> BacktestRuntime:
     cfg = build_v9_backtest_config() if cfg is None else cfg
-    train, val = build_cross_section_dataset(cfg, use_cache=use_cache)
+    result = build_cross_section_dataset(cfg, use_cache=use_cache)
+    if isinstance(result, dict):
+        cfg.low_feat_dim = result.get('low_agg_dim', getattr(cfg, 'low_feat_dim', 14))
+        train = samples_from_precomputed_metadata(result, 'train')
+        val = samples_from_precomputed_metadata(result, 'val')
+    else:
+        train, val = result
     price_dict, vol_dict = load_price_volume(cfg)
     return BacktestRuntime(
         cfg=cfg,

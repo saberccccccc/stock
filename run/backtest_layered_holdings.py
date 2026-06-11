@@ -14,7 +14,7 @@ from backtest.runners import LayeredBacktestParams, run_layered_backtest_once
 
 def parse_args():
     parser = argparse.ArgumentParser(description="True rolling sleeve holdings backtest")
-    parser.add_argument("--checkpoint", default="checkpoints/ultimate_v7_gat_best.pt")
+    parser.add_argument("--checkpoint", default="checkpoints_exp/ultimate_v7_gat_best.pt")
     parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
     parser.add_argument(
         "--portfolio-mode",

@@ -6,6 +6,7 @@ import argparse
 import json
 import os
 import sys
+import time
 import warnings
 from datetime import datetime, timedelta
 
@@ -86,7 +87,7 @@ def safe_to_csv(df, csv_path, min_rows=MIN_SAFE_ROWS):
     if os.path.exists(csv_path):
         try:
             existing = pd.read_csv(csv_path, index_col=0, parse_dates=True)
-            if len(existing) > max(len(df), min_rows):
+            if len(existing) >= len(df):  # 已有≥新数据时合并，避免丢行
                 combined = pd.concat([existing, df])
                 combined = combined[~combined.index.duplicated(keep='last')]
                 combined.sort_index(inplace=True)
@@ -99,28 +100,22 @@ def safe_to_csv(df, csv_path, min_rows=MIN_SAFE_ROWS):
 
 
 def needs_update(ts_code):
-    """检查股票是否需要更新（2010~2025的数据不满足要求）"""
+    """检查股票是否需要更新"""
     csv_path = os.path.join(DATA_DIR, f"{ts_code}.csv")
     if not os.path.exists(csv_path):
-        return True, 'no_file'
+        return True, 'full (no_file)'
 
     try:
         df = pd.read_csv(csv_path, index_col=0, parse_dates=True)
         if df.empty:
-            return True, 'empty_file'
+            return True, 'full (empty_file)'
 
-        first_date = df.index.min()
         last_date = df.index.max()
         days_behind = (datetime.today() - last_date).days
 
-        # 已有2010数据 + 最新 -> 跳过
-        if first_date.year <= 2010 and days_behind <= 2:
-            return False, f'skip ({first_date.date()}~{last_date.date()})'
-        # 已有2010数据但落后 -> 增量
-        if first_date.year <= 2010:
-            return True, f'incremental (behind {days_behind}d)'
-        # 只有2017+数据 -> 全量
-        return True, f'full ({first_date.date()}~{last_date.date()})'
+        if days_behind == 0:
+            return False, f'skip (behind {days_behind}d)'
+        return True, f'incremental (behind {days_behind}d)'
     except Exception:
         return True, 'read_error'
 
@@ -248,7 +243,6 @@ def main():
         needs, info = needs_update(code)
         if not needs:
             skipped += 1
-            stats['skip'] = stats.get('skip', 0) + 1
             continue
         if 'full' in info:
             tasks_full.append((code, START_DATE))
@@ -279,12 +273,14 @@ def main():
                       f"批次 {i}/{n_batches} ({len(batch_codes)} 只)")
 
                 result_map = fetch_batch_stocks(pro, batch_codes, start_date, end_date)
+                completed_codes = []
                 for code in batch_codes:
                     if code in result_map and not result_map[code].empty:
                         csv_path = os.path.join(DATA_DIR, f"{code}.csv")
                         if start_date == START_DATE:
                             safe_to_csv(result_map[code], csv_path)
                             stats['full'] = stats.get('full', 0) + 1
+                            completed_codes.append(code)
                         else:
                             try:
                                 local_df = pd.read_csv(csv_path, index_col=0, parse_dates=True)
@@ -298,11 +294,12 @@ def main():
                             else:
                                 safe_to_csv(result_map[code], csv_path)
                             stats['incremental'] = stats.get('incremental', 0) + 1
+                            completed_codes.append(code)
                     else:
                         stats['fail'] = stats.get('fail', 0) + 1
 
                 # 保存进度
-                updated_set.update(batch_codes)
+                updated_set.update(completed_codes)
                 progress['updated'] = list(updated_set)
                 progress['stats'] = stats
                 save_progress(progress)

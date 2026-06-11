@@ -8,8 +8,11 @@ from pathlib import Path
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+# 始终确保项目根在 sys.path 最前面，防止 run/backtest.py 遮蔽 backtest/ 包
+_root_str = str(PROJECT_ROOT)
+if _root_str in sys.path:
+    sys.path.remove(_root_str)
+sys.path.insert(0, _root_str)
 
 from backtest.runtime import build_v9_backtest_config, load_backtest_runtime
 from data.pipeline import _normalize_ts_code, build_cross_section_dataset, build_inference_sample, build_inference_samples
@@ -51,8 +54,8 @@ def parse_args():
     parser.add_argument("--signal-top-pct", type=float, default=0.10, help="Top fraction used inside intersection/union-style ensemble signals.")
     parser.add_argument("--code", default=None, help="Optional stock code to query, e.g. 000001.SZ or 000001")
     parser.add_argument("--output", default=None, help="Optional CSV output path for the ranked recommendation table.")
-    parser.add_argument("--v9-checkpoint", default="checkpoints/ultimate_v7_best.pt")
-    parser.add_argument("--gat-checkpoint", default="checkpoints/ultimate_v7_gat_best.pt")
+    parser.add_argument("--v9-checkpoint", default="checkpoints_exp/ultimate_v7_best.pt")
+    parser.add_argument("--gat-checkpoint", default="checkpoints_exp/ultimate_v7_gat_best.pt")
     parser.add_argument("--test-stocks", type=int, default=None, help="Limit stocks loaded for fast smoke test.")
     parser.add_argument("--exclude-prefix", default=[], action="append", help="Exclude stock codes starting with this prefix (e.g. 300, 301, 688). Can be repeated.")
     parser.add_argument("--main-board-only", action="store_true", help="Only keep main-board stocks within the original top-N shortlist.")

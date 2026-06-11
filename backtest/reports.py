@@ -158,7 +158,14 @@ def compare_predictors(all_results, output_dir="backtest_results"):
     print(f"\n对比结果已保存到: {output_dir}/comparison_{timestamp}.csv")
 
 
-def save_backtest_results(backtest_data, metrics, predictor_name, portfolio_mode, output_dir="backtest_results"):
+def save_backtest_results(
+    backtest_data,
+    metrics,
+    predictor_name,
+    portfolio_mode,
+    output_dir="backtest_results",
+    save_full_data=True,
+):
     os.makedirs(output_dir, exist_ok=True)
     timestamp = pd.Timestamp.now().strftime("%Y%m%d_%H%M%S")
     prefix = f"{output_dir}/{predictor_name}_{portfolio_mode}_{timestamp}"
@@ -219,8 +226,9 @@ def save_backtest_results(backtest_data, metrics, predictor_name, portfolio_mode
         for k, v in backtest_data['diagnostic_counts'].items():
             f.write(f"{k}: {v}\n")
 
-    with open(f"{prefix}_full_data.pkl", 'wb') as f:
-        pickle.dump(backtest_data, f)
+    if save_full_data:
+        with open(f"{prefix}_full_data.pkl", 'wb') as f:
+            pickle.dump(backtest_data, f)
 
     print(f"\n结果已保存到: {prefix}_*")
     return prefix

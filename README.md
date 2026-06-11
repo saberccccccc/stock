@@ -1,4 +1,4 @@
-# deepseek_optimized - 股票多因子Alpha预测系统
+﻿# deepseek_optimized - 股票多因子Alpha预测系统
 
 ## 项目结构
 
@@ -42,6 +42,7 @@
 ├── recommendations/               # 推荐输出 (CSV + 日志)
 ├── cache/                         # 运行时缓存
 ├── data/raw/                      # 原始日线CSV (gitignored)
+├── data/forward_raw/              # 2026-05-19起的前向回测数据 (gitignored)
 ├── data/tracking_raw/             # 盯市跟踪数据 (gitignored)
 └── backtest_results*/             # 回测输出 (gitignored)
 ```
@@ -91,20 +92,24 @@ python run/backtest_layered_holdings.py               # 分层持仓
 ## 环境
 
 - PyTorch 2.7.1+cu118, RTX 2060 6GB
-- Python: `F:/miniconda3/envs/pytorch/python`
+- Python: `C:/Users/x/miniconda3/envs/torch/python`
 - CUDA 训练: `batch_size=2, accum_steps=8` (V9), `batch_size=4, accum_steps=4` (GAT)
 - AMP 必须禁用（否则 Loss NaN）
 
 ## 测试
 
 ```bash
-F:/miniconda3/envs/pytorch/python tests/test_config.py
-F:/miniconda3/envs/pytorch/python tests/test_metrics.py
-F:/miniconda3/envs/pytorch/python tests/test_pipeline.py
+C:/Users/x/miniconda3/envs/torch/python tests/test_config.py
+C:/Users/x/miniconda3/envs/torch/python tests/test_metrics.py
+C:/Users/x/miniconda3/envs/torch/python tests/test_pipeline.py
 ```
 
 ## 关键不变量
 
 - 回测收益指标: `next_close_to_next_close`
-- 数据边界: `data/raw` (训练/回测) vs `data/tracking_raw` (盯市跟踪)，不可混淆
+- 研究截止日: `2026-05-18`，训练/验证/测试不得超过该日期
+- 数据边界: `data/raw` (冻结研究集) vs `data/forward_raw` (真实前向回测)，不可混淆
+- 资金规模: 容量评估默认使用 50万元和100万元
 - 特征维度: X=236, risk=170 (get_regime_dim 动态)
+
+完整规则见 `RESEARCH_PROTOCOL.md`。
