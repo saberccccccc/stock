@@ -67,6 +67,22 @@ def _fallback_effective_date(end_date):
     return end_date + pd.Timedelta(days=90)
 
 
+def _expected_latest_report_period(as_of=None):
+    """Latest statutory report period expected to be public by the given date."""
+    as_of = pd.Timestamp.now().normalize() if as_of is None else pd.Timestamp(as_of)
+    year = as_of.year
+    month_day = (as_of.month, as_of.day)
+    if month_day >= (11, 1):
+        return pd.Timestamp(year=year, month=9, day=30)
+    if month_day >= (9, 1):
+        return pd.Timestamp(year=year, month=6, day=30)
+    if month_day >= (5, 1):
+        return pd.Timestamp(year=year, month=3, day=31)
+    if month_day >= (4, 30):
+        return pd.Timestamp(year=year - 1, month=12, day=31)
+    return pd.Timestamp(year=year - 1, month=9, day=30)
+
+
 def get_stock_list():
     """从 data/raw/ 获取股票列表"""
     csv_files = sorted(
@@ -143,7 +159,10 @@ def fetch_one_stock(code, max_retries=2):
         for c in ['parent_equity', 'total_equity']:
             if c in df_bs.columns:
                 equity_col = c
-                bs = df_bs[['end_date', c]].copy()
+                bs_cols = ['end_date', c]
+                if 'notice_date' in df_bs.columns:
+                    bs_cols.append('notice_date')
+                bs = df_bs[bs_cols].copy()
                 break
 
     # ---- 合并计算 ROE ----
@@ -153,13 +172,22 @@ def fetch_one_stock(code, max_retries=2):
 
     if equity_col:
         bs['end_date'] = pd.to_datetime(bs['end_date'], errors='coerce')
+        if 'notice_date' in bs.columns:
+            bs['balance_notice_date'] = pd.to_datetime(bs['notice_date'], errors='coerce')
+        else:
+            bs['balance_notice_date'] = pd.NaT
         bs['_key'] = bs['end_date'].astype(str)
-        merged = profit.merge(bs[['_key', equity_col]], on='_key', how='left')
+        merged = profit.merge(
+            bs[['_key', equity_col, 'balance_notice_date']],
+            on='_key',
+            how='left',
+        )
         merged[equity_col] = pd.to_numeric(merged[equity_col], errors='coerce')
         merged.drop(columns=['_key'], inplace=True)
     else:
         merged = profit
         merged['parent_equity'] = np.nan
+        merged['balance_notice_date'] = pd.NaT
         merged.drop(columns=['_key'], inplace=True)
 
     merged['revenue'] = pd.to_numeric(merged['revenue'], errors='coerce')
@@ -174,7 +202,8 @@ def fetch_one_stock(code, max_retries=2):
     )
 
     fallback_dates = merged['end_date'].map(_fallback_effective_date)
-    merged['effective_date'] = merged['notice_date'].fillna(fallback_dates)
+    notice_dates = merged[['notice_date', 'balance_notice_date']].max(axis=1)
+    merged['effective_date'] = notice_dates.fillna(fallback_dates)
 
     result = merged[['ts_code', 'effective_date', 'end_date', 'roe', 'revenue_yoy']].copy()
     result = result.dropna(subset=['effective_date'])
@@ -212,14 +241,17 @@ def main():
         try:
             existing = pd.read_parquet(CACHE_FILE)
             existing_codes = set(existing['ts_code'].unique())
-            # 找出最新数据距今 > 90 天的股票，只更新这些
-            latest_dates = existing.groupby('ts_code')['effective_date'].max()
-            stale_cutoff = pd.Timestamp.now() - pd.Timedelta(days=90)
-            stale_codes = set(latest_dates[latest_dates < stale_cutoff].index)
+            existing['end_date'] = pd.to_datetime(existing['end_date'], errors='coerce')
+            expected_period = _expected_latest_report_period()
+            latest_periods = existing.groupby('ts_code')['end_date'].max()
+            stale_codes = set(latest_periods[latest_periods < expected_period].index)
             remaining = [c for c in all_codes if c in stale_codes]
             new_codes = [c for c in all_codes if c not in existing_codes]
             remaining = remaining + new_codes
-            print(f"已有缓存: {len(existing_codes)} 只, 需更新: {len(remaining)} 只")
+            print(
+                f"已有缓存: {len(existing_codes)} 只, 应有报告期: "
+                f"{expected_period.date()}, 需更新: {len(remaining)} 只"
+            )
         except Exception:
             remaining = all_codes
     else:
@@ -251,7 +283,8 @@ def main():
         if CACHE_FILE.exists():
             old_data = pd.read_parquet(CACHE_FILE)
             new_data = pd.concat([old_data, new_data], ignore_index=True)
-        new_data = new_data.drop_duplicates(subset=['ts_code', 'effective_date'], keep='last')
+        new_data = new_data.sort_values(['ts_code', 'end_date', 'effective_date'])
+        new_data = new_data.drop_duplicates(subset=['ts_code', 'end_date'], keep='last')
         new_data.to_parquet(CACHE_FILE, index=False)
         print(f"\n  [checkpoint] 已保存 {len(new_frames)} 条新数据 (总{new_data['ts_code'].nunique()}只)")
 

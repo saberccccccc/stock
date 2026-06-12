@@ -899,15 +899,25 @@ def add_technical_features(df: "pd.DataFrame", config) -> "pd.DataFrame":
 
 def _inference_cache_path_for(config, max_lookback=None):
     data_dir = Path(config.data_dir).resolve()
-    latest_mtime_ns = max(
-        (
-            path.stat().st_mtime_ns
-            for path in data_dir.rglob("*.csv")
-        ),
-        default=0,
+    dependencies = list(data_dir.rglob("*.csv"))
+    dependencies.extend(
+        path
+        for path in (
+            Path("cache/fundamental_features_akshare.parquet"),
+            Path("cache/shareholder_features.parquet"),
+            Path("cache/restricted_features.parquet"),
+            Path("cache/north_flow.csv"),
+            Path("cache/margin_balance.csv"),
+            Path("cache/pmi_pit_v2.csv"),
+        )
+        if path.exists()
+    )
+    dependency_signature = "|".join(
+        f"{path.resolve()}:{path.stat().st_mtime_ns}:{path.stat().st_size}"
+        for path in sorted(dependencies, key=lambda item: str(item))
     )
     data_tag = hashlib.sha1(
-        f"{data_dir}|{latest_mtime_ns}".encode("utf-8")
+        f"{data_dir}|{dependency_signature}".encode("utf-8")
     ).hexdigest()[:10]
     lookback_tag = "all" if max_lookback is None else str(int(max_lookback))
     return os.path.join("cache", f"inference_matrices_{data_tag}_lb{lookback_tag}.pkl")

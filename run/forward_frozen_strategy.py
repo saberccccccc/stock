@@ -81,6 +81,26 @@ def assert_market_data_current(data_dir, end_date):
         )
 
 
+def assert_fundamental_data_current(min_coverage=0.99):
+    path = Path("cache/fundamental_features_akshare.parquet")
+    if not path.exists():
+        raise ValueError("Missing fundamental PIT cache")
+    df = pd.read_parquet(path, columns=["ts_code", "effective_date", "end_date"])
+    df["effective_date"] = pd.to_datetime(df["effective_date"], errors="coerce")
+    df["end_date"] = pd.to_datetime(df["end_date"], errors="coerce")
+    if (df["effective_date"] < df["end_date"]).any():
+        raise ValueError("Fundamental PIT cache contains effective dates before report periods")
+    expected_period = pd.Timestamp(year=FORWARD_START_DATE.year, month=3, day=31)
+    covered = df.loc[df["end_date"] == expected_period, "ts_code"].nunique()
+    total = df["ts_code"].nunique()
+    coverage = covered / max(total, 1)
+    if coverage < min_coverage:
+        raise ValueError(
+            f"Fundamental cache covers only {covered}/{total} ({coverage:.2%}) stocks "
+            f"for {expected_period.date()}; run download_fundamentals_akshare.py --update."
+        )
+
+
 def load_frozen_predictor(checkpoint, device):
     cfg = build_v9_backtest_config()
     result = build_cross_section_dataset(cfg, use_cache=True)
@@ -106,6 +126,7 @@ def main():
     if end < start:
         raise ValueError("end-date precedes start-date")
     assert_market_data_current(args.data_dir, end)
+    assert_fundamental_data_current()
 
     predictor = load_frozen_predictor(args.checkpoint, args.device)
     cfg = build_v9_backtest_config()
