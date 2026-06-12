@@ -23,6 +23,7 @@ def make_args():
         stamp_tax_rate=0.0005,
         slippage_rate=0.0005,
         min_commission_cny=5.0,
+        rebalance_band=0.0,
     )
 
 
@@ -52,6 +53,23 @@ def main():
     assert np.all(executed % 100 == 0)
     assert cash >= 0.0
     assert info["executed_turnover"] > 0.0
+
+    band_args = make_args()
+    band_args.rebalance_band = 0.20
+    band_shares, band_cash, band_executed, band_info = apply_execution_constraints(
+        desired_weights=np.array([0.5, 0.5]),
+        current_shares=np.array([23_000.0, 13_000.0]),
+        cash=10_000.0,
+        equity=500_000.0,
+        close_df=close,
+        adv_df=adv,
+        day_pos=1,
+        args=band_args,
+    )
+    assert np.array_equal(band_executed, np.zeros(2))
+    assert np.array_equal(band_shares, np.array([23_000.0, 13_000.0]))
+    assert band_cash == 10_000.0
+    assert band_info["band_skipped"] == 2
 
     shares, cash, executed, info = apply_execution_constraints(
         desired_weights=np.zeros(2),

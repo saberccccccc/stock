@@ -85,8 +85,43 @@ two-account gate. It was not promoted to stress or forward testing.
 ## Decision
 
 Neither blend replaces the frozen average-w3 primary strategy. The next
-research round should focus on reducing small-account turnover and execution
-drag rather than adding a faster signal.
+research round therefore focused on reducing small-account turnover and
+execution drag rather than adding a faster signal.
+
+### Rebalance band
+
+The average-w3 signal and stock-selection rules were left unchanged. For
+positions that remained selected, resizing trades were skipped while current
+shares stayed within 20% of target shares. New entries, full exits, limit
+rules, board lots, liquidity limits, and market exposure changes outside the
+band remained executable.
+
+The band was selected from `0%, 10%, 20%, 30%, 40%, 50%` on validation data.
+Only the fixed 20% candidate was then run on the independent test.
+
+| Period | CNY 500k annualized / Sharpe | CNY 1m annualized / Sharpe |
+|---|---:|---:|
+| Validation baseline | 53.27% / 1.507 | 56.39% / 1.543 |
+| Validation, 20% band | 56.59% / 1.575 | 58.83% / 1.597 |
+| Independent test baseline | 44.55% / 1.912 | 54.25% / 2.113 |
+| Independent test, 20% band | 45.19% / 1.939 | 55.42% / 2.159 |
+| Validation, 2x costs | 44.46% / 1.322 | 48.88% / 1.395 |
+| Validation, 3x costs | 32.73% / 1.055 | 39.01% / 1.183 |
+| Validation, one extra day delay | 34.12% / 1.083 | 33.14% / 1.047 |
+
+The candidate exceeded the matching baseline for both account sizes in base,
+2x-cost, 3x-cost, and delayed-execution tests. Validation turnover fell from
+`0.300` to `0.292` for CNY 500k and from `0.306` to `0.296` for CNY 1m.
+
+A separately named 17-day forward shadow was run without changing the chosen
+20% value. CNY 500k improved from `-6.34%` to `-6.07%`, while CNY 1m declined
+from `-4.91%` to `-6.18%`. This short mixed result is recorded but is not used
+to retune the band or rewrite the existing frozen ledger.
+
+The 20% rebalance band is the first candidate in this report to improve both
+capital levels on validation and independent test. It is accepted as the
+next execution-policy candidate, while the original forward campaign remains
+unchanged until its fixed review milestone.
 
 ## Evidence
 
@@ -96,3 +131,6 @@ drag rather than adding a faster signal.
 | Test blended Alpha | `F20A9839378BA67F2483CC927495F60EC1C859947AE78B8135F5924274AE225C` |
 | Consensus validation Alpha | `5A4D349B6A393438B7951CA3EF97D6DDFDC27C9F1F697F80E78B8459188D31DF` |
 | Consensus test Alpha | `23FF2A7D6B7D6539D28150469C645E9D7B6FECFF11EDEBDF49EC947BD29C2DF9` |
+| Rebalance-band validation summary | `113E1258D49282DB490F108AE8E61357B3E6A09E412E046DB82B5F7E86C9AD18` |
+| Rebalance-band test summary | `BF7140AA6C91F5CFA09BA8485457A424CFF140662B537D3708C99471E3B5A755` |
+| Rebalance-band forward summary | `E6962CA0E380B6111763B21F60F1FC153E5CADF4E2D37ECD66CE041BFCD4E745` |

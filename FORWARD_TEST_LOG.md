@@ -70,6 +70,26 @@ period.
 
 Artifacts are under `forward_results/frozen_v9_avgw3`.
 
+## Rebalance-band Shadow
+
+After research-only validation and independent testing, a separately named
+execution-policy candidate was evaluated on the same corrected forward Alpha.
+It keeps the frozen signal, Top 30 target, Top 10% retention threshold, and
+market timing, but skips resizing retained positions while their share count
+is within 20% of target.
+
+| Account | Frozen primary | 20% band shadow | Shadow maximum drawdown |
+|---|---:|---:|---:|
+| CNY 500,000 | -6.34% | -6.07% | 7.77% |
+| CNY 1,000,000 | -4.91% | -6.18% | 7.89% |
+
+The result is mixed and the sample contains only 17 realized trading days.
+The shadow does not replace the frozen primary ledger and is not used to
+change the preselected 20% band.
+
+Artifact:
+`forward_results/shadow_rebalance_band20/ledger_20260519_20260611`.
+
 ## Interpretation Rule
 
 This is a negative start, but it is not a tuning signal. Continue the frozen

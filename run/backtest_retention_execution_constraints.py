@@ -53,6 +53,12 @@ def parse_args():
     parser.add_argument("--limit-threshold", type=float, default=0.095)
     parser.add_argument("--lot-size", type=int, default=100)
     parser.add_argument("--min-commission-cny", type=float, default=5.0)
+    parser.add_argument(
+        "--rebalance-band",
+        type=float,
+        default=0.0,
+        help="Skip resizing retained positions within this fraction of target shares",
+    )
     parser.add_argument("--execution-lag", type=int, default=0, help="Extra trading-day delay after the next tradable day")
     parser.add_argument("--progress-every", type=int, default=1000)
     parser.add_argument("--allow-forward", action="store_true")
@@ -182,6 +188,12 @@ def apply_execution_constraints(
         * lot_size
     )
     share_delta = desired_shares - current_shares
+    rebalance_band = max(float(getattr(args, "rebalance_band", 0.0)), 0.0)
+    retained = (current_shares > 0) & (desired_shares > 0)
+    within_band = retained & (
+        np.abs(share_delta) <= rebalance_band * np.maximum(desired_shares, lot_size)
+    )
+    share_delta[within_band] = 0.0
     executed_shares = np.zeros_like(share_delta)
     blocked_buy = blocked_sell = adv_blocked = capped = lot_blocked = 0
     missing_adv = 0
@@ -298,6 +310,7 @@ def apply_execution_constraints(
         "missing_adv": missing_adv,
         "capped": capped,
         "lot_blocked": lot_blocked,
+        "band_skipped": int(np.count_nonzero(within_band)),
         "turnover": float(np.sum(np.abs(executed_values)) / max(equity, 1.0)),
         "desired_turnover": float(np.sum(np.abs(desired_values)) / max(equity, 1.0)),
         "executed_turnover": float(np.sum(np.abs(executed_values)) / max(equity, 1.0)),
@@ -453,9 +466,11 @@ def run_constrained(alpha_rows, close_df, adv_df, target_frac, hold_frac, args, 
         "missing_adv": int(diag_df["missing_adv"].sum()) if "missing_adv" in diag_df else 0,
         "capped": int(diag_df["capped"].sum()) if "capped" in diag_df else 0,
         "lot_blocked": int(diag_df["lot_blocked"].sum()) if "lot_blocked" in diag_df else 0,
+        "band_skipped": int(diag_df["band_skipped"].sum()) if "band_skipped" in diag_df else 0,
         "execution_lag": int(getattr(args, "execution_lag", 0)),
         "lot_size": int(getattr(args, "lot_size", 1)),
         "min_commission_cny": float(getattr(args, "min_commission_cny", 0.0)),
+        "rebalance_band": float(getattr(args, "rebalance_band", 0.0)),
     }
     returns_df = pd.DataFrame({"date": active_dates, "return": returns_active})
     return row, returns_df, diag_df
@@ -542,6 +557,7 @@ def main():
                 "execution_lag": args.execution_lag,
                 "lot_size": args.lot_size,
                 "min_commission_cny": args.min_commission_cny,
+                "rebalance_band": args.rebalance_band,
             })
             summary_rows.append(row)
             tag = f"target{int(round(target_frac * 1000)):03d}_hold{int(round(hold_frac * 1000)):03d}"
@@ -568,6 +584,7 @@ def main():
         f"- min ADV CNY: `{args.min_adv_cny:,.0f}`",
         f"- limit threshold: `{args.limit_threshold:.2%}`",
         f"- execution lag: `{args.execution_lag}` trading days",
+        f"- rebalance band: `{args.rebalance_band:.1%}` of target position",
         f"- costs: commission={args.commission_rate}, stamp_tax={args.stamp_tax_rate}, slippage={args.slippage_rate}",
         "",
         "| target | hold | ann | Sharpe | mdd | exec turnover | unfilled turnover | avg names | capped | adv blocked | buy block | sell block |",
