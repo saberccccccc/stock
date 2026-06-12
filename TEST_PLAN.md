@@ -32,7 +32,7 @@ Updated: 2026-06-12
 | T11 | Stress | Run 1x/2x/3x costs and one-day execution delay | Selected candidates only | Stress report | No collapse under 2x costs | Done |
 | T12 | Stability | Report yearly, quarterly and weak-regime performance | No parameter search | Stability report | No dependence on one short period | Done |
 | T13 | Decision | Lock one primary and one fallback strategy | Validation-led | Frozen strategy manifest | Parameters and checkpoint hashes recorded | Done |
-| T14 | Forward test | Update only `data/forward_raw` and run from 2026-05-19 | No retraining/tuning | Forward ledger | Chronological, untouched evidence | Pending |
+| T14 | Forward test | Update only `data/forward_raw` and run from 2026-05-19 | No retraining/tuning | Forward ledger | Chronological, untouched evidence | In progress: first ledger through 2026-06-11 |
 
 ## Candidate order
 

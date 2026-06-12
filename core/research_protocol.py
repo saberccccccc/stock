@@ -39,6 +39,15 @@ def assert_alpha_rows_within_research(rows, context: str = "backtest") -> None:
         )
 
 
+def assert_alpha_rows_within_forward(rows, context: str = "forward test") -> None:
+    dates = [pd.Timestamp(row["date"]) for row in rows]
+    if dates and min(dates) < FORWARD_START_DATE:
+        raise ValueError(
+            f"{context} contains signal date {min(dates).date()} before forward-test "
+            f"start {FORWARD_START_DATE.date()}."
+        )
+
+
 def cached_dates_within_research(metadata) -> bool:
     dates = metadata.get("all_dates", [])
     return not dates or pd.Timestamp(max(dates)) <= RESEARCH_END_DATE

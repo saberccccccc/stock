@@ -20,7 +20,10 @@ if str(ROOT) not in sys.path:
 os.chdir(ROOT)
 
 from backtest.reports import calc_extended_metrics, calc_metrics
-from core.research_protocol import assert_alpha_rows_within_research
+from core.research_protocol import (
+    assert_alpha_rows_within_forward,
+    assert_alpha_rows_within_research,
+)
 from run.backtest_temporal_retention import compute_market_multiplier, load_index_returns
 
 
@@ -50,6 +53,7 @@ def parse_args():
     parser.add_argument("--min-commission-cny", type=float, default=5.0)
     parser.add_argument("--execution-lag", type=int, default=0, help="Extra trading-day delay after the next tradable day")
     parser.add_argument("--progress-every", type=int, default=1000)
+    parser.add_argument("--allow-forward", action="store_true")
     return parser.parse_args()
 
 
@@ -502,7 +506,10 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     alpha_rows = load_alpha_rows(args.alpha_jsonl)
-    assert_alpha_rows_within_research(alpha_rows, context="execution-constrained backtest")
+    if args.allow_forward:
+        assert_alpha_rows_within_forward(alpha_rows, context="execution-constrained forward test")
+    else:
+        assert_alpha_rows_within_research(alpha_rows, context="execution-constrained backtest")
     all_codes = sorted({code for row in alpha_rows for code in row["codes"]})
     print(f"alpha_days={len(alpha_rows)} codes={len(all_codes)}", flush=True)
     close, money = load_close_money(args.data_dir, all_codes, args.money_scale, args.progress_every)

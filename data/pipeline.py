@@ -9,6 +9,7 @@ from collections import defaultdict
 import hashlib
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
 
 from core.research_protocol import cached_dates_within_research
 
@@ -896,24 +897,37 @@ def add_technical_features(df: "pd.DataFrame", config) -> "pd.DataFrame":
     return df
 
 
-_inference_cache_path = os.path.join("cache", "inference_matrices_cache.pkl")
+def _inference_cache_path_for(config, max_lookback=None):
+    data_dir = Path(config.data_dir).resolve()
+    latest_mtime_ns = max(
+        (
+            path.stat().st_mtime_ns
+            for path in data_dir.rglob("*.csv")
+        ),
+        default=0,
+    )
+    data_tag = hashlib.sha1(
+        f"{data_dir}|{latest_mtime_ns}".encode("utf-8")
+    ).hexdigest()[:10]
+    lookback_tag = "all" if max_lookback is None else str(int(max_lookback))
+    return os.path.join("cache", f"inference_matrices_{data_tag}_lb{lookback_tag}.pkl")
 
 
-def _save_inference_cache(matrices):
+def _save_inference_cache(matrices, cache_path):
     import pickle
     try:
         os.makedirs("cache", exist_ok=True)
-        with open(_inference_cache_path, "wb") as f:
+        with open(cache_path, "wb") as f:
             pickle.dump(matrices, f, protocol=pickle.HIGHEST_PROTOCOL)
     except Exception:
         pass
 
 
-def _load_inference_cache():
+def _load_inference_cache(cache_path):
     import pickle
     try:
-        if os.path.exists(_inference_cache_path):
-            with open(_inference_cache_path, "rb") as f:
+        if os.path.exists(cache_path):
+            with open(cache_path, "rb") as f:
                 return pickle.load(f)
     except Exception:
         pass
@@ -926,9 +940,10 @@ def _build_inference_matrices(config, stock_universe=None, max_lookback=None):
     Returns a dict with all shared data used to produce cross-section samples.
     If max_lookback is provided, only keep the most recent N dates to save memory.
     """
-    cached = _load_inference_cache()
+    cache_path = _inference_cache_path_for(config, max_lookback)
+    cached = _load_inference_cache(cache_path)
     if cached is not None:
-        print(f"加载推理矩阵缓存: {_inference_cache_path}")
+        print(f"加载推理矩阵缓存: {cache_path}")
         return cached
 
     data_dir = config.data_dir
@@ -1129,7 +1144,7 @@ def _build_inference_matrices(config, stock_universe=None, max_lookback=None):
         'max_horizon': max_horizon,
         'min_stocks': getattr(config, 'min_stocks_per_time', 30),
     }
-    _save_inference_cache(matrices)
+    _save_inference_cache(matrices, cache_path)
     return matrices
 
 
@@ -1215,7 +1230,14 @@ def build_inference_sample(config, stock_universe=None, as_of_date=None):
 
 def build_inference_samples(config, as_of_dates, stock_universe=None):
     """Build inference samples for multiple dates efficiently (CSVs read once)."""
-    matrices = _build_inference_matrices(config, stock_universe)
+    as_of_dates = list(as_of_dates)
+    n_requested = max(len(as_of_dates), 1)
+    max_lookback = int(config.seq_len) + n_requested + 80
+    matrices = _build_inference_matrices(
+        config,
+        stock_universe,
+        max_lookback=max_lookback,
+    )
     all_dates = matrices['all_dates']
     seq_len = matrices['seq_len']
     all_dates_list = list(all_dates)
