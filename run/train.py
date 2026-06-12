@@ -114,6 +114,10 @@ def parse_args():
     parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
     parser.add_argument("--output-dir", default=None, help="Override checkpoint directory")
     parser.add_argument("--data-dir", default=None, help="Override data directory (e.g. ../deepseek_optimized/data/raw)")
+    parser.add_argument("--batch-size", type=int, default=None, help="Override training batch size.")
+    parser.add_argument("--val-batch-size", type=int, default=None, help="Override validation batch size.")
+    parser.add_argument("--accum-steps", type=int, default=None, help="Override gradient accumulation steps.")
+    parser.add_argument("--memmap-trim-interval", type=int, default=None, help="Trim Windows memmap pages every N batches.")
     parser.add_argument("--top-focus-loss-weight", type=float, default=None, help="Long-only top-focus auxiliary loss weight.")
     parser.add_argument("--top-focus-temperature", type=float, default=None, help="Softmax temperature for top-focus loss.")
     parser.add_argument("--top-focus-delay-epochs", type=int, default=None, help="Epoch delay before enabling top-focus loss.")
@@ -164,20 +168,40 @@ def build_config(mc, data_dir=None, args=None):
             cfg.best_val_metric = args.best_val_metric
         if args.eval_top_fracs is not None:
             cfg.eval_top_fracs = tuple(float(x.strip()) for x in args.eval_top_fracs.split(",") if x.strip())
+        if args.memmap_trim_interval is not None:
+            if args.memmap_trim_interval < 0:
+                raise ValueError("memmap_trim_interval must be >= 0")
+            cfg.memmap_trim_interval = args.memmap_trim_interval
     if mc["use_gat"]:
         cfg.use_gat = True
     return cfg
 
 
-def resolve_batch(model, device):
+def resolve_batch(model, device, batch_size=None, val_batch_size=None, accum_steps=None):
     bc = BATCH_CONFIGS[model]
     if device.type == "cuda":
         gpu_mem = torch.cuda.get_device_properties(0).total_memory / 1024 ** 3
         if gpu_mem < 8:
-            return bc["lt8"][0], bc["lt8"][1], bc["val_lt8"], gpu_mem
+            resolved = (bc["lt8"][0], bc["lt8"][1], bc["val_lt8"])
         else:
-            return bc["ge8"][0], bc["ge8"][1], bc["ge8"][0], gpu_mem
-    return bc["cpu"][0], bc["cpu"][1], bc["cpu"][0], 99
+            resolved = (bc["ge8"][0], bc["ge8"][1], bc["ge8"][0])
+    else:
+        gpu_mem = 99
+        resolved = (bc["cpu"][0], bc["cpu"][1], bc["cpu"][0])
+
+    train_bs = batch_size if batch_size is not None else resolved[0]
+    accum = accum_steps if accum_steps is not None else resolved[1]
+    val_bs = val_batch_size if val_batch_size is not None else (
+        batch_size if batch_size is not None else resolved[2]
+    )
+    for name, value in (
+        ("batch_size", train_bs),
+        ("val_batch_size", val_bs),
+        ("accum_steps", accum),
+    ):
+        if value < 1:
+            raise ValueError(f"{name} must be >= 1, got {value}")
+    return train_bs, accum, val_bs, gpu_mem
 
 
 def setup_logging(model, mc):
@@ -282,7 +306,8 @@ def train(args):
         print(f"模型: Transformer {cfg.n_transformer_layers}层, dropout={cfg.transformer_dropout}, "
               f"weight_decay=2e-3, grad_clip=0.2")
         print(f"训练: LR={args.lr}, warmup={cfg.lr_warmup_epochs}epoch, "
-              f"AdamW fused={cfg.use_fused_adam}, cleanup_cache={cfg.cleanup_cache_interval}")
+              f"AdamW fused={cfg.use_fused_adam}, cleanup_cache={cfg.cleanup_cache_interval}, "
+              f"memmap_trim={cfg.memmap_trim_interval}")
         print(f"损失: industry={cfg.industry_loss_weight}, spread={cfg.spread_loss_weight}"
               f"@d{cfg.spread_delay_epochs}, top_focus={cfg.top_focus_loss_weight}"
               f"@T{cfg.top_focus_temperature},d{cfg.top_focus_delay_epochs}, "
@@ -391,7 +416,13 @@ def train(args):
         else:
             device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-        batch_size, accum_steps, val_bs, _gpu_mem = resolve_batch(model, device)
+        batch_size, accum_steps, val_bs, _gpu_mem = resolve_batch(
+            model,
+            device,
+            batch_size=args.batch_size,
+            val_batch_size=args.val_batch_size,
+            accum_steps=args.accum_steps,
+        )
         print(f"Batch size: {batch_size} (val: {val_bs}), Accum steps: {accum_steps}")
 
         # collate

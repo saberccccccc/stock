@@ -90,7 +90,7 @@ class DataConfig:
     top_focus_temperature: float = 0.75         # long-only softmax 温度
     top_focus_delay_epochs: int = 5             # 前N个epoch关闭top-focus loss
     eval_top_fracs: Tuple[float, ...] = (0.05, 0.10)  # validation top bucket sizes
-    best_val_metric: str = "alpha"              # alpha/topic_h5_top10/topret_h5_top5/etc.
+    best_val_metric: str = "alpha"              # alpha/topic/topret/topstable metrics
 
     # ==================== 实验：Pairwise top ranking loss ====================
     pairwise_top_loss_weight: float = 0.0       # top-area pairwise ranking loss, 0=关闭
@@ -110,6 +110,7 @@ class DataConfig:
     # ==================== 训练性能 ====================
     use_fused_adam: bool = True                # fused AdamW (CUDA only, PyTorch≥2.0, 5-10% 提速)
     cleanup_cache_interval: int = 0            # 每N batch清理GPU缓存，0=关闭 (模型小时碎片少不需要)
+    memmap_trim_interval: int = 0              # Windows每N batch释放文件映射驻留页，0=关闭
 
     # ==================== 防过拟合 ====================
     transformer_dropout: float = 0.35           # Transformer dropout

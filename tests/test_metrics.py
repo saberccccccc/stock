@@ -34,7 +34,19 @@ def test_calc_metrics_empty():
     print("  empty returns -> (0,0,0): OK")
 
 
+def test_training_selection_metrics():
+    from core.train_utils import _mean_std_score, _top_frac_tag
+
+    assert _top_frac_tag(0.006) == "0p6"
+    assert _top_frac_tag(0.01) == "1"
+    assert _top_frac_tag(0.025) == "2p5"
+    assert _mean_std_score([1.0, 2.0, 3.0]) > 0.0
+    assert _mean_std_score([1.0]) == 0.0
+    print("  training selection metric tags/stability: OK")
+
+
 if __name__ == "__main__":
     test_calc_metrics_known_input()
     test_calc_metrics_empty()
+    test_training_selection_metrics()
     print("test_metrics.py: ALL PASSED")

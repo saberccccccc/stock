@@ -832,7 +832,8 @@ def samples_from_precomputed_metadata(meta, split='val'):
     scale = 1000.0
 
     for t in time_indices:
-        valid = x_mm[:, t, 0] != invalid
+        # All precomputed arrays share valid_idx; use the compact label map.
+        valid = y_mm[:, t] != invalid
         if int(valid.sum()) < meta.get('min_stocks', 30):
             continue
         valid_idx = np.where(valid)[0]

@@ -196,7 +196,9 @@ class PrecomputedMemmapDataset(Dataset):
         # 预过滤：仅保留有效股票 >= min_stocks 的日期
         valid_times = []
         for t in time_indices:
-            n_valid = (self.X_mm[:, t, 0] != SENTINEL).sum()
+            # All precomputed arrays share valid_idx. The label memmap is
+            # compact, while scanning X here pages through a multi-GB file.
+            n_valid = (self.Y_mm[:, t] != SENTINEL).sum()
             if n_valid >= min_stocks:
                 valid_times.append(t)
         self.time_indices = valid_times
@@ -206,7 +208,7 @@ class PrecomputedMemmapDataset(Dataset):
 
     def __getitem__(self, idx):
         t = self.time_indices[idx]
-        valid = (self.X_mm[:, t, 0] != SENTINEL)
+        valid = (self.Y_mm[:, t] != SENTINEL)
         valid_idx = np.where(valid)[0]
 
         return {
@@ -571,7 +573,38 @@ def _is_oom_error(error):
 
 
 def _top_frac_tag(frac):
-    return str(int(round(float(frac) * 100)))
+    percent = float(frac) * 100.0
+    if np.isclose(percent, round(percent)):
+        return str(int(round(percent)))
+    return f"{percent:g}".replace(".", "p")
+
+
+def _mean_std_score(values):
+    values = np.asarray(values, dtype=np.float64)
+    values = values[np.isfinite(values)]
+    if len(values) < 2:
+        return 0.0
+    std = float(np.std(values))
+    if std <= 1e-12:
+        return 0.0
+    return float(np.mean(values) / std)
+
+
+def _trim_process_working_set():
+    """Release reclaimable file-backed pages from the Windows working set."""
+    if os.name != "nt":
+        return False
+    try:
+        import ctypes
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        psapi = ctypes.WinDLL("psapi", use_last_error=True)
+        kernel32.GetCurrentProcess.restype = ctypes.c_void_p
+        psapi.EmptyWorkingSet.argtypes = [ctypes.c_void_p]
+        psapi.EmptyWorkingSet.restype = ctypes.c_int
+        handle = kernel32.GetCurrentProcess()
+        return bool(psapi.EmptyWorkingSet(handle))
+    except (AttributeError, OSError):
+        return False
 
 
 @torch.no_grad()
@@ -585,11 +618,13 @@ def evaluate(model, loader, cfg, device):
     top_fracs = tuple(getattr(cfg, 'eval_top_fracs', (0.05, 0.10)))
     top_returns = {}
     top_ics = {}
+    top_stability = {}
     for frac in top_fracs:
         tag = _top_frac_tag(frac)
         for h_idx in h_indices:
             top_returns[f"topret_h{h_idx+1}_top{tag}"] = []
             top_ics[f"topic_h{h_idx+1}_top{tag}"] = []
+            top_stability[f"topstable_h{h_idx+1}_top{tag}"] = []
 
     regime_dim = get_regime_dim(cfg)
 
@@ -607,7 +642,7 @@ def evaluate(model, loader, cfg, device):
             if not _is_oom_error(e):
                 raise
             print(f"  [WARN] 验证 batch {bi} OOM: {e}, 跳过")
-            del X, y, y_seq, risk, industry_ids, mask
+            del X, y, y_seq, risk, industry_ids, mask, batch
             if device.type == "cuda":
                 torch.cuda.empty_cache()
             continue
@@ -677,13 +712,17 @@ def evaluate(model, loader, cfg, device):
                     top_ret_frac = ret_h[top_idx_frac].mean()
                     if np.isfinite(top_ret_frac):
                         top_returns[f"topret_h{h_idx+1}_top{tag}"].append(top_ret_frac)
+                        top_stability[f"topstable_h{h_idx+1}_top{tag}"].append(top_ret_frac)
                     top_y = ret_h[top_idx_frac]
                     if len(top_idx_frac) > 10 and np.std(top_pred) > 1e-8 and np.std(top_y) > 1e-8:
                         top_ic = np.corrcoef(top_pred, top_y)[0, 1]
                         if np.isfinite(top_ic):
                             top_ics[f"topic_h{h_idx+1}_top{tag}"].append(top_ic)
 
-        del alpha_cpu, horizon_cpu, y_cpu, y_seq_cpu, target_cpu, mask_cpu
+        del alpha_cpu, horizon_cpu, y_cpu, y_seq_cpu, target_cpu, mask_cpu, batch
+        trim_interval = getattr(cfg, 'memmap_trim_interval', 0)
+        if trim_interval > 0 and bi > 0 and bi % trim_interval == 0:
+            _trim_process_working_set()
 
     results = {}
     for k, v in all_ics.items():
@@ -694,6 +733,8 @@ def evaluate(model, loader, cfg, device):
         results[k] = np.mean(v) if v else 0.0
     for k, v in top_ics.items():
         results[k] = np.mean(v) if v else 0.0
+    for k, v in top_stability.items():
+        results[k] = _mean_std_score(v)
     return results
 
 
@@ -878,9 +919,10 @@ def train_model(train_loader, val_loader, input_dim, cfg,
                 else:
                     optimizer.step()
                 optimizer.zero_grad()
-            else:
-                # 未累积到步时立即释放所有输入tensor
-                del X, y, y_seq, risk, industry_ids, mask
+
+            # CPU collated tensors and GPU inputs are no longer needed after
+            # backward/step. Releasing batch is important for memmap training.
+            del X, y, y_seq, risk, industry_ids, mask, batch
 
             train_loss += loss_val
 
@@ -888,6 +930,10 @@ def train_model(train_loader, val_loader, input_dim, cfg,
             cleanup_interval = getattr(cfg, 'cleanup_cache_interval', 0)
             if cleanup_interval > 0 and device.type == "cuda" and i > 0 and i % cleanup_interval == 0:
                 torch.cuda.empty_cache()
+
+            trim_interval = getattr(cfg, 'memmap_trim_interval', 0)
+            if trim_interval > 0 and i > 0 and i % trim_interval == 0:
+                _trim_process_working_set()
 
         # 安全清理循环中残留的tensor（最后一步可能已释放部分）
         try:
