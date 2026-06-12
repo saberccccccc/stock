@@ -9,6 +9,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 os.chdir(PROJECT_ROOT)
 
 from run.forward_frozen_strategy import RawAverageBlendPredictor
+from run.blend_alpha_jsonl import blend_percentiles
 
 
 class FixedPredictor:
@@ -27,6 +28,21 @@ def main():
     expected = np.asarray([0.75, 0.25, 0.5], dtype=np.float32)
     assert np.allclose(result, expected)
     assert int(np.argmax(result)) == 0
+
+    left = np.asarray([1.0, 0.5, 0.0])
+    right = np.asarray([0.25, 0.5, 1.0])
+    assert np.allclose(
+        blend_percentiles(left, right, "weighted", left_weight=0.75),
+        [0.8125, 0.5, 0.25],
+    )
+    assert np.allclose(
+        blend_percentiles(left, right, "minimum"),
+        [0.25, 0.5, 0.0],
+    )
+    assert np.allclose(
+        blend_percentiles(left, right, "geometric"),
+        [0.5, 0.5, 0.0],
+    )
     print("test_signal_blend.py: ALL PASSED")
 
 
