@@ -244,7 +244,17 @@ def load_index_returns(data_dir, index_file, all_dates):
     return close, daily
 
 
-def compute_market_multiplier(idx_close, idx_daily, ret_daily, col_cur, mode, min_mult, max_mult):
+def compute_market_multiplier(
+    idx_close,
+    idx_daily,
+    ret_daily,
+    col_cur,
+    mode,
+    min_mult,
+    max_mult,
+    legacy_bear_mult=0.7,
+    legacy_crash_mult=0.3,
+):
     if mode in (None, "", "none"):
         return 1.0
     if col_cur < 60 or not np.isfinite(idx_close.iloc[col_cur]):
@@ -253,11 +263,11 @@ def compute_market_multiplier(idx_close, idx_daily, ret_daily, col_cur, mode, mi
     idx_cur = float(idx_close.iloc[col_cur])
     idx_ma60 = float(idx_close.iloc[col_cur - 60:col_cur].mean())
     if mode == "legacy":
-        market_mult = 0.7 if idx_cur < idx_ma60 else 1.0
+        market_mult = float(legacy_bear_mult) if idx_cur < idx_ma60 else 1.0
         if col_cur >= 120 and np.isfinite(idx_close.iloc[col_cur - 120]) and idx_close.iloc[col_cur - 120] > 0:
             idx_ret_6m = idx_cur / float(idx_close.iloc[col_cur - 120]) - 1.0
             if idx_ret_6m < -0.10:
-                market_mult = min(market_mult, 0.3)
+                market_mult = min(market_mult, float(legacy_crash_mult))
         return float(np.clip(market_mult, 0.0, max_mult))
 
     if mode != "dynamic":
@@ -336,6 +346,8 @@ def run_one_retention(
                     args.market_timing_mode,
                     args.market_min_mult,
                     args.market_max_mult,
+                    getattr(args, "legacy_bear_mult", 0.7),
+                    getattr(args, "legacy_crash_mult", 0.3),
                 )
                 target = target * float(market_mult)
             trade = target - current

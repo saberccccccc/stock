@@ -39,6 +39,8 @@ def parse_args():
     parser.add_argument("--market-timing-mode", default="legacy", choices=["none", "legacy", "dynamic"])
     parser.add_argument("--market-min-mult", type=float, default=0.20)
     parser.add_argument("--market-max-mult", type=float, default=1.00)
+    parser.add_argument("--legacy-bear-mult", type=float, default=0.70)
+    parser.add_argument("--legacy-crash-mult", type=float, default=0.30)
     parser.add_argument("--commission-rate", type=float, default=0.0001)
     parser.add_argument("--stamp-tax-rate", type=float, default=0.0005)
     parser.add_argument("--slippage-rate", type=float, default=0.0005)
@@ -343,6 +345,8 @@ def run_constrained(alpha_rows, close_df, adv_df, target_frac, hold_frac, args, 
         market_timing_mode=args.market_timing_mode,
         market_min_mult=args.market_min_mult,
         market_max_mult=args.market_max_mult,
+        legacy_bear_mult=getattr(args, "legacy_bear_mult", 0.7),
+        legacy_crash_mult=getattr(args, "legacy_crash_mult", 0.3),
     )
 
     for day in range(t_total):
@@ -361,6 +365,8 @@ def run_constrained(alpha_rows, close_df, adv_df, target_frac, hold_frac, args, 
                     market_args.market_timing_mode,
                     market_args.market_min_mult,
                     market_args.market_max_mult,
+                    market_args.legacy_bear_mult,
+                    market_args.legacy_crash_mult,
                 )
             desired = weights_from_selected(selected, code2idx, n_codes, market_mult, args.max_weight)
             new_shares, cash, executed_shares, exec_info = apply_execution_constraints(

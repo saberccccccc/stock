@@ -34,6 +34,30 @@ REQUIRED_BROAD_INDICES = (
 )
 
 
+class RawAverageBlendPredictor:
+    def __init__(self, raw_predictor, average_predictor, raw_weight=0.75):
+        self.raw = raw_predictor
+        self.average = average_predictor
+        self.raw_weight = float(raw_weight)
+        self.name = f"v9_raw{self.raw_weight:.2f}_avgw3{1.0 - self.raw_weight:.2f}"
+
+    @staticmethod
+    def _percentile(values):
+        values = np.asarray(values, dtype=np.float64)
+        if len(values) <= 1:
+            return np.ones(len(values), dtype=np.float64)
+        ranks = np.argsort(np.argsort(values))
+        return ranks.astype(np.float64) / (len(values) - 1)
+
+    def predict_alpha(self, sample, valid, regime):
+        raw_alpha = self.raw.predict_alpha(sample, valid, regime)
+        average_alpha = self.average.predict_alpha(sample, valid, regime)
+        return (
+            self.raw_weight * self._percentile(raw_alpha)
+            + (1.0 - self.raw_weight) * self._percentile(average_alpha)
+        ).astype(np.float32)
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Frozen forward alpha generator")
     parser.add_argument("--data-dir", default="data/forward_raw")
@@ -45,6 +69,11 @@ def parse_args():
     parser.add_argument("--end-date", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
+    parser.add_argument(
+        "--signal-mode",
+        default="avgw3",
+        choices=["avgw3", "raw75_avg25"],
+    )
     return parser.parse_args()
 
 
@@ -101,7 +130,7 @@ def assert_fundamental_data_current(min_coverage=0.99):
         )
 
 
-def load_frozen_predictor(checkpoint, device):
+def load_frozen_predictor(checkpoint, device, signal_mode):
     cfg = build_v9_backtest_config()
     result = build_cross_section_dataset(cfg, use_cache=True)
     if not isinstance(result, dict):
@@ -114,7 +143,12 @@ def load_frozen_predictor(checkpoint, device):
         schema_samples = samples_from_precomputed_metadata(schema_meta, "train")
     base = load_dl_predictor(checkpoint, schema_samples, cfg, device)
     raw = V9RankPredictor(base, "v9_raw", cache={})
-    return PersistentPredictor(raw, window=3, mode="average")
+    average = PersistentPredictor(raw, window=3, mode="average")
+    if signal_mode == "avgw3":
+        return average
+    if signal_mode == "raw75_avg25":
+        return RawAverageBlendPredictor(raw, average, raw_weight=0.75)
+    raise ValueError(f"Unknown signal mode: {signal_mode}")
 
 
 def main():
@@ -128,7 +162,7 @@ def main():
     assert_market_data_current(args.data_dir, end)
     assert_fundamental_data_current()
 
-    predictor = load_frozen_predictor(args.checkpoint, args.device)
+    predictor = load_frozen_predictor(args.checkpoint, args.device, args.signal_mode)
     cfg = build_v9_backtest_config()
     cfg.data_dir = args.data_dir
 

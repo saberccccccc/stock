@@ -51,6 +51,11 @@ def parse_args():
     parser.add_argument("--device", default="auto")
     parser.add_argument("--progress-every", type=int, default=80)
     parser.add_argument("--limit-dates", type=int, default=None)
+    parser.add_argument(
+        "--ablate-fundamental",
+        action="store_true",
+        help="Set normalized ROE/revenue level and change features to neutral zero at inference",
+    )
     return parser.parse_args()
 
 
@@ -150,6 +155,38 @@ def compute_v9_alpha_rows(samples, predictor, progress_every=80):
     return rows
 
 
+def ablate_fundamental_features(samples, cfg):
+    """Neutralize the two fundamental levels and their quarter-over-quarter changes."""
+    feature_cols = [
+        "fund_roe",
+        "fund_revenue_yoy",
+        "sh_sh_conc_ratio",
+        "sh_sh_per_capita_ratio",
+        "restr_restricted_next_inv_days",
+        "restr_restricted_next_ratio",
+        "restr_restricted_mv_ratio_90d",
+    ]
+    high_agg_dim = 115
+    low_count = len(feature_cols)
+    fundamental_indices = [
+        high_agg_dim,
+        high_agg_dim + 1,
+        high_agg_dim + low_count,
+        high_agg_dim + low_count + 1,
+    ]
+    for sample in samples:
+        x = np.asarray(sample["X"])
+        if x.shape[1] <= max(fundamental_indices):
+            raise ValueError(
+                f"Cannot ablate fundamentals from X with dimension {x.shape[1]}"
+            )
+        x = x.copy()
+        x[:, fundamental_indices] = 0.0
+        sample["X"] = x
+    cfg.ablate_fundamental = True
+    print(f"Ablated normalized fundamental columns: {fundamental_indices}", flush=True)
+
+
 def save_stage_breakdown(out_dir, returns_by_tag):
     yearly_rows = []
     monthly_rows = []
@@ -204,6 +241,8 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     cfg, samples, predictor = load_v9_samples_and_predictor(args)
+    if args.ablate_fundamental:
+        ablate_fundamental_features(samples, cfg)
     print(
         f"Computing V9 alphas: samples={len(samples)}, split={args.split}, "
         f"predictor={predictor.name}",

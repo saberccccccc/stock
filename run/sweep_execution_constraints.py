@@ -51,6 +51,8 @@ def parse_args():
     parser.add_argument("--market-timing-mode", default="legacy", choices=["none", "legacy", "dynamic"])
     parser.add_argument("--market-min-mult", type=float, default=0.20)
     parser.add_argument("--market-max-mult", type=float, default=1.00)
+    parser.add_argument("--legacy-bear-mult", type=float, default=0.70)
+    parser.add_argument("--legacy-crash-mult", type=float, default=0.30)
     parser.add_argument("--commission-rate", type=float, default=0.0001)
     parser.add_argument("--stamp-tax-rate", type=float, default=0.0005)
     parser.add_argument("--slippage-rate", type=float, default=0.0005)
@@ -95,6 +97,8 @@ def main():
                     market_timing_mode=args.market_timing_mode,
                     market_min_mult=args.market_min_mult,
                     market_max_mult=args.market_max_mult,
+                    legacy_bear_mult=args.legacy_bear_mult,
+                    legacy_crash_mult=args.legacy_crash_mult,
                     commission_rate=args.commission_rate,
                     stamp_tax_rate=args.stamp_tax_rate,
                     slippage_rate=args.slippage_rate,
