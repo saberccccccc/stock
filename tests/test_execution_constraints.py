@@ -71,6 +71,20 @@ def main():
     assert band_cash == 10_000.0
     assert band_info["band_skipped"] == 2
 
+    exact_shares, _, exact_executed, exact_info = apply_execution_constraints(
+        desired_weights=np.array([0.5, 0.5]),
+        current_shares=np.array([25_000.0, 12_500.0]),
+        cash=10_000.0,
+        equity=500_000.0,
+        close_df=close,
+        adv_df=adv,
+        day_pos=1,
+        args=band_args,
+    )
+    assert np.array_equal(exact_executed, np.zeros(2))
+    assert np.array_equal(exact_shares, np.array([25_000.0, 12_500.0]))
+    assert exact_info["band_skipped"] == 0
+
     shares, cash, executed, info = apply_execution_constraints(
         desired_weights=np.zeros(2),
         current_shares=shares,

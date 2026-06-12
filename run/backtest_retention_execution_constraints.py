@@ -190,7 +190,8 @@ def apply_execution_constraints(
     share_delta = desired_shares - current_shares
     rebalance_band = max(float(getattr(args, "rebalance_band", 0.0)), 0.0)
     retained = (current_shares > 0) & (desired_shares > 0)
-    within_band = retained & (
+    has_resize = np.abs(share_delta) >= 1
+    within_band = retained & has_resize & (
         np.abs(share_delta) <= rebalance_band * np.maximum(desired_shares, lot_size)
     )
     share_delta[within_band] = 0.0

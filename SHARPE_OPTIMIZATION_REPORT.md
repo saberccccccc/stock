@@ -123,6 +123,25 @@ capital levels on validation and independent test. It is accepted as the
 next execution-policy candidate, while the original forward campaign remains
 unchanged until its fixed review milestone.
 
+### Follow-up execution searches
+
+Three follow-up ideas were tested on validation data and rejected:
+
+- A minimum CNY resize amount for retained positions had no effect at CNY
+  1,000 and reduced CNY 500k return and Sharpe from CNY 2,000 upward.
+- Tilting weights toward the highest-ranked names reduced return and Sharpe
+  for both account sizes. Mild reverse tilting improved only CNY 500k and
+  weakened CNY 1m; larger reverse tilts weakened both.
+- An account-specific 10% band for CNY 1m slightly improved the independent
+  base test to 55.58% annualized and 2.161 Sharpe, versus 55.42% and 2.159
+  for the common 20% band. However, its 2x-cost, 3x-cost, and delayed Sharpe
+  were 1.385, 1.162, and 1.027, all below the 20% band's 1.395, 1.183, and
+  1.047.
+
+The common 20% band remains preferred. The small base-test difference does
+not justify weaker stress performance or separate live rules by account
+size.
+
 ## Evidence
 
 | Artifact | SHA256 |
