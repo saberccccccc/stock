@@ -1,4 +1,6 @@
-from run.backtest_retention_open_ledger import parse_args
+import json
+
+from run.backtest_retention_open_ledger import load_alpha_rows, parse_args
 
 
 def _required_args():
@@ -76,3 +78,24 @@ def test_open_ledger_lag1_stress_keeps_explicit_execution_lag_override():
 
     assert args.applied_preset == "official_open_price_share_ledger_lag1"
     assert args.execution_lag == 2
+
+
+def test_open_ledger_alpha_loader_accepts_utf8_bom(tmp_path):
+    path = tmp_path / "alpha.jsonl"
+    path.write_bytes(
+        b"\xef\xbb\xbf"
+        + json.dumps(
+            {
+                "date": "2025-01-02",
+                "codes": ["000001.SZ"],
+                "alpha": [1.0],
+                "n_stocks": 1,
+            }
+        ).encode("utf-8")
+    )
+
+    rows = load_alpha_rows(path)
+
+    assert len(rows) == 1
+    assert rows[0]["date"].strftime("%Y-%m-%d") == "2025-01-02"
+    assert rows[0]["codes"] == ["000001.SZ"]

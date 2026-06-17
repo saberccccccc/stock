@@ -91,7 +91,7 @@ def parse_args(argv=None):
 
 def load_alpha_rows(path):
     rows = []
-    with Path(path).open("r", encoding="utf-8") as f:
+    with Path(path).open("r", encoding="utf-8-sig") as f:
         for line in f:
             if not line.strip():
                 continue

@@ -184,3 +184,68 @@ Run a tiny date-window equivalence check between manual official parameters and
 --preset official_open_price_share_ledger, then begin extracting open-ledger
 execution helpers only after equivalence is proven.
 ```
+
+## 2026-06-18 Open-Ledger Preset Equivalence Check
+
+### Completed
+
+Fixed alpha JSONL loading in:
+
+```text
+run/backtest_retention_open_ledger.py
+```
+
+to accept UTF-8 files with BOM. This is input compatibility only; normal UTF-8
+outputs are unchanged.
+
+Added test coverage in:
+
+```text
+tests/test_open_ledger_preset_cli.py
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_backtest_presets.py `
+  tests\test_open_ledger_preset_cli.py -q
+```
+
+Result:
+
+```text
+14 passed
+```
+
+Tiny real CLI equivalence check:
+
+```text
+manual official params
+vs
+--preset official_open_price_share_ledger
+```
+
+Input:
+
+```text
+5 stock codes
+2 signal rows
+max_data_date=2025-01-10
+portfolio_values=500000,1000000
+```
+
+Result:
+
+```text
+tiny open-ledger preset equivalence passed
+```
+
+The two generated `open_ledger_summary.csv` files were identical.
+
+### Next Step
+
+Now it is safe to start extracting the smallest open-ledger helper functions,
+starting with pure argument/preset/report helpers before moving execution logic.
