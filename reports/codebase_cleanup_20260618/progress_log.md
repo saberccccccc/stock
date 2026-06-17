@@ -314,3 +314,71 @@ summarize_result
 ```
 
 Extract one at a time and rerun the tiny equivalence check after each step.
+
+## 2026-06-18 Phase 3 limit_new_names Extraction
+
+### Completed
+
+Moved the portfolio name-retention helper into:
+
+```text
+backtest/open_ledger.py
+```
+
+Extracted function:
+
+```text
+limit_new_names
+```
+
+The legacy entrypoint now imports it from the shared module:
+
+```text
+run/backtest_retention_open_ledger.py
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_backtest_presets.py `
+  tests\test_open_ledger_preset_cli.py -q
+```
+
+Result:
+
+```text
+19 passed
+```
+
+Tiny CLI equivalence:
+
+```text
+manual official params
+vs
+--preset official_open_price_share_ledger
+```
+
+Result:
+
+```text
+tiny open-ledger limit_new_names extraction equivalence passed
+```
+
+### Note
+
+The tests document the existing behavior, including the current `exit_hold_frac`
+and `switch_gap_frac` semantics. No strategy rule was changed.
+
+### Next Step
+
+Next extraction target:
+
+```text
+apply_open_ledger_constraints
+```
+
+This is higher risk because it touches cash/share execution and costs, so it
+should be moved with focused unit tests plus the same tiny equivalence check.

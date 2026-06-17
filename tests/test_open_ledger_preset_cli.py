@@ -1,6 +1,6 @@
 import json
 
-from backtest.open_ledger import load_alpha_rows, parse_float_list
+from backtest.open_ledger import limit_new_names, load_alpha_rows, parse_float_list
 from run.backtest_retention_open_ledger import parse_args
 
 
@@ -104,3 +104,58 @@ def test_open_ledger_alpha_loader_accepts_utf8_bom(tmp_path):
 
 def test_parse_float_list_ignores_empty_items():
     assert parse_float_list("0.006, 0.01,,") == [0.006, 0.01]
+
+
+def test_limit_new_names_noops_without_current_positions():
+    selected = ["A", "B", "C"]
+    row = {"codes": ["A", "B", "C", "D"]}
+
+    assert limit_new_names(selected, [], row, 1, [], 3) is selected
+
+
+def test_limit_new_names_retains_old_names_and_caps_new_entries():
+    row = {"codes": ["N1", "OLD1", "N2", "OLD2", "N3", "OLD3"]}
+    selected = ["N1", "OLD1", "N2", "OLD2"]
+
+    limited = limit_new_names(
+        selected=selected,
+        kept=["OLD1", "OLD2"],
+        row=row,
+        max_new_names=1,
+        current_selected=["OLD1", "OLD2", "OLD3"],
+        target_n=4,
+    )
+
+    assert limited == ["OLD1", "OLD2", "OLD3", "N1"]
+
+
+def test_limit_new_names_uses_exit_hold_fraction():
+    row = {"codes": ["N1", "OLD1", "N2", "OLD2", "OLD3", "N3"]}
+
+    limited = limit_new_names(
+        selected=["N1", "OLD1", "N2"],
+        kept=["OLD1"],
+        row=row,
+        max_new_names=1,
+        current_selected=["OLD1", "OLD2", "OLD3"],
+        target_n=3,
+        exit_hold_frac=0.5,
+    )
+
+    assert limited == ["OLD1", "N1", "N2"]
+
+
+def test_limit_new_names_switch_gap_prevents_weak_replacement():
+    row = {"codes": ["N1", "OLD1", "N2", "OLD2", "N3", "OLD3"]}
+
+    limited = limit_new_names(
+        selected=["N1", "OLD1", "N2"],
+        kept=["OLD1"],
+        row=row,
+        max_new_names=1,
+        current_selected=["OLD1", "OLD2", "OLD3"],
+        target_n=3,
+        switch_gap_frac=1.0,
+    )
+
+    assert limited == ["OLD1", "OLD2", "OLD3"]
