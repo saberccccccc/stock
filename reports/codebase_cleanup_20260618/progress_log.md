@@ -382,3 +382,83 @@ apply_open_ledger_constraints
 
 This is higher risk because it touches cash/share execution and costs, so it
 should be moved with focused unit tests plus the same tiny equivalence check.
+
+## 2026-06-18 Phase 3 Execution Constraint Extraction
+
+### Completed
+
+Moved execution helpers into:
+
+```text
+backtest/open_ledger.py
+```
+
+Extracted:
+
+```text
+open_limit_trade_mask
+apply_open_ledger_constraints
+```
+
+The legacy entrypoint now imports execution logic from the shared module:
+
+```text
+run/backtest_retention_open_ledger.py
+```
+
+### Validation
+
+Added:
+
+```text
+tests/test_open_ledger_execution.py
+```
+
+Covered:
+
+- open limit buy/sell masks;
+- board-lot buying;
+- cash and cost accounting smoke;
+- limit-up buy blocking;
+- limit-down sell blocking;
+- rebalance-band skip behavior.
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_backtest_presets.py `
+  tests\test_open_ledger_preset_cli.py `
+  tests\test_open_ledger_execution.py -q
+```
+
+Result:
+
+```text
+24 passed
+```
+
+Tiny CLI equivalence:
+
+```text
+manual official params
+vs
+--preset official_open_price_share_ledger
+```
+
+Result:
+
+```text
+tiny open-ledger execution extraction equivalence passed
+```
+
+### Next Step
+
+Next extraction target:
+
+```text
+summarize_result
+```
+
+After that, consider moving the remaining `run_open_ledger` orchestration only
+if the tiny equivalence check keeps passing.
