@@ -26,6 +26,43 @@ def load_alpha_rows(path):
     return rows
 
 
+def build_desired_target(row, current_codes, target_frac, hold_frac):
+    codes = list(row["codes"])
+    n = len(codes)
+    target_n = max(1, int(n * target_frac))
+    hold_n = max(target_n, int(n * hold_frac))
+    rank_map = {code: i for i, code in enumerate(codes)}
+
+    kept = [code for code in current_codes if rank_map.get(code, n + 1) < hold_n]
+    if len(kept) > target_n:
+        kept = sorted(kept, key=lambda c: rank_map.get(c, n + 1))[:target_n]
+
+    selected = list(kept)
+    selected_set = set(selected)
+    for code in codes:
+        if len(selected) >= target_n:
+            break
+        if code not in selected_set:
+            selected.append(code)
+            selected_set.add(code)
+    return selected, kept, target_n, hold_n, rank_map
+
+
+def weights_from_selected(selected, code2idx, n_codes, gross_weight, max_weight):
+    weights = np.zeros(n_codes, dtype=np.float64)
+    if not selected:
+        return weights
+    equal_weight = min(max_weight, 1.0 / len(selected))
+    for code in selected:
+        idx = code2idx.get(code)
+        if idx is not None:
+            weights[idx] = equal_weight
+    gross = np.sum(np.abs(weights))
+    if gross > 1e-12:
+        weights = weights / gross * float(gross_weight)
+    return weights
+
+
 def limit_new_names(
     selected,
     kept,

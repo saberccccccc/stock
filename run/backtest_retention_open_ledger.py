@@ -21,10 +21,12 @@ os.chdir(ROOT)
 from backtest.presets import PRESETS, apply_preset_to_namespace, explicit_cli_dests, get_preset
 from backtest.open_ledger import (
     apply_open_ledger_constraints,
+    build_desired_target,
     limit_new_names,
     load_alpha_rows,
     parse_float_list,
     summarize_open_ledger_result,
+    weights_from_selected,
 )
 from backtest.stress import STRESSES, get_stress
 from core.research_protocol import (
@@ -32,10 +34,8 @@ from core.research_protocol import (
     assert_alpha_rows_within_research,
 )
 from run.backtest_retention_execution_constraints import (
-    build_desired_target,
     recompute_adv,
     save_stage_breakdown,
-    weights_from_selected,
 )
 from run.backtest_retention_open_execution import load_ohlc_money
 from run.backtest_temporal_retention import compute_market_multiplier, load_index_returns

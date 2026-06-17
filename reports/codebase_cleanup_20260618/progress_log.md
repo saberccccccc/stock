@@ -541,3 +541,72 @@ execution constraints, and summary construction. The next major extraction is
 the `run_open_ledger` orchestration loop itself. That should be done carefully
 because it touches date alignment, market timing, row-level target/mult metadata,
 and output diagnostics.
+
+## 2026-06-18 Phase 3 Target Helper Extraction
+
+### Completed
+
+Moved target/weight helpers into:
+
+```text
+backtest/open_ledger.py
+```
+
+Extracted:
+
+```text
+build_desired_target
+weights_from_selected
+```
+
+The open-ledger entrypoint now imports these from the shared module instead of
+`run/backtest_retention_execution_constraints.py`.
+
+### Validation
+
+Expanded:
+
+```text
+tests/test_open_ledger_preset_cli.py
+```
+
+Covered:
+
+- retaining current names inside the hold bucket;
+- filling target from alpha order;
+- max-weight and gross-weight behavior;
+- empty selection behavior.
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_backtest_presets.py `
+  tests\test_open_ledger_preset_cli.py `
+  tests\test_open_ledger_execution.py -q
+```
+
+Result:
+
+```text
+29 passed
+```
+
+Tiny CLI equivalence:
+
+```text
+manual official params
+vs
+--preset official_open_price_share_ledger
+```
+
+Result:
+
+```text
+tiny open-ledger target helper extraction equivalence passed
+```
+
+### Next Step
+
+Before moving the full `run_open_ledger` loop, extract or relocate market timing
+helpers so `backtest/open_ledger.py` does not need to depend on `run/` modules.

@@ -1,6 +1,14 @@
 import json
 
-from backtest.open_ledger import limit_new_names, load_alpha_rows, parse_float_list
+import numpy as np
+
+from backtest.open_ledger import (
+    build_desired_target,
+    limit_new_names,
+    load_alpha_rows,
+    parse_float_list,
+    weights_from_selected,
+)
 from run.backtest_retention_open_ledger import parse_args
 
 
@@ -104,6 +112,56 @@ def test_open_ledger_alpha_loader_accepts_utf8_bom(tmp_path):
 
 def test_parse_float_list_ignores_empty_items():
     assert parse_float_list("0.006, 0.01,,") == [0.006, 0.01]
+
+
+def test_build_desired_target_keeps_current_names_inside_hold_bucket():
+    row = {"codes": ["A", "B", "C", "D", "E"]}
+
+    selected, kept, target_n, hold_n, rank_map = build_desired_target(
+        row,
+        current_codes=["D", "B", "X"],
+        target_frac=0.4,
+        hold_frac=0.8,
+    )
+
+    assert target_n == 2
+    assert hold_n == 4
+    assert kept == ["D", "B"]
+    assert selected == ["D", "B"]
+    assert rank_map["A"] == 0
+
+
+def test_build_desired_target_fills_from_alpha_order():
+    row = {"codes": ["A", "B", "C", "D", "E"]}
+
+    selected, kept, target_n, _, _ = build_desired_target(
+        row,
+        current_codes=["E"],
+        target_frac=0.4,
+        hold_frac=0.4,
+    )
+
+    assert target_n == 2
+    assert kept == []
+    assert selected == ["A", "B"]
+
+
+def test_weights_from_selected_respects_max_weight_and_gross():
+    weights = weights_from_selected(
+        selected=["A", "B", "MISSING"],
+        code2idx={"A": 0, "B": 1, "C": 2},
+        n_codes=3,
+        gross_weight=0.7,
+        max_weight=0.2,
+    )
+
+    assert np.allclose(weights, np.array([0.35, 0.35, 0.0]))
+
+
+def test_weights_from_selected_returns_zero_for_empty_selection():
+    weights = weights_from_selected([], {"A": 0}, 1, 0.7, 0.2)
+
+    assert np.array_equal(weights, np.zeros(1))
 
 
 def test_limit_new_names_noops_without_current_positions():
