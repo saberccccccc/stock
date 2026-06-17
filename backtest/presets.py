@@ -96,6 +96,32 @@ PRESETS = {
 }
 
 
+def option_to_dest(option):
+    return option.lstrip("-").replace("-", "_")
+
+
+def explicit_cli_dests(argv):
+    """Return argparse-style dest names explicitly present in argv."""
+    dests = set()
+    for token in argv:
+        if not str(token).startswith("--"):
+            continue
+        option = str(token).split("=", 1)[0]
+        dests.add(option_to_dest(option))
+    return dests
+
+
+def apply_preset_to_namespace(namespace, preset, explicit_dests=()):
+    """Apply preset values to an argparse namespace without overriding explicit CLI flags."""
+    explicit = set(explicit_dests)
+    for key, value in preset.cli_args().items():
+        if key in explicit:
+            continue
+        setattr(namespace, key, value)
+    setattr(namespace, "applied_preset", preset.name)
+    return namespace
+
+
 def get_preset(name):
     try:
         return PRESETS[name]

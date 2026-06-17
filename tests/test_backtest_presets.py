@@ -3,6 +3,8 @@ import pytest
 from backtest.presets import (
     OFFICIAL_OPEN_PRICE_SHARE_LEDGER,
     RESEARCH_OPEN_TO_OPEN_WIDE_BOOK,
+    apply_preset_to_namespace,
+    explicit_cli_dests,
     get_preset,
 )
 from backtest.stress import get_stress, iter_stress_presets
@@ -70,3 +72,29 @@ def test_unknown_preset_and_stress_raise_clear_errors():
         get_preset("missing")
     with pytest.raises(KeyError, match="Unknown stress"):
         get_stress("missing")
+
+
+def test_explicit_cli_dests_converts_options_to_argparse_dest_names():
+    assert explicit_cli_dests(["--preset", "x", "--max-new-names", "3", "--cost=2"]) == {
+        "preset",
+        "max_new_names",
+        "cost",
+    }
+
+
+def test_apply_preset_does_not_override_explicit_cli_values():
+    class Namespace:
+        target_fracs = "0.001"
+        max_new_names = 3
+        min_adv_cny = 1.0
+
+    namespace = apply_preset_to_namespace(
+        Namespace(),
+        OFFICIAL_OPEN_PRICE_SHARE_LEDGER,
+        explicit_dests={"max_new_names"},
+    )
+
+    assert namespace.target_fracs == "0.006"
+    assert namespace.max_new_names == 3
+    assert namespace.min_adv_cny == 3_000_000.0
+    assert namespace.applied_preset == "official_open_price_share_ledger"

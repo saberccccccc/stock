@@ -108,3 +108,79 @@ Do not yet:
 - change `run/backtest_retention_open_ledger.py` defaults;
 - run heavy full backtests;
 - retrain models.
+
+## 2026-06-18 Phase 2 Opt-In Open-Ledger Presets
+
+### Completed
+
+Added explicit preset/stress CLI support to:
+
+```text
+run/backtest_retention_open_ledger.py
+```
+
+New options:
+
+```text
+--preset {official_open_price_share_ledger,legacy_close_based_top30,research_open_to_open_wide_book}
+--stress {normal,lag1,cost2x,capacity_3pct}
+```
+
+Behavior:
+
+- Without `--preset` or `--stress`, legacy defaults are unchanged.
+- With `--preset official_open_price_share_ledger`, official parameters are applied.
+- With `--stress lag1/cost2x/capacity_3pct`, official base parameters are used if no preset is supplied.
+- Explicit CLI flags override preset values.
+
+Example:
+
+```text
+--preset official_open_price_share_ledger --stress cost2x --max-new-names 2
+```
+
+uses official + cost2x, but keeps `max_new_names=2`.
+
+### Validation
+
+Compiled:
+
+```text
+backtest/presets.py
+backtest/stress.py
+run/backtest_retention_open_ledger.py
+tests/test_backtest_presets.py
+tests/test_open_ledger_preset_cli.py
+```
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_backtest_presets.py `
+  tests\test_open_ledger_preset_cli.py -q
+```
+
+Result:
+
+```text
+13 passed
+```
+
+CLI help smoke confirmed `--preset` and `--stress` are visible.
+
+### Important Behavior Notes
+
+- No full backtest was run.
+- No result directory was moved.
+- `run/backtest_retention_open_ledger.py` default `max_new_names=0` remains unchanged unless a preset/stress is explicitly used.
+
+### Next Step
+
+Recommended next step:
+
+```text
+Run a tiny date-window equivalence check between manual official parameters and
+--preset official_open_price_share_ledger, then begin extracting open-ledger
+execution helpers only after equivalence is proven.
+```
