@@ -754,3 +754,82 @@ save_stage_breakdown
 Recommended next cleanup is to move these remaining reusable IO/report helpers
 out of `run/` so `run/backtest_retention_open_ledger.py` becomes a true thin CLI
 wrapper.
+
+## 2026-06-18 Phase 3 Thin Open-Ledger Wrapper
+
+### Completed
+
+Moved the remaining reusable IO/report helpers into:
+
+```text
+backtest/open_ledger.py
+```
+
+Extracted:
+
+```text
+load_ohlc_money
+recompute_adv
+save_stage_breakdown
+```
+
+`run/backtest_retention_open_ledger.py` no longer imports helper functions from
+other `run/` backtest scripts. It now acts as a thin CLI wrapper around
+`backtest/open_ledger.py`.
+
+### Validation
+
+Expanded:
+
+```text
+tests/test_open_ledger_execution.py
+```
+
+Covered:
+
+- OHLC/money CSV loading;
+- money scaling;
+- shifted rolling ADV recomputation;
+- yearly/monthly stage breakdown output.
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_backtest_presets.py `
+  tests\test_open_ledger_preset_cli.py `
+  tests\test_open_ledger_execution.py -q
+```
+
+Result:
+
+```text
+38 passed
+```
+
+Tiny CLI equivalence:
+
+```text
+manual official params
+vs
+--preset official_open_price_share_ledger
+```
+
+Result:
+
+```text
+tiny open-ledger IO helper extraction equivalence passed
+```
+
+### Next Step
+
+Phase 3 is now functionally complete for open-price share-ledger extraction.
+Next recommended phase:
+
+```text
+experiments/registry.py
+experiments/leaderboard.py
+```
+
+This will prevent future candidate comparisons from being rebuilt manually and
+will keep execution-family rankings separated.

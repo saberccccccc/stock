@@ -27,6 +27,83 @@ def load_alpha_rows(path):
     return rows
 
 
+def load_ohlc_money(data_dir, codes, money_scale, progress_every):
+    open_series = {}
+    close_series = {}
+    money_series = {}
+    for i, code in enumerate(codes, start=1):
+        path = Path(data_dir) / f"{code}.csv"
+        if not path.exists():
+            continue
+        try:
+            frame = pd.read_csv(path, usecols=["trade_date", "open", "close", "money"])
+            frame.columns = frame.columns.str.strip().str.lower()
+            frame["trade_date"] = pd.to_datetime(frame["trade_date"])
+            frame = frame.set_index("trade_date").sort_index()
+            open_series[code] = frame["open"].astype(float).replace([np.inf, -np.inf], np.nan)
+            close_series[code] = frame["close"].astype(float).replace([np.inf, -np.inf], np.nan)
+            money_series[code] = (frame["money"].astype(float) * float(money_scale)).replace([np.inf, -np.inf], np.nan)
+        except Exception:
+            continue
+        if progress_every > 0 and i % progress_every == 0:
+            print(f"loaded OHLC data {i}/{len(codes)}", flush=True)
+    all_dates = pd.DatetimeIndex(sorted(set().union(*[series.index for series in open_series.values()])))
+    open_df = pd.DataFrame({code: series.reindex(all_dates) for code, series in open_series.items()}, index=all_dates)
+    close_df = pd.DataFrame({code: series.reindex(all_dates) for code, series in close_series.items()}, index=all_dates)
+    money_df = pd.DataFrame({code: series.reindex(all_dates) for code, series in money_series.items()}, index=all_dates)
+    return open_df, close_df, money_df
+
+
+def recompute_adv(money, adv_window):
+    min_periods = max(3, int(adv_window) // 4)
+    return money.rolling(int(adv_window), min_periods=min_periods).mean().shift(1)
+
+
+def save_stage_breakdown(out_dir, returns_by_tag):
+    yearly_rows = []
+    monthly_rows = []
+    for tag, returns_df in returns_by_tag.items():
+        if returns_df.empty:
+            continue
+        frame = returns_df.copy()
+        frame["date"] = pd.to_datetime(frame["date"])
+        frame["year"] = frame["date"].dt.year
+        frame["month"] = frame["date"].dt.to_period("M").astype(str)
+        for year, group in frame.groupby("year"):
+            ann, sharpe, mdd = calc_metrics(group["return"].to_numpy(float))
+            yearly_rows.append({
+                "tag": tag,
+                "period": str(year),
+                "days": len(group),
+                "ann": ann,
+                "sharpe": sharpe,
+                "mdd": mdd,
+                "sum_return": float(group["return"].sum()),
+            })
+        ann, sharpe, mdd = calc_metrics(frame["return"].to_numpy(float))
+        yearly_rows.append({
+            "tag": tag,
+            "period": "all",
+            "days": len(frame),
+            "ann": ann,
+            "sharpe": sharpe,
+            "mdd": mdd,
+            "sum_return": float(frame["return"].sum()),
+        })
+        for month, group in frame.groupby("month"):
+            monthly_rows.append({
+                "tag": tag,
+                "month": month,
+                "days": len(group),
+                "sum_return": float(group["return"].sum()),
+                "mean_return": float(group["return"].mean()),
+            })
+    if yearly_rows:
+        pd.DataFrame(yearly_rows).to_csv(Path(out_dir) / "yearly_summary.csv", index=False)
+    if monthly_rows:
+        pd.DataFrame(monthly_rows).to_csv(Path(out_dir) / "monthly_summary.csv", index=False)
+
+
 def build_desired_target(row, current_codes, target_frac, hold_frac):
     codes = list(row["codes"])
     n = len(codes)

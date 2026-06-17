@@ -8,7 +8,10 @@ from backtest.open_ledger import (
     apply_open_ledger_constraints,
     compute_market_multiplier,
     load_index_returns,
+    load_ohlc_money,
     open_limit_trade_mask,
+    recompute_adv,
+    save_stage_breakdown,
     summarize_open_ledger_result,
 )
 
@@ -265,6 +268,54 @@ def test_load_index_returns_reads_close_and_daily_returns(tmp_path):
     assert daily.iloc[0] == 0.0
     assert daily.iloc[1] == pytest.approx(0.10)
     assert daily.iloc[2] == pytest.approx(-0.10)
+
+
+def test_load_ohlc_money_reads_stock_csvs_and_scales_money(tmp_path):
+    (tmp_path / "A.csv").write_text(
+        "trade_date,open,close,money\n"
+        "2025-01-02,10,11,100\n"
+        "2025-01-03,12,13,200\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "B.csv").write_text(
+        "trade_date,open,close,money\n"
+        "2025-01-03,20,21,300\n",
+        encoding="utf-8",
+    )
+
+    open_df, close_df, money_df = load_ohlc_money(tmp_path, ["A", "B", "MISSING"], 1000.0, 0)
+
+    assert open_df.columns.tolist() == ["A", "B"]
+    assert close_df.loc[pd.Timestamp("2025-01-02"), "A"] == 11.0
+    assert pd.isna(open_df.loc[pd.Timestamp("2025-01-02"), "B"])
+    assert money_df.loc[pd.Timestamp("2025-01-03"), "B"] == 300_000.0
+
+
+def test_recompute_adv_uses_shifted_rolling_mean():
+    money = pd.DataFrame({"A": [100.0, 200.0, 300.0, 400.0]})
+
+    adv = recompute_adv(money, 4)
+
+    assert pd.isna(adv.iloc[0, 0])
+    assert pd.isna(adv.iloc[1, 0])
+    assert pd.isna(adv.iloc[2, 0])
+    assert adv.iloc[3, 0] == pytest.approx(200.0)
+
+
+def test_save_stage_breakdown_writes_yearly_and_monthly_files(tmp_path):
+    returns = pd.DataFrame(
+        {
+            "date": pd.to_datetime(["2025-01-02", "2025-01-03", "2025-02-03"]),
+            "return": [0.01, -0.005, 0.002],
+        }
+    )
+
+    save_stage_breakdown(tmp_path, {"tiny": returns})
+
+    yearly = pd.read_csv(tmp_path / "yearly_summary.csv")
+    monthly = pd.read_csv(tmp_path / "monthly_summary.csv")
+    assert set(yearly["period"].astype(str)) == {"2025", "all"}
+    assert monthly["month"].tolist() == ["2025-01", "2025-02"]
 
 
 def test_compute_market_multiplier_none_and_short_history():
