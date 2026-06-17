@@ -5,7 +5,6 @@ cash/share ledger constraints from the small-account execution backtest.
 """
 
 import argparse
-import json
 import os
 import sys
 from pathlib import Path
@@ -20,6 +19,7 @@ if str(ROOT) not in sys.path:
 os.chdir(ROOT)
 
 from backtest.presets import PRESETS, apply_preset_to_namespace, explicit_cli_dests, get_preset
+from backtest.open_ledger import load_alpha_rows, parse_float_list
 from backtest.reports import calc_extended_metrics, calc_metrics
 from backtest.stress import STRESSES, get_stress
 from core.research_protocol import (
@@ -34,10 +34,6 @@ from run.backtest_retention_execution_constraints import (
 )
 from run.backtest_retention_open_execution import load_ohlc_money, open_limit_trade_mask
 from run.backtest_temporal_retention import compute_market_multiplier, load_index_returns
-
-
-def parse_float_list(raw):
-    return [float(x.strip()) for x in str(raw).split(",") if x.strip()]
 
 
 def parse_args(argv=None):
@@ -87,19 +83,6 @@ def parse_args(argv=None):
             preset = get_stress(args.stress).apply(preset)
         args = apply_preset_to_namespace(args, preset, explicit_dests=explicit)
     return args
-
-
-def load_alpha_rows(path):
-    rows = []
-    with Path(path).open("r", encoding="utf-8-sig") as f:
-        for line in f:
-            if not line.strip():
-                continue
-            row = json.loads(line)
-            row["date"] = pd.Timestamp(row["date"])
-            rows.append(row)
-    rows.sort(key=lambda r: r["date"])
-    return rows
 
 
 def limit_new_names(

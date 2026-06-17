@@ -249,3 +249,68 @@ The two generated `open_ledger_summary.csv` files were identical.
 
 Now it is safe to start extracting the smallest open-ledger helper functions,
 starting with pure argument/preset/report helpers before moving execution logic.
+
+## 2026-06-18 Phase 3 Minimal Open-Ledger Helper Extraction
+
+### Completed
+
+Created:
+
+```text
+backtest/open_ledger.py
+```
+
+Extracted pure helpers from `run/backtest_retention_open_ledger.py`:
+
+```text
+parse_float_list
+load_alpha_rows
+```
+
+Kept the legacy entrypoint compatible by importing those helpers back into:
+
+```text
+run/backtest_retention_open_ledger.py
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_backtest_presets.py `
+  tests\test_open_ledger_preset_cli.py -q
+```
+
+Result:
+
+```text
+15 passed
+```
+
+Tiny CLI equivalence:
+
+```text
+manual official params
+vs
+--preset official_open_price_share_ledger
+```
+
+Result:
+
+```text
+tiny open-ledger helper extraction equivalence passed
+```
+
+### Next Step
+
+Next safe extraction targets:
+
+```text
+limit_new_names
+apply_open_ledger_constraints
+summarize_result
+```
+
+Extract one at a time and rerun the tiny equivalence check after each step.

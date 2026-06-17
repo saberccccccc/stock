@@ -1,6 +1,7 @@
 import json
 
-from run.backtest_retention_open_ledger import load_alpha_rows, parse_args
+from backtest.open_ledger import load_alpha_rows, parse_float_list
+from run.backtest_retention_open_ledger import parse_args
 
 
 def _required_args():
@@ -99,3 +100,7 @@ def test_open_ledger_alpha_loader_accepts_utf8_bom(tmp_path):
     assert len(rows) == 1
     assert rows[0]["date"].strftime("%Y-%m-%d") == "2025-01-02"
     assert rows[0]["codes"] == ["000001.SZ"]
+
+
+def test_parse_float_list_ignores_empty_items():
+    assert parse_float_list("0.006, 0.01,,") == [0.006, 0.01]
