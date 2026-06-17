@@ -6,6 +6,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from backtest.reports import calc_extended_metrics, calc_metrics
+
 
 def parse_float_list(raw):
     return [float(x.strip()) for x in str(raw).split(",") if x.strip()]
@@ -250,3 +252,68 @@ def apply_open_ledger_constraints(
         "slippage": float(total_slippage / max(equity, 1.0)),
     }
     return new_shares, cash, executed_shares, info
+
+
+def summarize_open_ledger_result(
+    returns_active,
+    diag_df,
+    closed_ages,
+    target_frac,
+    hold_frac,
+    args,
+):
+    ann, sharpe, mdd = calc_metrics(returns_active)
+    ext = calc_extended_metrics(returns_active)
+    return {
+        "target_frac": target_frac,
+        "hold_frac": hold_frac,
+        "n_return_days": int(len(returns_active)),
+        "ann": float(ann),
+        "sharpe": float(sharpe),
+        "mdd": float(mdd),
+        "calmar": float(ext.get("calmar", 0.0)),
+        "sortino": float(ext.get("sortino", 0.0)),
+        "win_rate": float(ext.get("win_rate", 0.0)),
+        "avg_daily_return": float(np.mean(returns_active)) if len(returns_active) else 0.0,
+        "vol": float(np.std(returns_active) * np.sqrt(252)) if len(returns_active) else 0.0,
+        "avg_turnover": float(diag_df["turnover"].mean()) if "turnover" in diag_df else 0.0,
+        "avg_executed_turnover": float(diag_df["executed_turnover"].mean()) if "executed_turnover" in diag_df else 0.0,
+        "avg_unfilled_turnover": float(diag_df["unfilled_turnover"].mean()) if "unfilled_turnover" in diag_df else 0.0,
+        "avg_holding_days": float(np.mean(closed_ages)) if closed_ages else 0.0,
+        "avg_names": float(diag_df["selected_n"].mean()) if "selected_n" in diag_df else 0.0,
+        "avg_gross_weight": float(diag_df["gross_weight"].mean()) if "gross_weight" in diag_df else 0.0,
+        "market_timing_mode": args.market_timing_mode,
+        "avg_market_mult": float(diag_df["market_mult"].mean()) if "market_mult" in diag_df else 1.0,
+        "total_cost": float(diag_df["cost"].sum()) if "cost" in diag_df else 0.0,
+        "total_commission": float(diag_df["commission"].sum()) if "commission" in diag_df else 0.0,
+        "total_stamp_tax": float(diag_df["stamp_tax"].sum()) if "stamp_tax" in diag_df else 0.0,
+        "total_slippage": float(diag_df["slippage"].sum()) if "slippage" in diag_df else 0.0,
+        "blocked_buy": int(diag_df["blocked_buy"].sum()) if "blocked_buy" in diag_df else 0,
+        "blocked_sell": int(diag_df["blocked_sell"].sum()) if "blocked_sell" in diag_df else 0,
+        "adv_blocked": int(diag_df["adv_blocked"].sum()) if "adv_blocked" in diag_df else 0,
+        "missing_adv": int(diag_df["missing_adv"].sum()) if "missing_adv" in diag_df else 0,
+        "no_open": int(diag_df["no_open"].sum()) if "no_open" in diag_df else 0,
+        "capped": int(diag_df["capped"].sum()) if "capped" in diag_df else 0,
+        "lot_blocked": int(diag_df["lot_blocked"].sum()) if "lot_blocked" in diag_df else 0,
+        "band_skipped": int(diag_df["band_skipped"].sum()) if "band_skipped" in diag_df else 0,
+        "execution_lag": int(args.execution_lag),
+        "lot_size": int(args.lot_size),
+        "min_commission_cny": float(args.min_commission_cny),
+        "rebalance_band": float(args.rebalance_band),
+        "max_new_names": int(getattr(args, "max_new_names", 0)),
+        "risk_target_frac": (
+            float(args.risk_target_frac)
+            if getattr(args, "risk_target_frac", None) is not None
+            else np.nan
+        ),
+        "risk_target_market_mult_below": float(
+            getattr(args, "risk_target_market_mult_below", 1.0)
+        ),
+        "avg_effective_target_frac": (
+            float(diag_df["effective_target_frac"].mean())
+            if "effective_target_frac" in diag_df
+            else float(target_frac)
+        ),
+        "exit_hold_frac": float(getattr(args, "exit_hold_frac", 0.0) or 0.0),
+        "switch_gap_frac": float(getattr(args, "switch_gap_frac", 0.0) or 0.0),
+    }

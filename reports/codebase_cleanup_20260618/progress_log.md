@@ -462,3 +462,82 @@ summarize_result
 
 After that, consider moving the remaining `run_open_ledger` orchestration only
 if the tiny equivalence check keeps passing.
+
+## 2026-06-18 Phase 3 Summary Extraction
+
+### Completed
+
+Moved summary-row construction into:
+
+```text
+backtest/open_ledger.py
+```
+
+Extracted:
+
+```text
+summarize_open_ledger_result
+```
+
+The legacy entrypoint now calls this helper from:
+
+```text
+run/backtest_retention_open_ledger.py
+```
+
+### Validation
+
+Expanded:
+
+```text
+tests/test_open_ledger_execution.py
+```
+
+Covered:
+
+- return-day count;
+- turnover averages;
+- executed/unfilled turnover averages;
+- holding days;
+- average name count;
+- gross weight;
+- market multiplier;
+- costs and blocked/capped counters;
+- effective target fraction.
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_backtest_presets.py `
+  tests\test_open_ledger_preset_cli.py `
+  tests\test_open_ledger_execution.py -q
+```
+
+Result:
+
+```text
+25 passed
+```
+
+Tiny CLI equivalence:
+
+```text
+manual official params
+vs
+--preset official_open_price_share_ledger
+```
+
+Result:
+
+```text
+tiny open-ledger summary extraction equivalence passed
+```
+
+### Next Step
+
+At this point, the reusable `backtest/open_ledger.py` contains IO, name limiting,
+execution constraints, and summary construction. The next major extraction is
+the `run_open_ledger` orchestration loop itself. That should be done carefully
+because it touches date alignment, market timing, row-level target/mult metadata,
+and output diagnostics.

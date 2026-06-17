@@ -2,8 +2,10 @@ from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from backtest.open_ledger import apply_open_ledger_constraints, open_limit_trade_mask
+from backtest.open_ledger import summarize_open_ledger_result
 
 
 def make_args(**overrides):
@@ -143,3 +145,91 @@ def test_apply_open_ledger_constraints_skips_rebalance_within_band():
     assert np.array_equal(shares, np.array([23_000.0, 13_000.0]))
     assert cash == 10_000.0
     assert info["band_skipped"] == 2
+
+
+def test_summarize_open_ledger_result_aggregates_diagnostics():
+    args = make_args(
+        market_timing_mode="legacy",
+        max_new_names=5,
+        execution_lag=1,
+        risk_target_frac=None,
+        risk_target_market_mult_below=1.0,
+        exit_hold_frac=0.0,
+        switch_gap_frac=0.0,
+    )
+    returns = np.array([0.01, -0.005, 0.002], dtype=float)
+    diag_df = pd.DataFrame(
+        [
+            {
+                "turnover": 0.10,
+                "executed_turnover": 0.09,
+                "unfilled_turnover": 0.01,
+                "selected_n": 2,
+                "gross_weight": 0.7,
+                "market_mult": 0.7,
+                "cost": 0.001,
+                "commission": 0.0002,
+                "stamp_tax": 0.0003,
+                "slippage": 0.0005,
+                "blocked_buy": 1,
+                "blocked_sell": 0,
+                "adv_blocked": 0,
+                "missing_adv": 0,
+                "no_open": 0,
+                "capped": 1,
+                "lot_blocked": 0,
+                "band_skipped": 2,
+                "effective_target_frac": 0.006,
+            },
+            {
+                "turnover": 0.20,
+                "executed_turnover": 0.18,
+                "unfilled_turnover": 0.02,
+                "selected_n": 3,
+                "gross_weight": 0.8,
+                "market_mult": 1.0,
+                "cost": 0.002,
+                "commission": 0.0004,
+                "stamp_tax": 0.0006,
+                "slippage": 0.0010,
+                "blocked_buy": 0,
+                "blocked_sell": 1,
+                "adv_blocked": 1,
+                "missing_adv": 0,
+                "no_open": 0,
+                "capped": 0,
+                "lot_blocked": 1,
+                "band_skipped": 0,
+                "effective_target_frac": 0.004,
+            },
+        ]
+    )
+
+    row = summarize_open_ledger_result(
+        returns,
+        diag_df,
+        closed_ages=[2, 4],
+        target_frac=0.006,
+        hold_frac=0.10,
+        args=args,
+    )
+
+    assert row["target_frac"] == 0.006
+    assert row["hold_frac"] == 0.10
+    assert row["n_return_days"] == 3
+    assert row["avg_turnover"] == pytest.approx(0.15)
+    assert row["avg_executed_turnover"] == pytest.approx(0.135)
+    assert row["avg_holding_days"] == pytest.approx(3.0)
+    assert row["avg_names"] == pytest.approx(2.5)
+    assert row["avg_gross_weight"] == pytest.approx(0.75)
+    assert row["avg_market_mult"] == pytest.approx(0.85)
+    assert row["total_cost"] == pytest.approx(0.003)
+    assert row["blocked_buy"] == 1
+    assert row["blocked_sell"] == 1
+    assert row["adv_blocked"] == 1
+    assert row["capped"] == 1
+    assert row["lot_blocked"] == 1
+    assert row["band_skipped"] == 2
+    assert row["execution_lag"] == 1
+    assert row["max_new_names"] == 5
+    assert row["avg_effective_target_frac"] == pytest.approx(0.005)
