@@ -63,6 +63,79 @@ def weights_from_selected(selected, code2idx, n_codes, gross_weight, max_weight)
     return weights
 
 
+def load_index_returns(data_dir, index_file, all_dates):
+    path = Path(data_dir) / index_file
+    if not path.exists():
+        return pd.Series(np.nan, index=all_dates), pd.Series(0.0, index=all_dates)
+    frame = pd.read_csv(path)
+    frame.columns = frame.columns.str.strip().str.lower()
+    date_col = "trade_date" if "trade_date" in frame.columns else frame.columns[0]
+    frame[date_col] = pd.to_datetime(frame[date_col])
+    frame = frame.set_index(date_col).sort_index()
+    close = frame["close"].astype(float).reindex(all_dates)
+    daily = close.pct_change().fillna(0.0)
+    return close, daily
+
+
+def compute_market_multiplier(
+    idx_close,
+    idx_daily,
+    ret_daily,
+    col_cur,
+    mode,
+    min_mult,
+    max_mult,
+    legacy_bear_mult=0.7,
+    legacy_crash_mult=0.3,
+):
+    if mode in (None, "", "none"):
+        return 1.0
+    if col_cur < 60 or not np.isfinite(idx_close.iloc[col_cur]):
+        return float(max_mult)
+
+    idx_cur = float(idx_close.iloc[col_cur])
+    idx_ma60 = float(idx_close.iloc[col_cur - 60:col_cur].mean())
+    if mode == "legacy":
+        market_mult = float(legacy_bear_mult) if idx_cur < idx_ma60 else 1.0
+        if col_cur >= 120 and np.isfinite(idx_close.iloc[col_cur - 120]) and idx_close.iloc[col_cur - 120] > 0:
+            idx_ret_6m = idx_cur / float(idx_close.iloc[col_cur - 120]) - 1.0
+            if idx_ret_6m < -0.10:
+                market_mult = min(market_mult, float(legacy_crash_mult))
+        return float(np.clip(market_mult, 0.0, max_mult))
+
+    if mode != "dynamic":
+        raise ValueError(f"Unknown market_timing_mode: {mode}")
+
+    ma_score = 1.0 if idx_cur >= idx_ma60 else 0.0
+    mom_score = 0.5
+    if col_cur >= 20 and np.isfinite(idx_close.iloc[col_cur - 20]) and idx_close.iloc[col_cur - 20] > 0:
+        mom20 = idx_cur / float(idx_close.iloc[col_cur - 20]) - 1.0
+        mom_score = float(np.clip((mom20 + 0.08) / 0.16, 0.0, 1.0))
+
+    breadth_score = 0.5
+    if col_cur >= 20 and ret_daily.shape[1] >= col_cur:
+        recent_rets = ret_daily[:, col_cur - 20:col_cur]
+        finite = np.isfinite(recent_rets)
+        if np.any(finite):
+            breadth_score = float(np.nanmean(recent_rets[finite] > 0))
+
+    vol_score = 0.5
+    if col_cur >= 20:
+        recent_idx_ret = np.asarray(idx_daily.iloc[col_cur - 20:col_cur], dtype=float)
+        recent_idx_ret = recent_idx_ret[np.isfinite(recent_idx_ret)]
+        if len(recent_idx_ret) > 5:
+            ann_vol = float(np.std(recent_idx_ret) * np.sqrt(252))
+            vol_score = float(1.0 - np.clip((ann_vol - 0.15) / 0.25, 0.0, 1.0))
+
+    score = 0.4 * ma_score + 0.3 * mom_score + 0.2 * breadth_score + 0.1 * vol_score
+    market_mult = min_mult + (max_mult - min_mult) * score
+    if col_cur >= 120 and np.isfinite(idx_close.iloc[col_cur - 120]) and idx_close.iloc[col_cur - 120] > 0:
+        idx_ret_6m = idx_cur / float(idx_close.iloc[col_cur - 120]) - 1.0
+        if idx_ret_6m < -0.10:
+            market_mult = min(market_mult, max(min_mult, 0.35))
+    return float(np.clip(market_mult, min_mult, max_mult))
+
+
 def limit_new_names(
     selected,
     kept,

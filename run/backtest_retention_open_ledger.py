@@ -22,8 +22,10 @@ from backtest.presets import PRESETS, apply_preset_to_namespace, explicit_cli_de
 from backtest.open_ledger import (
     apply_open_ledger_constraints,
     build_desired_target,
+    compute_market_multiplier,
     limit_new_names,
     load_alpha_rows,
+    load_index_returns,
     parse_float_list,
     summarize_open_ledger_result,
     weights_from_selected,
@@ -38,7 +40,6 @@ from run.backtest_retention_execution_constraints import (
     save_stage_breakdown,
 )
 from run.backtest_retention_open_execution import load_ohlc_money
-from run.backtest_temporal_retention import compute_market_multiplier, load_index_returns
 
 
 def parse_args(argv=None):

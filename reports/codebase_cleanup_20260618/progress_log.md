@@ -610,3 +610,75 @@ tiny open-ledger target helper extraction equivalence passed
 
 Before moving the full `run_open_ledger` loop, extract or relocate market timing
 helpers so `backtest/open_ledger.py` does not need to depend on `run/` modules.
+
+## 2026-06-18 Phase 3 Market Helper Extraction
+
+### Completed
+
+Moved market-state helpers into:
+
+```text
+backtest/open_ledger.py
+```
+
+Extracted:
+
+```text
+load_index_returns
+compute_market_multiplier
+```
+
+The open-ledger entrypoint no longer imports these from
+`run/backtest_temporal_retention.py`.
+
+### Validation
+
+Expanded:
+
+```text
+tests/test_open_ledger_execution.py
+```
+
+Covered:
+
+- missing index file fallback;
+- index close/daily-return loading;
+- `none` and short-history behavior;
+- legacy bear/crash multiplier behavior;
+- dynamic multiplier bounds;
+- unknown mode error.
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_backtest_presets.py `
+  tests\test_open_ledger_preset_cli.py `
+  tests\test_open_ledger_execution.py -q
+```
+
+Result:
+
+```text
+35 passed
+```
+
+Tiny CLI equivalence:
+
+```text
+manual official params
+vs
+--preset official_open_price_share_ledger
+```
+
+Result:
+
+```text
+tiny open-ledger market helper extraction equivalence passed
+```
+
+### Next Step
+
+`run_open_ledger` can now move into `backtest/open_ledger.py` with fewer `run/`
+dependencies. After moving it, keep the legacy CLI as a wrapper and rerun the
+same tiny equivalence check.

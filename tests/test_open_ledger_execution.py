@@ -4,8 +4,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from backtest.open_ledger import apply_open_ledger_constraints, open_limit_trade_mask
-from backtest.open_ledger import summarize_open_ledger_result
+from backtest.open_ledger import (
+    apply_open_ledger_constraints,
+    compute_market_multiplier,
+    load_index_returns,
+    open_limit_trade_mask,
+    summarize_open_ledger_result,
+)
 
 
 def make_args(**overrides):
@@ -233,3 +238,79 @@ def test_summarize_open_ledger_result_aggregates_diagnostics():
     assert row["execution_lag"] == 1
     assert row["max_new_names"] == 5
     assert row["avg_effective_target_frac"] == pytest.approx(0.005)
+
+
+def test_load_index_returns_missing_file_returns_neutral_series(tmp_path):
+    dates = pd.date_range("2025-01-01", periods=3)
+
+    close, daily = load_index_returns(tmp_path, "missing.csv", dates)
+
+    assert close.index.equals(dates)
+    assert daily.index.equals(dates)
+    assert close.isna().all()
+    assert daily.tolist() == [0.0, 0.0, 0.0]
+
+
+def test_load_index_returns_reads_close_and_daily_returns(tmp_path):
+    path = tmp_path / "idx.csv"
+    path.write_text(
+        "date,close\n2025-01-01,100\n2025-01-02,110\n2025-01-03,99\n",
+        encoding="utf-8",
+    )
+    dates = pd.date_range("2025-01-01", periods=3)
+
+    close, daily = load_index_returns(tmp_path, "idx.csv", dates)
+
+    assert close.tolist() == [100.0, 110.0, 99.0]
+    assert daily.iloc[0] == 0.0
+    assert daily.iloc[1] == pytest.approx(0.10)
+    assert daily.iloc[2] == pytest.approx(-0.10)
+
+
+def test_compute_market_multiplier_none_and_short_history():
+    idx_close = pd.Series(np.linspace(100, 120, 80))
+    idx_daily = idx_close.pct_change().fillna(0.0)
+    ret_daily = np.zeros((2, 79))
+
+    assert compute_market_multiplier(idx_close, idx_daily, ret_daily, 10, "none", 0.2, 1.0) == 1.0
+    assert compute_market_multiplier(idx_close, idx_daily, ret_daily, 10, "legacy", 0.2, 1.0) == 1.0
+
+
+def test_compute_market_multiplier_legacy_bear_and_crash():
+    # Last value is below its 60-day average and 120-day return is below -10%.
+    idx_close = pd.Series(np.linspace(130, 100, 130))
+    idx_daily = idx_close.pct_change().fillna(0.0)
+    ret_daily = np.zeros((2, 129))
+
+    mult = compute_market_multiplier(
+        idx_close,
+        idx_daily,
+        ret_daily,
+        129,
+        "legacy",
+        0.2,
+        1.0,
+        legacy_bear_mult=0.7,
+        legacy_crash_mult=0.3,
+    )
+
+    assert mult == pytest.approx(0.3)
+
+
+def test_compute_market_multiplier_dynamic_is_clipped_to_bounds():
+    idx_close = pd.Series(np.linspace(100, 130, 130))
+    idx_daily = idx_close.pct_change().fillna(0.0)
+    ret_daily = np.ones((5, 129)) * 0.001
+
+    mult = compute_market_multiplier(idx_close, idx_daily, ret_daily, 129, "dynamic", 0.2, 0.8)
+
+    assert 0.2 <= mult <= 0.8
+
+
+def test_compute_market_multiplier_rejects_unknown_mode():
+    idx_close = pd.Series(np.linspace(100, 130, 80))
+    idx_daily = idx_close.pct_change().fillna(0.0)
+    ret_daily = np.zeros((2, 79))
+
+    with pytest.raises(ValueError, match="Unknown market_timing_mode"):
+        compute_market_multiplier(idx_close, idx_daily, ret_daily, 70, "bad", 0.2, 1.0)
