@@ -682,3 +682,75 @@ tiny open-ledger market helper extraction equivalence passed
 `run_open_ledger` can now move into `backtest/open_ledger.py` with fewer `run/`
 dependencies. After moving it, keep the legacy CLI as a wrapper and rerun the
 same tiny equivalence check.
+
+## 2026-06-18 Phase 3 Run Loop Extraction
+
+### Completed
+
+Moved the main portfolio loop into:
+
+```text
+backtest/open_ledger.py
+```
+
+Extracted:
+
+```text
+run_open_ledger
+```
+
+The legacy CLI entrypoint now keeps only:
+
+- argument parsing;
+- research/forward date guard;
+- OHLC/money loading;
+- ADV recomputation;
+- output file writing;
+- progress printing.
+
+The strategy loop itself now lives in the reusable backtest module.
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_backtest_presets.py `
+  tests\test_open_ledger_preset_cli.py `
+  tests\test_open_ledger_execution.py -q
+```
+
+Result:
+
+```text
+35 passed
+```
+
+Tiny CLI equivalence:
+
+```text
+manual official params
+vs
+--preset official_open_price_share_ledger
+```
+
+Result:
+
+```text
+tiny open-ledger run loop extraction equivalence passed
+```
+
+### Next Step
+
+The remaining open-ledger wrapper dependencies are:
+
+```text
+load_ohlc_money
+recompute_adv
+save_stage_breakdown
+```
+
+Recommended next cleanup is to move these remaining reusable IO/report helpers
+out of `run/` so `run/backtest_retention_open_ledger.py` becomes a true thin CLI
+wrapper.

@@ -8,9 +8,7 @@ import argparse
 import os
 import sys
 from pathlib import Path
-from types import SimpleNamespace
 
-import numpy as np
 import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,15 +18,10 @@ os.chdir(ROOT)
 
 from backtest.presets import PRESETS, apply_preset_to_namespace, explicit_cli_dests, get_preset
 from backtest.open_ledger import (
-    apply_open_ledger_constraints,
-    build_desired_target,
-    compute_market_multiplier,
-    limit_new_names,
     load_alpha_rows,
     load_index_returns,
     parse_float_list,
-    summarize_open_ledger_result,
-    weights_from_selected,
+    run_open_ledger,
 )
 from backtest.stress import STRESSES, get_stress
 from core.research_protocol import (
@@ -89,167 +82,6 @@ def parse_args(argv=None):
             preset = get_stress(args.stress).apply(preset)
         args = apply_preset_to_namespace(args, preset, explicit_dests=explicit)
     return args
-
-
-def run_open_ledger(alpha_rows, open_df, close_df, adv_df, target_frac, hold_frac, args, idx_close, idx_daily):
-    codes = list(open_df.columns)
-    code2idx = {c: i for i, c in enumerate(codes)}
-    all_dates = open_df.index
-    n_codes, t_total = len(codes), len(all_dates)
-    open_mark = open_df.ffill().to_numpy(dtype=np.float64, copy=True)
-    open_mark[~np.isfinite(open_mark)] = 0.0
-    close_mat = close_df.to_numpy(dtype=np.float64).T
-    with np.errstate(divide="ignore", invalid="ignore"):
-        close_ret_daily = close_mat[:, 1:] / close_mat[:, :-1] - 1.0
-    close_ret_daily[~np.isfinite(close_ret_daily)] = 0.0
-
-    row_by_day = {}
-    for row in alpha_rows:
-        pos = all_dates.searchsorted(row["date"], side="right") + max(int(args.execution_lag), 0)
-        if 0 < pos < t_total:
-            row_by_day[int(pos)] = row
-    entry_days = sorted(row_by_day)
-    if not entry_days:
-        return {}, pd.DataFrame(), pd.DataFrame()
-
-    current_shares = np.zeros(n_codes, dtype=np.float64)
-    cash = float(args.portfolio_value)
-    current_selected = []
-    equity_curve = np.full(t_total, np.nan, dtype=np.float64)
-    diag_rows = []
-    closed_ages = []
-    holding_ages = {}
-    market_args = SimpleNamespace(
-        market_timing_mode=args.market_timing_mode,
-        market_min_mult=args.market_min_mult,
-        market_max_mult=args.market_max_mult,
-        legacy_bear_mult=args.legacy_bear_mult,
-        legacy_crash_mult=args.legacy_crash_mult,
-    )
-
-    for day in range(t_total):
-        marked_prices = open_mark[day]
-        equity_before_trade = float(cash + np.dot(current_shares, marked_prices))
-        row = row_by_day.get(day)
-        if row is not None:
-            market_mult = 1.0
-            if args.market_timing_mode != "none":
-                market_mult = compute_market_multiplier(
-                    idx_close,
-                    idx_daily,
-                    close_ret_daily,
-                    max(day - 1, 0),
-                    market_args.market_timing_mode,
-                    market_args.market_min_mult,
-                    market_args.market_max_mult,
-                    market_args.legacy_bear_mult,
-                    market_args.legacy_crash_mult,
-                )
-            if getattr(args, "use_row_market_mult", False):
-                for transform_key in (
-                    "breadth_market_transform",
-                    "state_market_transform",
-                ):
-                    transform = row.get(transform_key)
-                    if isinstance(transform, dict) and transform.get("triggered"):
-                        row_mult = transform.get("effective_market_mult")
-                        if row_mult is not None:
-                            market_mult = min(float(market_mult), float(row_mult))
-            effective_target_frac = float(target_frac)
-            risk_target_frac = getattr(args, "risk_target_frac", None)
-            if (
-                risk_target_frac is not None
-                and market_mult < float(getattr(args, "risk_target_market_mult_below", 1.0))
-            ):
-                effective_target_frac = min(float(target_frac), float(risk_target_frac))
-            if getattr(args, "use_row_target_frac", False):
-                for transform_key in (
-                    "breadth_target_transform",
-                    "state_target_transform",
-                ):
-                    transform = row.get(transform_key)
-                    if isinstance(transform, dict) and transform.get("triggered"):
-                        row_target = transform.get("effective_target_frac")
-                        if row_target is not None:
-                            effective_target_frac = min(
-                                float(effective_target_frac),
-                                float(row_target),
-                            )
-            selected, kept, target_n, hold_n, _ = build_desired_target(
-                row,
-                current_selected,
-                effective_target_frac,
-                hold_frac,
-            )
-            selected = limit_new_names(
-                selected,
-                kept,
-                row,
-                max(int(getattr(args, "max_new_names", 0)), 0),
-                current_selected,
-                target_n,
-                getattr(args, "exit_hold_frac", None),
-                getattr(args, "switch_gap_frac", 0.0),
-            )
-            desired = weights_from_selected(selected, code2idx, n_codes, market_mult, args.max_weight)
-            new_shares, cash, executed_shares, exec_info = apply_open_ledger_constraints(
-                desired, current_shares, cash, equity_before_trade, open_df, close_df, adv_df, day, args
-            )
-            live_idx = np.where(new_shares >= max(int(args.lot_size), 1))[0]
-            live_codes = [codes[i] for i in live_idx]
-            prev_set = set(current_selected)
-            live_set = set(live_codes)
-            for code in prev_set - live_set:
-                closed_ages.append(holding_ages.get(code, 1))
-                holding_ages.pop(code, None)
-            for code in live_codes:
-                holding_ages[code] = holding_ages.get(code, 0) + 1
-            current_selected = live_codes
-            current_shares = new_shares
-            equity_after_trade = float(cash + np.dot(current_shares, marked_prices))
-            invested_value = float(np.dot(current_shares, marked_prices))
-            diag_rows.append({
-                "day": int(day),
-                "date": str(all_dates[day]),
-                "effective_target_frac": float(effective_target_frac),
-                "target_n": int(target_n),
-                "hold_n": int(hold_n),
-                "kept_n": int(len(kept)),
-                "selected_n": int(len(live_codes)),
-                "desired_selected_n": int(len(selected)),
-                "max_new_names": int(getattr(args, "max_new_names", 0)),
-                "exit_hold_frac": float(getattr(args, "exit_hold_frac", 0.0) or 0.0),
-                "switch_gap_frac": float(getattr(args, "switch_gap_frac", 0.0) or 0.0),
-                "desired_new_names": int(len(set(selected) - prev_set)),
-                "gross_weight": invested_value / max(equity_after_trade, 1.0),
-                "cash_cny": float(cash),
-                "equity_cny": equity_after_trade,
-                "market_mult": float(market_mult),
-                "avg_live_age": float(np.mean(list(holding_ages.values()))) if holding_ages else 0.0,
-                **exec_info,
-            })
-        equity_curve[day] = float(cash + np.dot(current_shares, marked_prices))
-
-    with np.errstate(divide="ignore", invalid="ignore"):
-        returns = equity_curve[1:] / equity_curve[:-1] - 1.0
-    returns[~np.isfinite(returns)] = 0.0
-    start_idx = max(entry_days[0] - 1, 0)
-    last_return_day = min(entry_days[-1] + 1, t_total - 1)
-    returns_active = returns[start_idx:last_return_day]
-    active_dates = all_dates[1:][start_idx:start_idx + len(returns_active)]
-
-    closed_ages.extend(holding_ages.values())
-    diag_df = pd.DataFrame(diag_rows)
-    row = summarize_open_ledger_result(
-        returns_active,
-        diag_df,
-        closed_ages,
-        target_frac,
-        hold_frac,
-        args,
-    )
-    returns_df = pd.DataFrame({"date": active_dates, "return": returns_active})
-    return row, returns_df, diag_df
 
 
 def main():
