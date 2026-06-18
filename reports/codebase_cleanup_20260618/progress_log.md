@@ -1454,3 +1454,84 @@ backtest_results_exp_base_avgw3_val -> archive/experiments_202606
 
 Do not move archive candidates yet. The next safe step is to add a dry-run mover
 that prints planned moves and refuses to move protected/review paths.
+
+## 2026-06-18 Phase 6 Archive Dry-Run Mover
+
+### Completed
+
+Extended:
+
+```text
+experiments/archive_plan.py
+tests/test_archive_plan.py
+```
+
+Added:
+
+```text
+run/archive_from_plan.py
+```
+
+The new CLI reads:
+
+```text
+reports/codebase_cleanup_20260618/archive_plan.csv
+```
+
+and prints planned archive moves. By default it is dry-run only. It only builds
+moves for rows with:
+
+```text
+action=archive_candidate
+```
+
+Protected and manual-review rows are skipped. Execution is opt-in via
+`--execute`, and the core mover still refuses protected paths.
+
+### Validation
+
+Compiled:
+
+```text
+experiments/archive_plan.py
+run/archive_from_plan.py
+tests/test_archive_plan.py
+```
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_archive_plan.py -q
+```
+
+Result:
+
+```text
+7 passed
+```
+
+Dry-run smoke:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py --limit 5
+```
+
+Result:
+
+```text
+DRY-RUN archive moves: 5
+.pytest_cache -> archive\cache_202606\.pytest_cache
+__pycache__ -> archive\cache_202606\__pycache__
+_archive_models_data_20260604 -> archive\cache_202606\_archive_models_data_20260604
+_archive_results_20260604 -> archive\cache_202606\_archive_results_20260604
+a5_recovery.pid -> archive\logs_202606\a5_recovery.pid
+```
+
+No files were moved.
+
+### Next Step
+
+If root cleanup is desired, first run the dry-run mover without `--limit` and
+review the full printed move list. Only then consider a very small `--execute`
+batch, starting with harmless log/pid files.

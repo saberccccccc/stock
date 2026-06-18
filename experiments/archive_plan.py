@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -52,6 +53,15 @@ class ArchivePlanRow:
     reason: str
 
 
+@dataclass(frozen=True)
+class ArchiveMove:
+    name: str
+    source: Path
+    target: Path
+    action: str
+    reason: str
+
+
 def is_protected(name: str) -> bool:
     normalized = name.replace("\\", "/").strip("/")
     return normalized in PROTECTED_PATHS or any(
@@ -94,6 +104,23 @@ def plan_inventory_row(row: dict[str, str]) -> ArchivePlanRow:
 def load_inventory(path: str | Path) -> list[dict[str, str]]:
     with Path(path).open(encoding="utf-8", newline="") as handle:
         return list(csv.DictReader(handle))
+
+
+def load_archive_plan(path: str | Path) -> list[ArchivePlanRow]:
+    rows = []
+    with Path(path).open(encoding="utf-8", newline="") as handle:
+        for row in csv.DictReader(handle):
+            rows.append(
+                ArchivePlanRow(
+                    name=row["name"],
+                    kind=row["kind"],
+                    item_class=row["class"],
+                    action=row["action"],
+                    target=row["target"],
+                    reason=row["reason"],
+                )
+            )
+    return rows
 
 
 def build_archive_plan(inventory_csv: str | Path) -> list[ArchivePlanRow]:
@@ -179,3 +206,44 @@ def write_archive_plan_markdown(rows: list[ArchivePlanRow], output: str | Path) 
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(archive_plan_markdown(rows), encoding="utf-8")
+
+
+def build_archive_moves(
+    rows: list[ArchivePlanRow],
+    root: str | Path = ".",
+    include_missing: bool = False,
+) -> list[ArchiveMove]:
+    root = Path(root)
+    moves = []
+    for row in rows:
+        if row.action != "archive_candidate":
+            continue
+        if not row.target:
+            raise ValueError(f"Archive candidate has no target: {row.name}")
+        if is_protected(row.name):
+            raise ValueError(f"Refusing to move protected path: {row.name}")
+        source = root / row.name
+        if not source.exists() and not include_missing:
+            continue
+        moves.append(
+            ArchiveMove(
+                name=row.name,
+                source=source,
+                target=root / row.target / row.name,
+                action=row.action,
+                reason=row.reason,
+            )
+        )
+    return moves
+
+
+def execute_archive_moves(moves: list[ArchiveMove]) -> None:
+    for move in moves:
+        if is_protected(move.name):
+            raise ValueError(f"Refusing to move protected path: {move.name}")
+        if not move.source.exists():
+            raise FileNotFoundError(move.source)
+        if move.target.exists():
+            raise FileExistsError(move.target)
+        move.target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(move.source), str(move.target))

@@ -2,7 +2,10 @@ import csv
 
 from experiments.archive_plan import (
     build_archive_plan,
+    build_archive_moves,
+    execute_archive_moves,
     is_protected,
+    load_archive_plan,
     plan_inventory_row,
     write_archive_plan_csv,
 )
@@ -55,3 +58,44 @@ def test_build_and_write_archive_plan(tmp_path):
 
     loaded = list(csv.DictReader(output.open(encoding="utf-8")))
     assert [row["action"] for row in loaded] == ["protect", "archive_candidate"]
+
+
+def test_build_archive_moves_only_uses_archive_candidates(tmp_path):
+    rows = [
+        plan_inventory_row({"name": "core", "kind": "dir", "class": "source_or_docs"}),
+        plan_inventory_row({"name": "errors.log", "kind": "file", "class": "runtime_log_or_pid"}),
+        plan_inventory_row({"name": ".vscode", "kind": "dir", "class": "misc"}),
+    ]
+    (tmp_path / "errors.log").write_text("oops", encoding="utf-8")
+
+    moves = build_archive_moves(rows, root=tmp_path)
+
+    assert len(moves) == 1
+    assert moves[0].source == tmp_path / "errors.log"
+    assert moves[0].target == tmp_path / "archive" / "logs_202606" / "errors.log"
+
+
+def test_execute_archive_moves_moves_file_in_tmpdir(tmp_path):
+    rows = [
+        plan_inventory_row({"name": "errors.log", "kind": "file", "class": "runtime_log_or_pid"}),
+    ]
+    source = tmp_path / "errors.log"
+    source.write_text("oops", encoding="utf-8")
+
+    moves = build_archive_moves(rows, root=tmp_path)
+    execute_archive_moves(moves)
+
+    assert not source.exists()
+    assert (tmp_path / "archive" / "logs_202606" / "errors.log").read_text(encoding="utf-8") == "oops"
+
+
+def test_load_archive_plan_roundtrip(tmp_path):
+    rows = [
+        plan_inventory_row({"name": "errors.log", "kind": "file", "class": "runtime_log_or_pid"}),
+    ]
+    output = tmp_path / "archive_plan.csv"
+    write_archive_plan_csv(rows, output)
+
+    loaded = load_archive_plan(output)
+
+    assert loaded == rows
