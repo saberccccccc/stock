@@ -3115,6 +3115,79 @@ Result:
 Check the remaining temporal/retention/topstable backtest directories against
 the snapshot reports before moving them.
 
+## Phase 12 Final Legacy `backtest_results_*` Archive Batch
+
+### Completed
+
+Checked the final temporal/retention/topstable directories against the existing
+snapshot reports, especially:
+
+```text
+backtest_result_snapshots/20260531_temporal_longonly_metric_report.md
+backtest_result_snapshots/20260531_model_strategy_comparison_report.md
+```
+
+The current official open-ledger and cutoff evidence remains protected in:
+
+```text
+v9_avgw3_open_ledger_20260617
+v9_avgw3_extend_to_20260518_20260616
+```
+
+Dry-ran and executed exact-prefix archive moves for:
+
+```text
+backtest_results_temporal_full_eval_20260604
+backtest_results_temporal_retention_20260604_v10_v9warm_toploss
+backtest_results_topstable_epoch9_val_avgw3
+backtest_results_v9_retention_20260531
+```
+
+Destination:
+
+```text
+archive/experiments_202606/
+```
+
+Regenerated source inventory and archive plan.
+
+Current summary after the move:
+
+```text
+top-level inventory rows=113
+archive_candidate=74
+protect=18
+review=21
+experiment_output candidates=36
+checkpoint_or_model candidates=34
+archive_or_cache candidates=4
+remaining backtest_results_* candidates=0
+top-level backtest_results_* entries=0
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py `
+  tests\test_review_docs.py -q
+```
+
+Result:
+
+```text
+15 passed
+```
+
+### Next Step
+
+Move from legacy backtest outputs to the remaining experiment-output categories:
+candidate/loss validation, open-reranker attack candidates, market overlays, and
+reranker datasets. These need category-specific ledgers before any broad move.
+
 ## Phase 8 Fourth Legacy Backtest Archive Batch
 
 ### Completed

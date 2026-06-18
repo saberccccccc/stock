@@ -12,10 +12,6 @@ alpha,dir,source_or_docs,,2026-06-18 01:31:14
 archive,dir,archive_or_cache,,2026-06-18 23:08:03
 backtest,dir,source_or_docs,,2026-06-18 01:50:08
 backtest_result_snapshots,dir,misc,,2026-06-10 20:58:12
-backtest_results_temporal_full_eval_20260604,dir,experiment_output,,2026-06-10 20:58:10
-backtest_results_temporal_retention_20260604_v10_v9warm_toploss,dir,experiment_output,,2026-06-10 20:58:10
-backtest_results_topstable_epoch9_val_avgw3,dir,experiment_output,,2026-06-13 13:06:35
-backtest_results_v9_retention_20260531,dir,experiment_output,,2026-06-10 20:58:12
 breadth_triggered_market_20260617,dir,experiment_output,,2026-06-17 22:28:52
 breadth_triggered_target_20260617,dir,experiment_output,,2026-06-17 22:10:40
 cache,dir,archive_or_cache,,2026-06-17 23:29:57

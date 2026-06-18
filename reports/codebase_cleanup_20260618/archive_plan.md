@@ -6,7 +6,7 @@ This is a non-destructive plan. No files are moved by this report.
 
 | Action | Count |
 |---|---:|
-| archive_candidate | 78 |
+| archive_candidate | 74 |
 | protect | 18 |
 | review | 21 |
 
@@ -39,10 +39,6 @@ This is a non-destructive plan. No files are moved by this report.
 | __pycache__ | dir | archive_or_cache | archive/cache_202606 |
 | _archive_models_data_20260604 | dir | archive_or_cache | archive/cache_202606 |
 | _archive_results_20260604 | dir | archive_or_cache | archive/cache_202606 |
-| backtest_results_temporal_full_eval_20260604 | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_temporal_retention_20260604_v10_v9warm_toploss | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_topstable_epoch9_val_avgw3 | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_v9_retention_20260531 | dir | experiment_output | archive/experiments_202606 |
 | breadth_triggered_market_20260617 | dir | experiment_output | archive/experiments_202606 |
 | breadth_triggered_target_20260617 | dir | experiment_output | archive/experiments_202606 |
 | candidate_model_validation_20260614 | dir | experiment_output | archive/experiments_202606 |

@@ -8,7 +8,7 @@ Generated without moving or modifying project outputs.
 |---|---:|
 | archive_or_cache, dir | 6 |
 | checkpoint_or_model, dir | 37 |
-| experiment_output, dir | 36 |
+| experiment_output, dir | 32 |
 | experiment_output, file | 7 |
 | misc, dir | 5 |
 | misc, file | 2 |
@@ -62,10 +62,6 @@ Generated without moving or modifying project outputs.
 | checkpoints_smoke_rawmetrics_20260613 | dir | checkpoint_or_model | 2026-06-13 17:02:07 |
 | models_multi_v9_tech_macro | dir | checkpoint_or_model | 2026-06-10 20:59:59 |
 | switch_value_models_20260604_top3_pv1m_raw_lgb_h5 | dir | checkpoint_or_model | 2026-06-10 21:00:00 |
-| backtest_results_temporal_full_eval_20260604 | dir | experiment_output | 2026-06-10 20:58:10 |
-| backtest_results_temporal_retention_20260604_v10_v9warm_toploss | dir | experiment_output | 2026-06-10 20:58:10 |
-| backtest_results_topstable_epoch9_val_avgw3 | dir | experiment_output | 2026-06-13 13:06:35 |
-| backtest_results_v9_retention_20260531 | dir | experiment_output | 2026-06-10 20:58:12 |
 | breadth_triggered_market_20260617 | dir | experiment_output | 2026-06-17 22:28:52 |
 | breadth_triggered_target_20260617 | dir | experiment_output | 2026-06-17 22:10:40 |
 | candidate_model_validation_20260614 | dir | experiment_output | 2026-06-14 14:13:47 |
