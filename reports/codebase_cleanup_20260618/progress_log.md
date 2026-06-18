@@ -2403,3 +2403,104 @@ required paths covered:
 
 Create a broader experiment-output ledger for non-reranker result directories
 before moving any experiment outputs into `archive/experiments_202606`.
+
+## Phase 8 Experiment Output Ledger
+
+### Completed
+
+Created:
+
+```text
+reports/codebase_cleanup_20260618/experiment_output_ledger.csv
+reports/codebase_cleanup_20260618/experiment_output_ledger.md
+```
+
+The ledger classifies non-reranker experiment outputs before any batch move to
+`archive/experiments_202606`.
+
+Archive-plan context for non-reranker `experiment_output` entries:
+
+```text
+archive_candidate=126
+protect=3
+```
+
+Protected roots captured:
+
+```text
+forward_results
+v9_avgw3_open_ledger_20260617
+v9_avgw3_extend_to_20260518_20260616
+```
+
+Ledger coverage:
+
+```text
+rows=37
+candidate_validation=2
+loss_validation=8
+unified_validation=2
+official_candidate=2
+open_reranker=6
+market_overlay=5
+reports=3
+legacy_backtests=5
+protected=3
+misc_experiment_scripts=1
+```
+
+Important decisions captured:
+
+```text
+Do not move protected roots.
+Keep official V9 filter/open-ledger evidence.
+Keep open-reranker and negfilter attack-candidate evidence until forward observation is resolved.
+Keep candidate/loss validation directories until checkpoint/loss result ledgers exist.
+Treat legacy backtest_results_* as archive candidates only after representative sampling.
+```
+
+No experiment-output directories were moved.
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_review_docs.py `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py -q
+```
+
+Result:
+
+```text
+14 passed
+```
+
+Coverage spot-check:
+
+```text
+required paths covered:
+  forward_results
+  v9_avgw3_open_ledger_20260617
+  v9_avgw3_extend_to_20260518_20260616
+  candidate_model_validation_20260614
+  loss_ablation_portfolio_validation_20260614
+  multi_loss_validation_20260614
+  downside_topfocus_validation_20260616
+  lag1_checkpoint_sweep_m0_20260616
+  v9_avgw3_filter095_validation_20260616
+  v9_avgw3_open_ledger_20260616
+  open_reranker_current_v9_negfilter_20260617
+  diagnostics_negfilter_drop3_20260617
+  conditional_negfilter_breadth_20260618
+  state_triggered_target_20260617
+  breadth_triggered_target_20260617
+  breadth_triggered_market_20260617
+```
+
+### Next Step
+
+Run representative sampling for legacy `backtest_results_*` directories, then
+archive a first small batch of clearly superseded legacy backtest outputs.
