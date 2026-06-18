@@ -1165,3 +1165,100 @@ No unknown config keys were found in the current `configs/*.json` files.
 
 The next Phase 5 step is to add a small checkpoint-selection report helper that
 can rank saved epoch metrics by explicit gates instead of relying on IC alone.
+
+## 2026-06-18 Phase 5 Checkpoint Selection Helper
+
+### Completed
+
+Created:
+
+```text
+experiments/checkpoint_selection.py
+tests/test_checkpoint_selection.py
+```
+
+The helper reads:
+
+```text
+epochs/epoch_metrics.jsonl
+```
+
+and flattens each epoch into a table with:
+
+```text
+epoch
+train_loss
+train_components
+val_metrics
+checkpoint
+```
+
+Default rule:
+
+```text
+gates:
+  alpha >= 0.07
+  rawtopret_h5_top0p6 >= 0
+
+rank:
+  rawtopstable_h5_top0p6 weight 1.0
+  rawtopret_h5_top0p6 weight 0.5
+  alpha weight 0.1
+```
+
+This keeps Alpha IC as a minimum gate while making top-book stability and
+top-book return the primary ranking inputs. It is intentionally separate from
+the training loop and does not change checkpoint saving behavior.
+
+Generated example report:
+
+```text
+reports/checkpoint_selection_20260618/a0_top_first_selection.csv
+```
+
+For `checkpoints_loss_ablation_A0`, the top-first rule ranked epoch 6 first.
+
+### Validation
+
+Compiled:
+
+```text
+experiments/checkpoint_selection.py
+tests/test_checkpoint_selection.py
+```
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_checkpoint_selection.py `
+  tests\test_training_presets.py -q
+```
+
+Result:
+
+```text
+11 passed
+```
+
+Manual report smoke:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m experiments.checkpoint_selection `
+  checkpoints_loss_ablation_A0\epochs\epoch_metrics.jsonl `
+  --output-csv reports\checkpoint_selection_20260618\a0_top_first_selection.csv `
+  --top 6
+```
+
+Result:
+
+```text
+epoch 6 ranked first under the top-first rule
+```
+
+### Next Step
+
+The next checkpoint-selection step should join this epoch-level report with
+open-ledger validation summaries when those per-epoch backtests exist. Until
+then, this helper is a safer IC-gated training-metrics screen, not a full
+portfolio-selection replacement.
