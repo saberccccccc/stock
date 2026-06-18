@@ -8,7 +8,7 @@ Generated without moving or modifying project outputs.
 |---|---:|
 | archive_or_cache, dir | 6 |
 | checkpoint_or_model, dir | 37 |
-| experiment_output, dir | 66 |
+| experiment_output, dir | 56 |
 | experiment_output, file | 9 |
 | misc, dir | 5 |
 | misc, file | 2 |
@@ -78,16 +78,6 @@ Generated without moving or modifying project outputs.
 | backtest_results_switch_value_20260604_v9_baseline_layer_val | dir | experiment_output | 2026-06-10 20:58:10 |
 | backtest_results_temporal_full_eval_20260604 | dir | experiment_output | 2026-06-10 20:58:10 |
 | backtest_results_temporal_retention_20260604_v10_v9warm_toploss | dir | experiment_output | 2026-06-10 20:58:10 |
-| backtest_results_test_plan_share_ledger_stress_2x | dir | experiment_output | 2026-06-12 02:33:23 |
-| backtest_results_test_plan_share_ledger_stress_3x | dir | experiment_output | 2026-06-12 02:34:17 |
-| backtest_results_test_plan_share_ledger_stress_lag1 | dir | experiment_output | 2026-06-12 02:35:15 |
-| backtest_results_test_plan_small_account_avgw3_test | dir | experiment_output | 2026-06-12 02:12:46 |
-| backtest_results_test_plan_small_account_avgw3_val | dir | experiment_output | 2026-06-12 02:11:46 |
-| backtest_results_test_plan_small_account_lots_avgw3_val | dir | experiment_output | 2026-06-12 02:15:53 |
-| backtest_results_test_plan_small_account_raw_test | dir | experiment_output | 2026-06-12 02:13:50 |
-| backtest_results_test_plan_small_account_raw_val | dir | experiment_output | 2026-06-12 02:10:44 |
-| backtest_results_test_plan_stress_2x_val | dir | experiment_output | 2026-06-12 02:19:56 |
-| backtest_results_test_plan_stress_3x_val | dir | experiment_output | 2026-06-12 02:20:54 |
 | backtest_results_test_plan_stress_lag1_val | dir | experiment_output | 2026-06-12 02:21:48 |
 | backtest_results_test_plan_v9_avgw3_test | dir | experiment_output | 2026-06-12 02:09:30 |
 | backtest_results_test_plan_v9_avgw3_val | dir | experiment_output | 2026-06-12 02:08:02 |

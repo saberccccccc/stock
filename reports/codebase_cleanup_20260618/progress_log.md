@@ -3053,6 +3053,77 @@ Result:
 
 Dry-run and review the next `backtest_results_test_plan_*` batch.
 
+## Phase 8 Second Legacy `backtest_results_test_plan_*` Archive Batch
+
+### Completed
+
+Executed the second reviewed `backtest_results_test_plan_*` batch:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class experiment_output `
+  --name-prefix backtest_results_test_plan_ `
+  --limit 10 `
+  --execute
+```
+
+Moved 10 legacy test-plan backtest result directories:
+
+```text
+backtest_results_test_plan_share_ledger_stress_2x
+backtest_results_test_plan_share_ledger_stress_3x
+backtest_results_test_plan_share_ledger_stress_lag1
+backtest_results_test_plan_small_account_avgw3_test
+backtest_results_test_plan_small_account_avgw3_val
+backtest_results_test_plan_small_account_lots_avgw3_val
+backtest_results_test_plan_small_account_raw_test
+backtest_results_test_plan_small_account_raw_val
+backtest_results_test_plan_stress_2x_val
+backtest_results_test_plan_stress_3x_val
+```
+
+Destination:
+
+```text
+archive/experiments_202606/
+```
+
+Regenerated source inventory and archive plan.
+
+Current summary after the move:
+
+```text
+top-level inventory rows=139
+archive_candidate=100
+protect=18
+review=21
+remaining backtest_results_test_plan_* candidates=6
+archived backtest_results_test_plan_* directories=20
+remaining backtest_results_* candidates=26
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py `
+  tests\test_review_docs.py -q
+```
+
+Result:
+
+```text
+15 passed
+```
+
+### Next Step
+
+Dry-run the remaining 6 `backtest_results_test_plan_*` candidates, then archive
+them in one final batch if the list is clean.
+
 ## Phase 8 Third Legacy Backtest Archive Batch
 
 ### Completed
