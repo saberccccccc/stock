@@ -1,9 +1,12 @@
 import json
+import subprocess
+import sys
 
 from core.training_presets import (
     load_training_suite,
     load_training_suites,
     params_to_train_argv,
+    render_train_command,
 )
 
 
@@ -65,6 +68,20 @@ def test_params_to_train_argv_uses_train_cli_flags():
     ]
 
 
+def test_render_train_command_quotes_values():
+    command = render_train_command(
+        {
+            "model": "v9",
+            "output_dir": "checkpoints with spaces",
+            "save_every_epoch": True,
+        },
+        python_exe="python",
+        train_script="run/train.py",
+    )
+
+    assert command == 'python run/train.py --model v9 --output-dir "checkpoints with spaces" --save-every-epoch'
+
+
 def test_existing_training_configs_are_loadable():
     suites = load_training_suites("configs")
     names = {suite.name for suite in suites}
@@ -76,3 +93,25 @@ def test_existing_training_configs_are_loadable():
     }
     assert all(suite.experiments for suite in suites)
     assert all("--model" in exp.train_argv() for suite in suites for exp in suite.experiments)
+
+
+def test_render_training_commands_cli_filters_experiment():
+    result = subprocess.run(
+        [
+            sys.executable,
+            "run/render_training_commands.py",
+            "--config",
+            "configs/m0_topfocus_validation_20260614.json",
+            "--experiment-id",
+            "M1",
+            "--python-exe",
+            "python",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    assert "# m0_topfocus_validation_20260614:M1" in result.stdout
+    assert "--output-dir checkpoints_loss_ablation_M1_nomulti_topfocus_w005" in result.stdout
+    assert "--top-focus-loss-weight 0.005" in result.stdout

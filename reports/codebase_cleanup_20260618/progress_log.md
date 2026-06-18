@@ -1009,3 +1009,90 @@ Result:
 Continue Phase 5 by adding a dry-run command renderer for training suites, so
 loss-ablation and OOF fold commands can be printed and reviewed without starting
 training.
+
+## 2026-06-18 Phase 5 Training Command Dry-Run
+
+### Completed
+
+Extended:
+
+```text
+core/training_presets.py
+```
+
+Added:
+
+```text
+run/render_training_commands.py
+```
+
+The new CLI renders `run/train.py` commands from config suites without starting
+training. It supports:
+
+```text
+--config
+--config-dir
+--experiment-id
+--python-exe
+--train-script
+```
+
+Example:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\render_training_commands.py `
+  --config configs\m0_topfocus_validation_20260614.json `
+  --experiment-id M1 `
+  --python-exe C:\Users\x\miniconda3\envs\torch\python.exe
+```
+
+Output starts with:
+
+```text
+# m0_topfocus_validation_20260614:M1
+```
+
+and prints the fully expanded `run/train.py` command.
+
+### Validation
+
+Compiled:
+
+```text
+core/training_presets.py
+run/render_training_commands.py
+tests/test_training_presets.py
+```
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_training_presets.py -q
+```
+
+Result:
+
+```text
+5 passed
+```
+
+Manual dry-run smoke:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\render_training_commands.py `
+  --config configs\m0_topfocus_validation_20260614.json `
+  --experiment-id M1 `
+  --python-exe C:\Users\x\miniconda3\envs\torch\python.exe
+```
+
+Result:
+
+```text
+printed one M1 command; no training launched
+```
+
+### Next Step
+
+The next Phase 5 step is to add validation around config keys, so typos in JSON
+presets fail before a long training run starts.

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -22,6 +23,17 @@ class TrainingExperiment:
 
     def train_argv(self) -> list[str]:
         return params_to_train_argv(self.params)
+
+    def train_command(
+        self,
+        python_exe: str = "python",
+        train_script: str = "run/train.py",
+    ) -> str:
+        return render_train_command(
+            self.params,
+            python_exe=python_exe,
+            train_script=train_script,
+        )
 
 
 @dataclass(frozen=True)
@@ -83,3 +95,13 @@ def params_to_train_argv(params: dict[str, Any]) -> list[str]:
             continue
         argv.extend([flag, str(value)])
     return argv
+
+
+def render_train_command(
+    params: dict[str, Any],
+    python_exe: str = "python",
+    train_script: str = "run/train.py",
+) -> str:
+    """Render a shell-safe train.py command without executing it."""
+
+    return subprocess.list2cmdline([python_exe, train_script, *params_to_train_argv(params)])
