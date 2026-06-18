@@ -3488,6 +3488,45 @@ Only two cleanup classes remain: referenced/high-risk checkpoint/model outputs
 and experiment-output evidence. Continue by writing a focused open-reranker and
 market-overlay decision ledger before moving any of those directories.
 
+## Phase 19 Open-Reranker And Market-Overlay Ledger
+
+### Completed
+
+Created:
+
+```text
+reports/codebase_cleanup_20260618/open_reranker_market_overlay_ledger.md
+```
+
+The ledger records:
+
+```text
+official baseline=main_candidate
+first attack candidate=negfilter_r030_100_drop3
+first stability candidate=edge_r030_100
+breadth market overlay=observation candidate, not promoted
+breadth target shrink=rejected
+state target shrink=rejected
+conditional breadth negfilter=needs summary before archive decision
+```
+
+### Decision
+
+Do not move open-reranker or market-overlay parent directories yet. They contain
+active observation candidates, diagnostics, or unpromoted evidence that still
+needs a compact rejection/observation summary before archival.
+
+### Next Step
+
+Create a rejected-overlay summary for the unpromoted outputs, especially:
+
+```text
+breadth_triggered_target_20260617
+state_triggered_target_20260617
+conditional_negfilter_breadth_20260618
+open_reranker_current_v9_light_20260617
+```
+
 ## Phase 8 Fourth Legacy Backtest Archive Batch
 
 ### Completed
