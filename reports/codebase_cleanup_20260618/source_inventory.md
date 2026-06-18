@@ -1,4 +1,4 @@
-﻿# Source Inventory 2026-06-18
+# Source Inventory 2026-06-18
 
 Generated without moving or modifying project outputs.
 
@@ -6,19 +6,22 @@ Generated without moving or modifying project outputs.
 
 | Group | Count |
 |---|---:|
-| archive_or_cache, dir | 3 |
-| checkpoint_or_model, dir | 13 |
-| experiment_output, dir | 146 |
-| experiment_output, file | 29 |
-| misc, dir | 12 |
-| misc, file | 15 |
-| runtime_log_or_pid, file | 34 |
-| source_or_docs, dir | 8 |
+| archive_or_cache, dir | 5 |
+| checkpoint_or_model, dir | 37 |
+| experiment_output, dir | 128 |
+| experiment_output, file | 9 |
+| misc, dir | 6 |
+| misc, file | 2 |
+| runtime_log_or_pid, file | 52 |
+| source_or_docs, dir | 10 |
+| source_or_docs, file | 14 |
 
 ## Top-Level Items
 
 | Name | Kind | Class | Last Write |
 |---|---|---|---|
+| .pytest_cache | dir | archive_or_cache | 2026-06-18 01:33:32 |
+| __pycache__ | dir | archive_or_cache | 2026-06-18 01:33:32 |
 | _archive_models_data_20260604 | dir | archive_or_cache | 2026-06-10 21:00:00 |
 | _archive_results_20260604 | dir | archive_or_cache | 2026-06-10 21:00:05 |
 | cache | dir | archive_or_cache | 2026-06-17 23:29:57 |
@@ -33,8 +36,32 @@ Generated without moving or modifying project outputs.
 | checkpoints_exp_topfocus_w005_pairwise_w001_20260530_053300 | dir | checkpoint_or_model | 2026-06-10 20:59:44 |
 | checkpoints_exp_topfocus_w005_topic | dir | checkpoint_or_model | 2026-06-10 20:59:44 |
 | checkpoints_exp_topfocus_w005_topret | dir | checkpoint_or_model | 2026-06-10 20:59:44 |
+| checkpoints_loss_ablation_A0 | dir | checkpoint_or_model | 2026-06-13 20:31:06 |
+| checkpoints_loss_ablation_A0_low_lr_e10 | dir | checkpoint_or_model | 2026-06-14 12:44:01 |
+| checkpoints_loss_ablation_A1 | dir | checkpoint_or_model | 2026-06-13 22:11:33 |
+| checkpoints_loss_ablation_A2 | dir | checkpoint_or_model | 2026-06-13 23:45:23 |
+| checkpoints_loss_ablation_A3 | dir | checkpoint_or_model | 2026-06-14 00:55:06 |
+| checkpoints_loss_ablation_A4 | dir | checkpoint_or_model | 2026-06-14 01:22:31 |
+| checkpoints_loss_ablation_A4_low_lr_e10 | dir | checkpoint_or_model | 2026-06-14 13:25:38 |
+| checkpoints_loss_ablation_A5 | dir | checkpoint_or_model | 2026-06-14 01:52:30 |
+| checkpoints_loss_ablation_D001 | dir | checkpoint_or_model | 2026-06-15 22:36:50 |
+| checkpoints_loss_ablation_D003 | dir | checkpoint_or_model | 2026-06-15 23:37:31 |
+| checkpoints_loss_ablation_D003_T001 | dir | checkpoint_or_model | 2026-06-16 13:10:48 |
+| checkpoints_loss_ablation_D005 | dir | checkpoint_or_model | 2026-06-16 00:42:22 |
+| checkpoints_loss_ablation_LAG005 | dir | checkpoint_or_model | 2026-06-16 16:06:59 |
+| checkpoints_loss_ablation_LAG010 | dir | checkpoint_or_model | 2026-06-16 17:30:02 |
+| checkpoints_loss_ablation_M0_nomulti | dir | checkpoint_or_model | 2026-06-14 14:57:39 |
+| checkpoints_loss_ablation_M1_nomulti_topfocus_w005 | dir | checkpoint_or_model | 2026-06-14 17:46:16 |
+| checkpoints_loss_ablation_T001 | dir | checkpoint_or_model | 2026-06-16 01:45:07 |
+| checkpoints_reranker_oof_F1_train2017_val2018 | dir | checkpoint_or_model | 2026-06-14 23:42:52 |
+| checkpoints_reranker_oof_F2_train2018_val2019 | dir | checkpoint_or_model | 2026-06-14 23:54:54 |
+| checkpoints_reranker_oof_F3_train2019_val2020 | dir | checkpoint_or_model | 2026-06-15 00:06:47 |
+| checkpoints_reranker_oof_F4_train2020_val2021 | dir | checkpoint_or_model | 2026-06-15 00:21:19 |
+| checkpoints_reranker_oof_F5_train2021_val2022 | dir | checkpoint_or_model | 2026-06-15 00:38:48 |
+| checkpoints_reranker_oof_F6_train2022_val2023 | dir | checkpoint_or_model | 2026-06-15 00:59:33 |
 | checkpoints_smoke_rawmetrics_20260613 | dir | checkpoint_or_model | 2026-06-13 17:02:07 |
 | models_multi_v9_tech_macro | dir | checkpoint_or_model | 2026-06-10 20:59:59 |
+| switch_value_models_20260604_top3_pv1m_raw_lgb_h5 | dir | checkpoint_or_model | 2026-06-10 21:00:00 |
 | backtest_results_exp_ablate_fundamental_avgw3_val | dir | experiment_output | 2026-06-12 19:45:01 |
 | backtest_results_exp_ablate_fundamental_share_ledger_val | dir | experiment_output | 2026-06-12 19:46:29 |
 | backtest_results_exp_band20_mintrade_val | dir | experiment_output | 2026-06-12 22:29:07 |
@@ -73,7 +100,6 @@ Generated without moving or modifying project outputs.
 | backtest_results_exp_rank_smooth_w3_val | dir | experiment_output | 2026-06-12 22:57:49 |
 | backtest_results_exp_rank_smooth_w4_val | dir | experiment_output | 2026-06-12 22:58:37 |
 | backtest_results_exp_rank_smooth_w5_val | dir | experiment_output | 2026-06-12 22:59:25 |
-| backtest_results_exp_rebalance_band_val | dir | experiment_output | 2026-06-12 22:10:53 |
 | backtest_results_exp_rebalance_band10_pv1m_stress_2x | dir | experiment_output | 2026-06-12 22:41:45 |
 | backtest_results_exp_rebalance_band10_pv1m_stress_3x | dir | experiment_output | 2026-06-12 22:42:26 |
 | backtest_results_exp_rebalance_band10_pv1m_stress_lag1 | dir | experiment_output | 2026-06-12 22:43:06 |
@@ -82,14 +108,13 @@ Generated without moving or modifying project outputs.
 | backtest_results_exp_rebalance_band20_stress_3x | dir | experiment_output | 2026-06-12 22:15:33 |
 | backtest_results_exp_rebalance_band20_stress_lag1 | dir | experiment_output | 2026-06-12 22:16:18 |
 | backtest_results_exp_rebalance_band20_test | dir | experiment_output | 2026-06-12 22:13:18 |
+| backtest_results_exp_rebalance_band_val | dir | experiment_output | 2026-06-12 22:10:53 |
 | backtest_results_exp_topic_pairwise_blend_70_val | dir | experiment_output | 2026-06-12 23:06:56 |
 | backtest_results_exp_topic_pairwise_blend_80_val | dir | experiment_output | 2026-06-12 23:06:12 |
 | backtest_results_exp_topic_pairwise_blend_90_val | dir | experiment_output | 2026-06-12 23:05:27 |
 | backtest_results_exp_topret_avgw3_val | dir | experiment_output | 2026-06-12 23:09:15 |
 | backtest_results_exp_topret_band20_val | dir | experiment_output | 2026-06-12 23:09:59 |
 | backtest_results_small_account_smoke_20260612 | dir | experiment_output | 2026-06-12 01:49:25 |
-| backtest_results_summary_20260516.txt | file | experiment_output | 2026-05-19 02:46:36 |
-| backtest_results_summary_20260528.txt | file | experiment_output | 2026-05-28 14:07:38 |
 | backtest_results_switch_cache_smoke_fast2 | dir | experiment_output | 2026-06-05 20:37:02 |
 | backtest_results_switch_cache_smoke_read | dir | experiment_output | 2026-06-10 20:58:10 |
 | backtest_results_switch_cache_smoke_read5 | dir | experiment_output | 2026-06-10 20:58:10 |
@@ -136,50 +161,13 @@ Generated without moving or modifying project outputs.
 | breadth_triggered_market_20260617 | dir | experiment_output | 2026-06-17 22:28:52 |
 | breadth_triggered_target_20260617 | dir | experiment_output | 2026-06-17 22:10:40 |
 | candidate_model_validation_20260614 | dir | experiment_output | 2026-06-14 14:13:47 |
-| CANDIDATE_MODEL_VALIDATION_PLAN_20260614.md | file | experiment_output | 2026-06-14 14:23:43 |
-| candidate_validation.pid | file | experiment_output | 2026-06-14 14:08:14 |
-| candidate_validation_stderr.log | file | experiment_output | 2026-06-14 14:08:14 |
-| candidate_validation_stdout.log | file | experiment_output | 2026-06-14 14:13:47 |
-| checkpoints_loss_ablation_A0 | dir | experiment_output | 2026-06-13 20:31:06 |
-| checkpoints_loss_ablation_A0_low_lr_e10 | dir | experiment_output | 2026-06-14 12:44:01 |
-| checkpoints_loss_ablation_A1 | dir | experiment_output | 2026-06-13 22:11:33 |
-| checkpoints_loss_ablation_A2 | dir | experiment_output | 2026-06-13 23:45:23 |
-| checkpoints_loss_ablation_A3 | dir | experiment_output | 2026-06-14 00:55:06 |
-| checkpoints_loss_ablation_A4 | dir | experiment_output | 2026-06-14 01:22:31 |
-| checkpoints_loss_ablation_A4_low_lr_e10 | dir | experiment_output | 2026-06-14 13:25:38 |
-| checkpoints_loss_ablation_A5 | dir | experiment_output | 2026-06-14 01:52:30 |
-| checkpoints_loss_ablation_D001 | dir | experiment_output | 2026-06-15 22:36:50 |
-| checkpoints_loss_ablation_D003 | dir | experiment_output | 2026-06-15 23:37:31 |
-| checkpoints_loss_ablation_D003_T001 | dir | experiment_output | 2026-06-16 13:10:48 |
-| checkpoints_loss_ablation_D005 | dir | experiment_output | 2026-06-16 00:42:22 |
-| checkpoints_loss_ablation_LAG005 | dir | experiment_output | 2026-06-16 16:06:59 |
-| checkpoints_loss_ablation_LAG010 | dir | experiment_output | 2026-06-16 17:30:02 |
-| checkpoints_loss_ablation_M0_nomulti | dir | experiment_output | 2026-06-14 14:57:39 |
-| checkpoints_loss_ablation_M1_nomulti_topfocus_w005 | dir | experiment_output | 2026-06-14 17:46:16 |
-| checkpoints_loss_ablation_T001 | dir | experiment_output | 2026-06-16 01:45:07 |
-| checkpoints_reranker_oof_F1_train2017_val2018 | dir | experiment_output | 2026-06-14 23:42:52 |
-| checkpoints_reranker_oof_F2_train2018_val2019 | dir | experiment_output | 2026-06-14 23:54:54 |
-| checkpoints_reranker_oof_F3_train2019_val2020 | dir | experiment_output | 2026-06-15 00:06:47 |
-| checkpoints_reranker_oof_F4_train2020_val2021 | dir | experiment_output | 2026-06-15 00:21:19 |
-| checkpoints_reranker_oof_F5_train2021_val2022 | dir | experiment_output | 2026-06-15 00:38:48 |
-| checkpoints_reranker_oof_F6_train2022_val2023 | dir | experiment_output | 2026-06-15 00:59:33 |
+| conditional_negfilter_breadth_20260618 | dir | experiment_output | 2026-06-18 00:44:59 |
+| diagnostics_negfilter_drop3_20260617 | dir | experiment_output | 2026-06-17 16:13:29 |
 | downside_topfocus_validation_20260616 | dir | experiment_output | 2026-06-16 15:16:25 |
 | forward_results | dir | experiment_output | 2026-06-15 16:33:01 |
-| FORWARD_TEST_LOG.md | file | experiment_output | 2026-06-12 22:21:41 |
-| FROZEN_FORWARD_STRATEGY.md | file | experiment_output | 2026-06-12 02:41:53 |
-| loss_ablation_A1_active.pid | file | experiment_output | 2026-06-13 23:27:57 |
-| loss_ablation_A2_active.pid | file | experiment_output | 2026-06-14 00:21:43 |
-| LOSS_ABLATION_PLAN.md | file | experiment_output | 2026-06-13 18:11:35 |
+| lag1_checkpoint_sweep_m0_20260616 | dir | experiment_output | 2026-06-16 15:51:46 |
+| locked_candidate_confirmation_20260614 | dir | experiment_output | 2026-06-14 14:19:01 |
 | loss_ablation_portfolio_validation_20260614 | dir | experiment_output | 2026-06-14 14:38:01 |
-| loss_ablation_queue.pid | file | experiment_output | 2026-06-14 12:26:21 |
-| loss_ablation_queue_batch4_stderr.log | file | experiment_output | 2026-06-13 21:56:07 |
-| loss_ablation_queue_batch4_stdout.log | file | experiment_output | 2026-06-13 23:31:03 |
-| loss_ablation_queue_stderr.log | file | experiment_output | 2026-06-13 18:13:36 |
-| loss_ablation_queue_stdout.log | file | experiment_output | 2026-06-13 21:45:19 |
-| loss_ablation_resume_stderr.log | file | experiment_output | 2026-06-13 23:27:57 |
-| loss_ablation_resume_stdout.log | file | experiment_output | 2026-06-14 00:48:52 |
-| loss_ablation_singlefactor_stderr.log | file | experiment_output | 2026-06-14 02:13:35 |
-| loss_ablation_singlefactor_stdout.log | file | experiment_output | 2026-06-14 02:12:38 |
 | m0_topfocus_validation_20260614 | dir | experiment_output | 2026-06-14 18:15:05 |
 | multi_loss_validation_20260614 | dir | experiment_output | 2026-06-14 16:49:16 |
 | open_reranker_current_v9_20260617 | dir | experiment_output | 2026-06-17 01:03:36 |
@@ -190,53 +178,35 @@ Generated without moving or modifying project outputs.
 | open_reranker_current_v9_negfilter_20260617 | dir | experiment_output | 2026-06-17 15:42:21 |
 | reranker_confirmation_20260615 | dir | experiment_output | 2026-06-15 16:31:31 |
 | reranker_data_20260614 | dir | experiment_output | 2026-06-15 12:30:47 |
-| RERANKER_IMPLEMENTATION_PLAN_20260614.md | file | experiment_output | 2026-06-15 16:34:41 |
 | reranker_models_20260615 | dir | experiment_output | 2026-06-15 16:29:41 |
 | reranker_oof_20260614 | dir | experiment_output | 2026-06-14 23:52:51 |
 | reranker_training_20260615 | dir | experiment_output | 2026-06-15 01:54:08 |
 | reranker_v2_data_20260615 | dir | experiment_output | 2026-06-15 02:39:42 |
 | reranker_v3_data_20260615 | dir | experiment_output | 2026-06-15 12:33:52 |
-| RERANKER_V4_PLAN_20260615.md | file | experiment_output | 2026-06-15 16:34:41 |
 | reranker_validation_20260615 | dir | experiment_output | 2026-06-15 16:31:31 |
-| run_forward_observation_candidates_20260617.ps1 | file | experiment_output | 2026-06-17 16:21:50 |
-| run_lag1_loss_ablation_20260616.err.log | file | experiment_output | 2026-06-16 17:34:45 |
-| run_lag1_loss_ablation_20260616.out.log | file | experiment_output | 2026-06-16 17:18:19 |
-| run_lag1_loss_ablation_after_sweep_20260616.ps1 | file | experiment_output | 2026-06-16 15:38:24 |
-| run_unified_good_ops_validation_20260616.err.log | file | experiment_output | 2026-06-16 17:39:46 |
-| run_unified_good_ops_validation_20260616.out.log | file | experiment_output | 2026-06-16 18:34:13 |
-| run_unified_good_ops_validation_20260616.ps1 | file | experiment_output | 2026-06-16 17:39:31 |
 | state_triggered_target_20260617 | dir | experiment_output | 2026-06-17 21:58:14 |
 | unified_good_ops_validation_20260616 | dir | experiment_output | 2026-06-16 18:10:19 |
+| v9_avgw3_extend_to_20260518_20260616 | dir | experiment_output | 2026-06-17 00:26:39 |
 | v9_avgw3_filter095_validation_20260616 | dir | experiment_output | 2026-06-16 21:04:16 |
 | v9_avgw3_open_ledger_20260616 | dir | experiment_output | 2026-06-17 00:12:37 |
 | v9_avgw3_open_ledger_20260617 | dir | experiment_output | 2026-06-18 00:45:42 |
+| backtest_results_summary_20260516.txt | file | experiment_output | 2026-05-19 02:46:36 |
+| backtest_results_summary_20260528.txt | file | experiment_output | 2026-05-28 14:07:38 |
+| FORWARD_TEST_LOG.md | file | experiment_output | 2026-06-12 22:21:41 |
+| resume_downside_topfocus_remaining_20260616.ps1 | file | experiment_output | 2026-06-16 12:30:18 |
+| run_forward_observation_candidates_20260617.ps1 | file | experiment_output | 2026-06-17 16:21:50 |
+| run_lag1_loss_ablation_after_sweep_20260616.ps1 | file | experiment_output | 2026-06-16 15:38:24 |
+| run_unified_good_ops_validation_20260616.ps1 | file | experiment_output | 2026-06-16 17:39:31 |
+| validate_downside_topfocus_candidates_20260616.ps1 | file | experiment_output | 2026-06-16 15:03:06 |
+| validate_m0_epoch_lag1_sweep_20260616.ps1 | file | experiment_output | 2026-06-16 15:34:43 |
 | .claude | dir | misc | 2026-06-10 22:53:55 |
-| .git | file | misc | 2026-06-12 01:42:10 |
-| .gitignore | file | misc | 2026-06-12 01:43:24 |
 | .vscode | dir | misc | 2026-06-10 20:58:10 |
-| __init__.py | file | misc | 2026-05-19 02:46:36 |
-| _sys_check.ps1 | file | misc | 2026-05-19 02:46:36 |
 | backtest_result_snapshots | dir | misc | 2026-06-10 20:58:12 |
-| CLAUDE.md | file | misc | 2026-06-12 01:52:30 |
-| conditional_negfilter_breadth_20260618 | dir | misc | 2026-06-18 00:44:59 |
-| diagnostics_negfilter_drop3_20260617 | dir | misc | 2026-06-17 16:13:29 |
-| EXPERIMENTS.md | file | misc | 2026-06-12 01:45:36 |
-| lag1_checkpoint_sweep_m0_20260616 | dir | misc | 2026-06-16 15:51:46 |
-| locked_candidate_confirmation_20260614 | dir | misc | 2026-06-14 14:19:01 |
 | logs | dir | misc | 2026-06-10 20:59:59 |
-| PURGED_ALPHA_OPTIMIZATION_PLAN.md | file | misc | 2026-06-13 16:44:59 |
-| README.md | file | misc | 2026-06-12 01:45:28 |
-| requirements.txt | file | misc | 2026-06-12 01:58:50 |
 | rerun_v9_avgw3_open_to_open_20260616 | dir | misc | 2026-06-16 18:46:59 |
-| RESEARCH_PROTOCOL.md | file | misc | 2026-06-12 12:13:47 |
-| resume_downside_topfocus_remaining_20260616.ps1 | file | misc | 2026-06-16 12:30:18 |
-| SHARPE_OPTIMIZATION_REPORT.md | file | misc | 2026-06-12 22:43:33 |
 | switch_value_data_20260604_top3_pv1m_raw | dir | misc | 2026-06-10 20:59:59 |
-| switch_value_models_20260604_top3_pv1m_raw_lgb_h5 | dir | misc | 2026-06-10 21:00:00 |
-| TEST_PLAN.md | file | misc | 2026-06-12 12:13:24 |
-| v9_avgw3_extend_to_20260518_20260616 | dir | misc | 2026-06-17 00:26:39 |
-| validate_downside_topfocus_candidates_20260616.ps1 | file | misc | 2026-06-16 15:03:06 |
-| validate_m0_epoch_lag1_sweep_20260616.ps1 | file | misc | 2026-06-16 15:34:43 |
+| .gitignore | file | misc | 2026-06-12 01:43:24 |
+| _sys_check.ps1 | file | misc | 2026-05-19 02:46:36 |
 | a5_recovery.pid | file | runtime_log_or_pid | 2026-06-14 12:26:21 |
 | a5_recovery_stderr.log | file | runtime_log_or_pid | 2026-06-14 12:26:21 |
 | a5_recovery_stdout.log | file | runtime_log_or_pid | 2026-06-14 12:43:51 |
@@ -246,12 +216,26 @@ Generated without moving or modifying project outputs.
 | batch8_benchmark_stdout.log | file | runtime_log_or_pid | 2026-06-13 00:58:48 |
 | batch8_timing_stderr.log | file | runtime_log_or_pid | 2026-06-13 01:04:04 |
 | batch8_timing_stdout.log | file | runtime_log_or_pid | 2026-06-13 01:04:04 |
+| candidate_validation.pid | file | runtime_log_or_pid | 2026-06-14 14:08:14 |
+| candidate_validation_stderr.log | file | runtime_log_or_pid | 2026-06-14 14:08:14 |
+| candidate_validation_stdout.log | file | runtime_log_or_pid | 2026-06-14 14:13:47 |
 | downside_topfocus_ablation_20260615.err.log | file | runtime_log_or_pid | 2026-06-16 02:39:27 |
 | downside_topfocus_ablation_20260615.out.log | file | runtime_log_or_pid | 2026-06-16 01:56:12 |
 | errors.log | file | runtime_log_or_pid | 2026-05-25 21:22:26 |
 | formal_train.pid | file | runtime_log_or_pid | 2026-06-13 01:06:49 |
 | formal_train_stderr.log | file | runtime_log_or_pid | 2026-06-13 01:06:49 |
 | formal_train_stdout.log | file | runtime_log_or_pid | 2026-06-13 02:47:28 |
+| loss_ablation_A1_active.pid | file | runtime_log_or_pid | 2026-06-13 23:27:57 |
+| loss_ablation_A2_active.pid | file | runtime_log_or_pid | 2026-06-14 00:21:43 |
+| loss_ablation_queue.pid | file | runtime_log_or_pid | 2026-06-14 12:26:21 |
+| loss_ablation_queue_batch4_stderr.log | file | runtime_log_or_pid | 2026-06-13 21:56:07 |
+| loss_ablation_queue_batch4_stdout.log | file | runtime_log_or_pid | 2026-06-13 23:31:03 |
+| loss_ablation_queue_stderr.log | file | runtime_log_or_pid | 2026-06-13 18:13:36 |
+| loss_ablation_queue_stdout.log | file | runtime_log_or_pid | 2026-06-13 21:45:19 |
+| loss_ablation_resume_stderr.log | file | runtime_log_or_pid | 2026-06-13 23:27:57 |
+| loss_ablation_resume_stdout.log | file | runtime_log_or_pid | 2026-06-14 00:48:52 |
+| loss_ablation_singlefactor_stderr.log | file | runtime_log_or_pid | 2026-06-14 02:13:35 |
+| loss_ablation_singlefactor_stdout.log | file | runtime_log_or_pid | 2026-06-14 02:12:38 |
 | low_lr_continuation_queue.pid | file | runtime_log_or_pid | 2026-06-14 12:26:21 |
 | low_lr_continuation_stderr.log | file | runtime_log_or_pid | 2026-06-14 12:26:21 |
 | low_lr_continuation_stdout.log | file | runtime_log_or_pid | 2026-06-14 13:54:40 |
@@ -262,6 +246,10 @@ Generated without moving or modifying project outputs.
 | ram_smoke_stdout.log | file | runtime_log_or_pid | 2026-06-13 00:41:04 |
 | resume_downside_topfocus_remaining_20260616.err.log | file | runtime_log_or_pid | 2026-06-16 12:30:18 |
 | resume_downside_topfocus_remaining_20260616.out.log | file | runtime_log_or_pid | 2026-06-16 13:54:20 |
+| run_lag1_loss_ablation_20260616.err.log | file | runtime_log_or_pid | 2026-06-16 17:34:45 |
+| run_lag1_loss_ablation_20260616.out.log | file | runtime_log_or_pid | 2026-06-16 17:18:19 |
+| run_unified_good_ops_validation_20260616.err.log | file | runtime_log_or_pid | 2026-06-16 17:39:46 |
+| run_unified_good_ops_validation_20260616.out.log | file | runtime_log_or_pid | 2026-06-16 18:34:13 |
 | stall_execution_queue.pid | file | runtime_log_or_pid | 2026-06-14 12:26:21 |
 | stall_execution_queue_stderr.log | file | runtime_log_or_pid | 2026-06-14 12:26:21 |
 | stall_execution_queue_stdout.log | file | runtime_log_or_pid | 2026-06-14 13:57:22 |
@@ -271,11 +259,27 @@ Generated without moving or modifying project outputs.
 | validate_downside_topfocus_candidates_20260616.out.log | file | runtime_log_or_pid | 2026-06-16 15:16:25 |
 | validate_m0_epoch_lag1_sweep_20260616.err.log | file | runtime_log_or_pid | 2026-06-16 15:34:43 |
 | validate_m0_epoch_lag1_sweep_20260616.out.log | file | runtime_log_or_pid | 2026-06-16 15:52:12 |
-| backtest | dir | source_or_docs | 2026-06-10 20:58:10 |
+| alpha | dir | source_or_docs | 2026-06-18 01:31:14 |
+| backtest | dir | source_or_docs | 2026-06-18 01:50:08 |
 | configs | dir | source_or_docs | 2026-06-16 15:38:03 |
-| core | dir | source_or_docs | 2026-06-12 01:43:24 |
+| core | dir | source_or_docs | 2026-06-18 13:23:09 |
 | data | dir | source_or_docs | 2026-06-12 01:46:17 |
-| reports | dir | source_or_docs | 2026-06-18 00:55:14 |
-| run | dir | source_or_docs | 2026-06-18 00:44:31 |
+| experiments | dir | source_or_docs | 2026-06-18 13:37:54 |
+| reports | dir | source_or_docs | 2026-06-18 13:33:39 |
+| run | dir | source_or_docs | 2026-06-18 13:38:08 |
 | scripts | dir | source_or_docs | 2026-06-12 12:14:06 |
-| tests | dir | source_or_docs | 2026-06-15 22:17:41 |
+| tests | dir | source_or_docs | 2026-06-18 13:38:27 |
+| __init__.py | file | source_or_docs | 2026-05-19 02:46:36 |
+| CANDIDATE_MODEL_VALIDATION_PLAN_20260614.md | file | source_or_docs | 2026-06-14 14:23:43 |
+| CLAUDE.md | file | source_or_docs | 2026-06-12 01:52:30 |
+| EXPERIMENTS.md | file | source_or_docs | 2026-06-12 01:45:36 |
+| FROZEN_FORWARD_STRATEGY.md | file | source_or_docs | 2026-06-12 02:41:53 |
+| LOSS_ABLATION_PLAN.md | file | source_or_docs | 2026-06-13 18:11:35 |
+| PURGED_ALPHA_OPTIMIZATION_PLAN.md | file | source_or_docs | 2026-06-13 16:44:59 |
+| README.md | file | source_or_docs | 2026-06-12 01:45:28 |
+| requirements.txt | file | source_or_docs | 2026-06-12 01:58:50 |
+| RERANKER_IMPLEMENTATION_PLAN_20260614.md | file | source_or_docs | 2026-06-15 16:34:41 |
+| RERANKER_V4_PLAN_20260615.md | file | source_or_docs | 2026-06-15 16:34:41 |
+| RESEARCH_PROTOCOL.md | file | source_or_docs | 2026-06-12 12:13:47 |
+| SHARPE_OPTIMIZATION_REPORT.md | file | source_or_docs | 2026-06-12 22:43:33 |
+| TEST_PLAN.md | file | source_or_docs | 2026-06-12 12:13:24 |

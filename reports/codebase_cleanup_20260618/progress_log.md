@@ -1262,3 +1262,93 @@ The next checkpoint-selection step should join this epoch-level report with
 open-ledger validation summaries when those per-epoch backtests exist. Until
 then, this helper is a safer IC-gated training-metrics screen, not a full
 portfolio-selection replacement.
+
+## 2026-06-18 Phase 6 Preparation: Regenerable Source Inventory
+
+### Completed
+
+Created:
+
+```text
+experiments/source_inventory.py
+run/generate_source_inventory.py
+tests/test_source_inventory.py
+```
+
+Regenerated:
+
+```text
+reports/codebase_cleanup_20260618/source_inventory.csv
+reports/codebase_cleanup_20260618/source_inventory.md
+```
+
+The inventory generator scans only top-level project entries and classifies
+them into cleanup groups:
+
+```text
+source_or_docs
+checkpoint_or_model
+experiment_output
+runtime_log_or_pid
+archive_or_cache
+misc
+```
+
+Current regenerated inventory:
+
+```text
+rows=263
+```
+
+Key classification improvements:
+
+- PID/stdout/stderr/log files are now consistently `runtime_log_or_pid`.
+- `checkpoints_loss_ablation_*` and OOF checkpoint folders are now
+  `checkpoint_or_model`.
+- source directories added during cleanup, including `alpha/`, `experiments/`,
+  and `configs/`, are included as `source_or_docs`.
+
+No files or output directories were moved.
+
+### Validation
+
+Compiled:
+
+```text
+experiments/source_inventory.py
+run/generate_source_inventory.py
+tests/test_source_inventory.py
+```
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_source_inventory.py `
+  tests\test_checkpoint_selection.py -q
+```
+
+Result:
+
+```text
+6 passed
+```
+
+Inventory generation smoke:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\generate_source_inventory.py
+```
+
+Result:
+
+```text
+wrote reports\codebase_cleanup_20260618\source_inventory.csv rows=263
+wrote reports\codebase_cleanup_20260618\source_inventory.md
+```
+
+### Next Step
+
+Before moving any root-level outputs, add an archive plan that maps each class
+to a target archive directory and explicitly lists protected active paths that
+must not move.
