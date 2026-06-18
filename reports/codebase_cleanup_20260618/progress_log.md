@@ -1352,3 +1352,105 @@ wrote reports\codebase_cleanup_20260618\source_inventory.md
 Before moving any root-level outputs, add an archive plan that maps each class
 to a target archive directory and explicitly lists protected active paths that
 must not move.
+
+## 2026-06-18 Phase 6 Archive Plan
+
+### Completed
+
+Created:
+
+```text
+experiments/archive_plan.py
+run/generate_archive_plan.py
+tests/test_archive_plan.py
+```
+
+Generated non-destructive archive plan:
+
+```text
+reports/codebase_cleanup_20260618/archive_plan.csv
+reports/codebase_cleanup_20260618/archive_plan.md
+```
+
+The plan maps inventory classes to target archive folders:
+
+```text
+runtime_log_or_pid -> archive/logs_202606
+archive_or_cache -> archive/cache_202606
+experiment_output -> archive/experiments_202606
+checkpoint_or_model -> archive/checkpoints_202606
+```
+
+Protected active paths include:
+
+```text
+forward_results
+v9_avgw3_open_ledger_20260617
+v9_avgw3_extend_to_20260518_20260616
+checkpoints_exp_topfocus_w005_topic
+checkpoints_loss_ablation_M0_nomulti
+checkpoints_loss_ablation_M1_nomulti_topfocus_w005
+alpha/backtest/configs/core/data/experiments/reports/run/scripts/tests
+```
+
+Archive plan summary:
+
+```text
+archive_candidate=224
+protect=17
+review=22
+```
+
+No files or directories were moved.
+
+### Validation
+
+Compiled:
+
+```text
+experiments/archive_plan.py
+run/generate_archive_plan.py
+tests/test_archive_plan.py
+```
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py -q
+```
+
+Result:
+
+```text
+7 passed
+```
+
+Archive plan generation smoke:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\generate_archive_plan.py
+```
+
+Result:
+
+```text
+wrote reports\codebase_cleanup_20260618\archive_plan.csv rows=263
+wrote reports\codebase_cleanup_20260618\archive_plan.md
+```
+
+Spot checks:
+
+```text
+forward_results -> protect
+v9_avgw3_open_ledger_20260617 -> protect
+checkpoints_exp_topfocus_w005_topic -> protect
+errors.log -> archive/logs_202606
+backtest_results_exp_base_avgw3_val -> archive/experiments_202606
+```
+
+### Next Step
+
+Do not move archive candidates yet. The next safe step is to add a dry-run mover
+that prints planned moves and refuses to move protected/review paths.
