@@ -2251,3 +2251,71 @@ rg "9.5%|A4-E6|old frozen V9|Top-focus|R1|R2|Promotion gate" `
 Create `reports/codebase_cleanup_20260618/reranker_research_index.md`, then
 the root reranker plans can be consolidated in the same way without losing the
 M0/V3/V4/V4.1 decision history.
+
+## Phase 7 Reranker Research Consolidation Index
+
+### Completed
+
+Created:
+
+```text
+reports/codebase_cleanup_20260618/reranker_research_index.md
+```
+
+This index consolidates the root-level reranker documents:
+
+```text
+RERANKER_IMPLEMENTATION_PLAN_20260614.md
+RERANKER_V4_PLAN_20260615.md
+```
+
+Key decisions captured:
+
+```text
+M0 remains the live baseline.
+V3 is a frozen risk-adjusted shadow reference, not a proven raw-return replacement.
+V4 is the preferred safe shadow candidate because it abstains to exact M0 when inactive.
+V4 is not promoted yet because activation collapses outside calibration years.
+V4.1 is rejected and must not be retuned from the forward result.
+```
+
+No source markdown files or reranker artifacts were moved.
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_review_docs.py `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py -q
+```
+
+Result:
+
+```text
+14 passed
+```
+
+Content spot-check:
+
+```text
+rg "V3|V4|V4\.1|M0 remains|preferred shadow|Do not promote|45\.73%|52\.67%|-10\.63%|reranker_models" `
+  reports\codebase_cleanup_20260618\reranker_research_index.md
+```
+
+### Next Step
+
+Create a reranker artifact ledger that maps each `reranker_*`,
+`forward_results/m0_v3_20260615`, and `forward_results/m0_v41_20260615`
+artifact to one of:
+
+```text
+active evidence
+frozen shadow artifact
+failed experiment evidence
+archive candidate
+```
+
+Do not move reranker artifact directories until this ledger exists.
