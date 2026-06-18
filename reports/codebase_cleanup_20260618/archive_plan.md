@@ -6,7 +6,7 @@ This is a non-destructive plan. No files are moved by this report.
 
 | Action | Count |
 |---|---:|
-| archive_candidate | 132 |
+| archive_candidate | 120 |
 | protect | 18 |
 | review | 21 |
 
@@ -39,18 +39,6 @@ This is a non-destructive plan. No files are moved by this report.
 | __pycache__ | dir | archive_or_cache | archive/cache_202606 |
 | _archive_models_data_20260604 | dir | archive_or_cache | archive/cache_202606 |
 | _archive_results_20260604 | dir | archive_or_cache | archive/cache_202606 |
-| backtest_results_exp_rebalance_band10_pv1m_stress_lag1 | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_rebalance_band10_pv1m_test | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_rebalance_band20_stress_2x | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_rebalance_band20_stress_3x | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_rebalance_band20_stress_lag1 | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_rebalance_band20_test | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_rebalance_band_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_topic_pairwise_blend_70_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_topic_pairwise_blend_80_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_topic_pairwise_blend_90_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_topret_avgw3_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_topret_band20_val | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_small_account_smoke_20260612 | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_summary_20260516.txt | file | experiment_output | archive/experiments_202606 |
 | backtest_results_summary_20260528.txt | file | experiment_output | archive/experiments_202606 |

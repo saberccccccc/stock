@@ -8,7 +8,7 @@ Generated without moving or modifying project outputs.
 |---|---:|
 | archive_or_cache, dir | 6 |
 | checkpoint_or_model, dir | 37 |
-| experiment_output, dir | 88 |
+| experiment_output, dir | 76 |
 | experiment_output, file | 9 |
 | misc, dir | 5 |
 | misc, file | 2 |
@@ -62,18 +62,6 @@ Generated without moving or modifying project outputs.
 | checkpoints_smoke_rawmetrics_20260613 | dir | checkpoint_or_model | 2026-06-13 17:02:07 |
 | models_multi_v9_tech_macro | dir | checkpoint_or_model | 2026-06-10 20:59:59 |
 | switch_value_models_20260604_top3_pv1m_raw_lgb_h5 | dir | checkpoint_or_model | 2026-06-10 21:00:00 |
-| backtest_results_exp_rebalance_band10_pv1m_stress_lag1 | dir | experiment_output | 2026-06-12 22:43:06 |
-| backtest_results_exp_rebalance_band10_pv1m_test | dir | experiment_output | 2026-06-12 22:40:31 |
-| backtest_results_exp_rebalance_band20_stress_2x | dir | experiment_output | 2026-06-12 22:14:42 |
-| backtest_results_exp_rebalance_band20_stress_3x | dir | experiment_output | 2026-06-12 22:15:33 |
-| backtest_results_exp_rebalance_band20_stress_lag1 | dir | experiment_output | 2026-06-12 22:16:18 |
-| backtest_results_exp_rebalance_band20_test | dir | experiment_output | 2026-06-12 22:13:18 |
-| backtest_results_exp_rebalance_band_val | dir | experiment_output | 2026-06-12 22:10:53 |
-| backtest_results_exp_topic_pairwise_blend_70_val | dir | experiment_output | 2026-06-12 23:06:56 |
-| backtest_results_exp_topic_pairwise_blend_80_val | dir | experiment_output | 2026-06-12 23:06:12 |
-| backtest_results_exp_topic_pairwise_blend_90_val | dir | experiment_output | 2026-06-12 23:05:27 |
-| backtest_results_exp_topret_avgw3_val | dir | experiment_output | 2026-06-12 23:09:15 |
-| backtest_results_exp_topret_band20_val | dir | experiment_output | 2026-06-12 23:09:59 |
 | backtest_results_small_account_smoke_20260612 | dir | experiment_output | 2026-06-12 01:49:25 |
 | backtest_results_switch_cache_smoke_fast2 | dir | experiment_output | 2026-06-05 20:37:02 |
 | backtest_results_switch_cache_smoke_read | dir | experiment_output | 2026-06-10 20:58:10 |

@@ -2903,6 +2903,86 @@ archive/experiments_202606/backtest_results_exp_market_dynamic_val exists=True
 Dry-run the remaining 12 `backtest_results_exp_*` candidates, then decide
 whether to archive them in one final batch or split 10 + 2.
 
+## Phase 8 Final Legacy `backtest_results_exp_*` Archive Batch
+
+### Completed
+
+Executed the final reviewed batch:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class experiment_output `
+  --name-prefix backtest_results_exp_ `
+  --limit 20 `
+  --execute
+```
+
+Moved the remaining 12 legacy `backtest_results_exp_*` directories:
+
+```text
+backtest_results_exp_rebalance_band10_pv1m_stress_lag1
+backtest_results_exp_rebalance_band10_pv1m_test
+backtest_results_exp_rebalance_band20_stress_2x
+backtest_results_exp_rebalance_band20_stress_3x
+backtest_results_exp_rebalance_band20_stress_lag1
+backtest_results_exp_rebalance_band20_test
+backtest_results_exp_rebalance_band_val
+backtest_results_exp_topic_pairwise_blend_70_val
+backtest_results_exp_topic_pairwise_blend_80_val
+backtest_results_exp_topic_pairwise_blend_90_val
+backtest_results_exp_topret_avgw3_val
+backtest_results_exp_topret_band20_val
+```
+
+Destination:
+
+```text
+archive/experiments_202606/
+```
+
+Regenerated source inventory and archive plan.
+
+Current summary after the move:
+
+```text
+top-level inventory rows=159
+archive_candidate=120
+protect=18
+review=21
+remaining backtest_results_exp_* candidates=0
+archived backtest_results_exp_* directories=52
+remaining backtest_results_* candidates=46
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py `
+  tests\test_review_docs.py -q
+```
+
+Result:
+
+```text
+15 passed
+```
+
+Spot checks:
+
+```text
+backtest_results_exp_* archive candidates=0
+archive/experiments_202606 backtest_results_exp_* directories=52
+```
+
+### Next Step
+
+Proceed to the next legacy group: `backtest_results_test_plan_*`, using the
+same name-filtered dry-run and small-batch archive workflow.
+
 ## Phase 8 Third Legacy Backtest Archive Batch
 
 ### Completed
