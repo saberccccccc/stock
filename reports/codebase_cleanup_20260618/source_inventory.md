@@ -8,7 +8,7 @@ Generated without moving or modifying project outputs.
 |---|---:|
 | archive_or_cache, dir | 6 |
 | checkpoint_or_model, dir | 37 |
-| experiment_output, dir | 118 |
+| experiment_output, dir | 108 |
 | experiment_output, file | 9 |
 | misc, dir | 5 |
 | misc, file | 2 |
@@ -62,16 +62,6 @@ Generated without moving or modifying project outputs.
 | checkpoints_smoke_rawmetrics_20260613 | dir | checkpoint_or_model | 2026-06-13 17:02:07 |
 | models_multi_v9_tech_macro | dir | checkpoint_or_model | 2026-06-10 20:59:59 |
 | switch_value_models_20260604_top3_pv1m_raw_lgb_h5 | dir | checkpoint_or_model | 2026-06-10 21:00:00 |
-| backtest_results_exp_blend_raw75_avg25_hold100_stress_2x | dir | experiment_output | 2026-06-12 19:53:42 |
-| backtest_results_exp_blend_raw75_avg25_hold100_stress_3x | dir | experiment_output | 2026-06-12 19:53:42 |
-| backtest_results_exp_blend_raw75_avg25_hold100_stress_lag1 | dir | experiment_output | 2026-06-12 19:53:42 |
-| backtest_results_exp_blend_raw75_avg25_hold100_test | dir | experiment_output | 2026-06-12 19:51:45 |
-| backtest_results_exp_blend_raw75_avg25_stress_2x | dir | experiment_output | 2026-06-12 19:51:26 |
-| backtest_results_exp_blend_raw75_avg25_stress_3x | dir | experiment_output | 2026-06-12 19:51:26 |
-| backtest_results_exp_blend_raw75_avg25_stress_lag1 | dir | experiment_output | 2026-06-12 19:51:27 |
-| backtest_results_exp_blend_raw75_avg25_test | dir | experiment_output | 2026-06-12 19:49:21 |
-| backtest_results_exp_blend_raw75_avg25_val | dir | experiment_output | 2026-06-12 19:47:48 |
-| backtest_results_exp_consensus_geo_test | dir | experiment_output | 2026-06-12 20:05:29 |
 | backtest_results_exp_consensus_geo_val | dir | experiment_output | 2026-06-12 20:01:53 |
 | backtest_results_exp_consensus_min_val | dir | experiment_output | 2026-06-12 20:01:53 |
 | backtest_results_exp_legacy_bear40_test | dir | experiment_output | 2026-06-12 19:42:06 |

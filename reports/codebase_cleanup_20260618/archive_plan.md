@@ -6,7 +6,7 @@ This is a non-destructive plan. No files are moved by this report.
 
 | Action | Count |
 |---|---:|
-| archive_candidate | 162 |
+| archive_candidate | 152 |
 | protect | 18 |
 | review | 21 |
 
@@ -39,16 +39,6 @@ This is a non-destructive plan. No files are moved by this report.
 | __pycache__ | dir | archive_or_cache | archive/cache_202606 |
 | _archive_models_data_20260604 | dir | archive_or_cache | archive/cache_202606 |
 | _archive_results_20260604 | dir | archive_or_cache | archive/cache_202606 |
-| backtest_results_exp_blend_raw75_avg25_hold100_stress_2x | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_blend_raw75_avg25_hold100_stress_3x | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_blend_raw75_avg25_hold100_stress_lag1 | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_blend_raw75_avg25_hold100_test | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_blend_raw75_avg25_stress_2x | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_blend_raw75_avg25_stress_3x | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_blend_raw75_avg25_stress_lag1 | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_blend_raw75_avg25_test | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_blend_raw75_avg25_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_consensus_geo_test | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_exp_consensus_geo_val | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_exp_consensus_min_val | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_exp_legacy_bear40_test | dir | experiment_output | archive/experiments_202606 |
