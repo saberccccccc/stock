@@ -6,7 +6,7 @@ This is a non-destructive plan. No files are moved by this report.
 
 | Action | Count |
 |---|---:|
-| archive_candidate | 204 |
+| archive_candidate | 194 |
 | protect | 18 |
 | review | 22 |
 
@@ -179,16 +179,6 @@ This is a non-destructive plan. No files are moved by this report.
 | lag1_checkpoint_sweep_m0_20260616 | dir | experiment_output | archive/experiments_202606 |
 | locked_candidate_confirmation_20260614 | dir | experiment_output | archive/experiments_202606 |
 | loss_ablation_portfolio_validation_20260614 | dir | experiment_output | archive/experiments_202606 |
-| loss_ablation_queue.pid | file | runtime_log_or_pid | archive/logs_202606 |
-| loss_ablation_queue_batch4_stderr.log | file | runtime_log_or_pid | archive/logs_202606 |
-| loss_ablation_queue_batch4_stdout.log | file | runtime_log_or_pid | archive/logs_202606 |
-| loss_ablation_queue_stderr.log | file | runtime_log_or_pid | archive/logs_202606 |
-| loss_ablation_queue_stdout.log | file | runtime_log_or_pid | archive/logs_202606 |
-| loss_ablation_resume_stderr.log | file | runtime_log_or_pid | archive/logs_202606 |
-| loss_ablation_resume_stdout.log | file | runtime_log_or_pid | archive/logs_202606 |
-| loss_ablation_singlefactor_stderr.log | file | runtime_log_or_pid | archive/logs_202606 |
-| loss_ablation_singlefactor_stdout.log | file | runtime_log_or_pid | archive/logs_202606 |
-| low_lr_continuation_queue.pid | file | runtime_log_or_pid | archive/logs_202606 |
 | low_lr_continuation_stderr.log | file | runtime_log_or_pid | archive/logs_202606 |
 | low_lr_continuation_stdout.log | file | runtime_log_or_pid | archive/logs_202606 |
 | m0_topfocus_validation_20260614 | dir | experiment_output | archive/experiments_202606 |

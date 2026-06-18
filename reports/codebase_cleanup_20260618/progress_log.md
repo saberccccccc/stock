@@ -1803,3 +1803,85 @@ loss_ablation_queue.pid remains an archive_candidate for a later batch
 Continue only with small `runtime_log_or_pid` batches after dry-run review. Do
 not move checkpoints or experiment output directories until the source/report
 references are audited.
+
+## 2026-06-18 Phase 6 Third Log/PID Archive Batch
+
+### Completed
+
+Dry-run reviewed:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class runtime_log_or_pid `
+  --limit 10
+```
+
+Then executed:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class runtime_log_or_pid `
+  --limit 10 `
+  --execute
+```
+
+Moved 10 additional runtime files into:
+
+```text
+archive/logs_202606/
+```
+
+Moved files:
+
+```text
+loss_ablation_queue.pid
+loss_ablation_queue_batch4_stderr.log
+loss_ablation_queue_batch4_stdout.log
+loss_ablation_queue_stderr.log
+loss_ablation_queue_stdout.log
+loss_ablation_resume_stderr.log
+loss_ablation_resume_stdout.log
+loss_ablation_singlefactor_stderr.log
+loss_ablation_singlefactor_stdout.log
+low_lr_continuation_queue.pid
+```
+
+Regenerated source inventory and archive plan.
+
+Current archive plan summary after the move:
+
+```text
+archive_candidate=194
+protect=18
+review=22
+runtime_log_or_pid remaining=22
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py -q
+```
+
+Result:
+
+```text
+11 passed
+```
+
+Spot checks:
+
+```text
+archive -> protect
+low_lr_continuation_stderr.log remains an archive_candidate for a later batch
+archive/logs_202606 contains 30 moved files
+```
+
+### Next Step
+
+Continue with one or two more small `runtime_log_or_pid` batches. Stop before
+moving checkpoint or experiment-output directories.

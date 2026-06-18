@@ -167,16 +167,6 @@ locked_candidate_confirmation_20260614,dir,experiment_output,,2026-06-14 14:19:0
 logs,dir,misc,,2026-06-10 20:59:59
 LOSS_ABLATION_PLAN.md,file,source_or_docs,6280,2026-06-13 18:11:35
 loss_ablation_portfolio_validation_20260614,dir,experiment_output,,2026-06-14 14:38:01
-loss_ablation_queue.pid,file,runtime_log_or_pid,6,2026-06-14 12:26:21
-loss_ablation_queue_batch4_stderr.log,file,runtime_log_or_pid,0,2026-06-13 21:56:07
-loss_ablation_queue_batch4_stdout.log,file,runtime_log_or_pid,25012,2026-06-13 23:31:03
-loss_ablation_queue_stderr.log,file,runtime_log_or_pid,0,2026-06-13 18:13:36
-loss_ablation_queue_stdout.log,file,runtime_log_or_pid,25773,2026-06-13 21:45:19
-loss_ablation_resume_stderr.log,file,runtime_log_or_pid,0,2026-06-13 23:27:57
-loss_ablation_resume_stdout.log,file,runtime_log_or_pid,25157,2026-06-14 00:48:52
-loss_ablation_singlefactor_stderr.log,file,runtime_log_or_pid,48,2026-06-14 02:13:35
-loss_ablation_singlefactor_stdout.log,file,runtime_log_or_pid,69689,2026-06-14 02:12:38
-low_lr_continuation_queue.pid,file,runtime_log_or_pid,6,2026-06-14 12:26:21
 low_lr_continuation_stderr.log,file,runtime_log_or_pid,0,2026-06-14 12:26:21
 low_lr_continuation_stdout.log,file,runtime_log_or_pid,35937,2026-06-14 13:54:40
 m0_topfocus_validation_20260614,dir,experiment_output,,2026-06-14 18:15:05

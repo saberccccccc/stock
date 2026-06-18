@@ -12,7 +12,7 @@ Generated without moving or modifying project outputs.
 | experiment_output, file | 9 |
 | misc, dir | 6 |
 | misc, file | 2 |
-| runtime_log_or_pid, file | 32 |
+| runtime_log_or_pid, file | 22 |
 | source_or_docs, dir | 10 |
 | source_or_docs, file | 14 |
 
@@ -208,16 +208,6 @@ Generated without moving or modifying project outputs.
 | switch_value_data_20260604_top3_pv1m_raw | dir | misc | 2026-06-10 20:59:59 |
 | .gitignore | file | misc | 2026-06-18 13:59:14 |
 | _sys_check.ps1 | file | misc | 2026-05-19 02:46:36 |
-| loss_ablation_queue.pid | file | runtime_log_or_pid | 2026-06-14 12:26:21 |
-| loss_ablation_queue_batch4_stderr.log | file | runtime_log_or_pid | 2026-06-13 21:56:07 |
-| loss_ablation_queue_batch4_stdout.log | file | runtime_log_or_pid | 2026-06-13 23:31:03 |
-| loss_ablation_queue_stderr.log | file | runtime_log_or_pid | 2026-06-13 18:13:36 |
-| loss_ablation_queue_stdout.log | file | runtime_log_or_pid | 2026-06-13 21:45:19 |
-| loss_ablation_resume_stderr.log | file | runtime_log_or_pid | 2026-06-13 23:27:57 |
-| loss_ablation_resume_stdout.log | file | runtime_log_or_pid | 2026-06-14 00:48:52 |
-| loss_ablation_singlefactor_stderr.log | file | runtime_log_or_pid | 2026-06-14 02:13:35 |
-| loss_ablation_singlefactor_stdout.log | file | runtime_log_or_pid | 2026-06-14 02:12:38 |
-| low_lr_continuation_queue.pid | file | runtime_log_or_pid | 2026-06-14 12:26:21 |
 | low_lr_continuation_stderr.log | file | runtime_log_or_pid | 2026-06-14 12:26:21 |
 | low_lr_continuation_stdout.log | file | runtime_log_or_pid | 2026-06-14 13:54:40 |
 | purged_rawmetric_A.pid | file | runtime_log_or_pid | 2026-06-13 17:06:03 |
