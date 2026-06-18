@@ -952,3 +952,60 @@ Phase 5: training/config organization
 Start by extracting stable training experiment definitions for M0/V9/loss
 ablation runs, but do not change training behavior or checkpoint-selection
 rules until each config wrapper has a dry-run or smoke test.
+
+## 2026-06-18 Phase 5 Training Presets Start
+
+### Completed
+
+Created:
+
+```text
+core/training_presets.py
+tests/test_training_presets.py
+```
+
+Added a lightweight parser for existing training experiment JSON files under:
+
+```text
+configs/
+```
+
+The parser expands:
+
+```text
+common + experiments[] -> TrainingExperiment
+```
+
+and can render each experiment into explicit `run/train.py` CLI arguments.
+
+This does not change `run/train.py` behavior. It only makes existing training
+definitions inspectable and testable before wiring them into any CLI wrapper.
+
+### Validation
+
+Compiled:
+
+```text
+core/training_presets.py
+tests/test_training_presets.py
+```
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_training_presets.py `
+  tests\test_experiment_leaderboard.py -q
+```
+
+Result:
+
+```text
+10 passed
+```
+
+### Next Step
+
+Continue Phase 5 by adding a dry-run command renderer for training suites, so
+loss-ablation and OOF fold commands can be printed and reviewed without starting
+training.

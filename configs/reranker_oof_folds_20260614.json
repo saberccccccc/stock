@@ -1,0 +1,63 @@
+{
+  "common": {
+    "model": "v9",
+    "epochs": 6,
+    "lr": 0.0001,
+    "device": "cuda",
+    "batch_size": 4,
+    "val_batch_size": 2,
+    "accum_steps": 4,
+    "memmap_trim_interval": 32,
+    "best_val_metric": "rawtopstable_h5_top0p6",
+    "eval_top_fracs": "0.006,0.01,0.02,0.05,0.10",
+    "early_stop_patience": 6,
+    "seed": 42,
+    "save_every_epoch": true,
+    "horizon_weights": "0.15,0.25,0.35,0.25",
+    "top_focus_delay_epochs": 2,
+    "spread_delay_epochs": 2,
+    "industry_loss_weight": 0.0,
+    "multi_loss_weight": 0.0,
+    "diversity_loss_weight": 0.0,
+    "top_focus_loss_weight": 0.0,
+    "spread_loss_weight": 0.0
+  },
+  "experiments": [
+    {
+      "id": "F1",
+      "output_dir": "checkpoints_reranker_oof_F1_train2017_val2018",
+      "train_label_end": "2017-12-31",
+      "val_label_end": "2018-12-31"
+    },
+    {
+      "id": "F2",
+      "output_dir": "checkpoints_reranker_oof_F2_train2018_val2019",
+      "train_label_end": "2018-12-31",
+      "val_label_end": "2019-12-31"
+    },
+    {
+      "id": "F3",
+      "output_dir": "checkpoints_reranker_oof_F3_train2019_val2020",
+      "train_label_end": "2019-12-31",
+      "val_label_end": "2020-12-31"
+    },
+    {
+      "id": "F4",
+      "output_dir": "checkpoints_reranker_oof_F4_train2020_val2021",
+      "train_label_end": "2020-12-31",
+      "val_label_end": "2021-12-31"
+    },
+    {
+      "id": "F5",
+      "output_dir": "checkpoints_reranker_oof_F5_train2021_val2022",
+      "train_label_end": "2021-12-31",
+      "val_label_end": "2022-12-31"
+    },
+    {
+      "id": "F6",
+      "output_dir": "checkpoints_reranker_oof_F6_train2022_val2023",
+      "train_label_end": "2022-12-31",
+      "val_label_end": "2023-12-31"
+    }
+  ]
+}

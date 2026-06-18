@@ -1,0 +1,49 @@
+{
+  "common": {
+    "model": "v9",
+    "epochs": 6,
+    "lr": 0.0001,
+    "device": "cuda",
+    "batch_size": 4,
+    "val_batch_size": 2,
+    "accum_steps": 4,
+    "memmap_trim_interval": 32,
+    "best_val_metric": "rawtopstable_h5_top0p6",
+    "eval_top_fracs": "0.006,0.01,0.02,0.05,0.10",
+    "train_label_end": "2023-12-31",
+    "val_label_end": "2024-12-31",
+    "early_stop_patience": 6,
+    "seed": 42,
+    "save_every_epoch": true,
+    "horizon_weights": "0.15,0.25,0.35,0.25",
+    "industry_loss_weight": 0.0,
+    "multi_loss_weight": 0.0,
+    "diversity_loss_weight": 0.0,
+    "spread_loss_weight": 0.0,
+    "top_focus_loss_weight": 0.0,
+    "downside_loss_weight": 0.0,
+    "lag1_delay_epochs": 2,
+    "lag1_top_focus_temperature": 0.75,
+    "lag1_top_focus_delay_epochs": 2
+  },
+  "experiments": [
+    {
+      "id": "LAG005",
+      "output_dir": "checkpoints_loss_ablation_LAG005",
+      "lag1_loss_weight": 0.05,
+      "lag1_top_focus_loss_weight": 0.0
+    },
+    {
+      "id": "LAG010",
+      "output_dir": "checkpoints_loss_ablation_LAG010",
+      "lag1_loss_weight": 0.10,
+      "lag1_top_focus_loss_weight": 0.0
+    },
+    {
+      "id": "LAGTF001",
+      "output_dir": "checkpoints_loss_ablation_LAGTF001",
+      "lag1_loss_weight": 0.0,
+      "lag1_top_focus_loss_weight": 0.001
+    }
+  ]
+}

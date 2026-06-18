@@ -1,0 +1,45 @@
+{
+  "common": {
+    "model": "v9",
+    "epochs": 10,
+    "lr": 0.00001,
+    "device": "cuda",
+    "batch_size": 4,
+    "val_batch_size": 2,
+    "accum_steps": 4,
+    "memmap_trim_interval": 32,
+    "best_val_metric": "rawtopstable_h5_top0p6",
+    "eval_top_fracs": "0.006,0.01,0.02,0.05,0.10",
+    "train_label_end": "2023-12-31",
+    "val_label_end": "2024-12-31",
+    "early_stop_patience": 4,
+    "seed": 42,
+    "save_every_epoch": true,
+    "reset_optimizer": true,
+    "horizon_weights": "0.15,0.25,0.35,0.25",
+    "top_focus_delay_epochs": 2,
+    "spread_delay_epochs": 2
+  },
+  "experiments": [
+    {
+      "id": "C0",
+      "output_dir": "checkpoints_loss_ablation_A0_low_lr_e10",
+      "resume_from": "checkpoints_loss_ablation_A0/epochs/epoch_006.pt",
+      "industry_loss_weight": 0.0,
+      "multi_loss_weight": 0.3,
+      "diversity_loss_weight": 0.0,
+      "top_focus_loss_weight": 0.0,
+      "spread_loss_weight": 0.0
+    },
+    {
+      "id": "C4",
+      "output_dir": "checkpoints_loss_ablation_A4_low_lr_e10",
+      "resume_from": "checkpoints_loss_ablation_A4/epochs/epoch_006.pt",
+      "industry_loss_weight": 0.0,
+      "multi_loss_weight": 0.3,
+      "diversity_loss_weight": 0.0,
+      "top_focus_loss_weight": 0.005,
+      "spread_loss_weight": 0.0
+    }
+  ]
+}
