@@ -26,6 +26,8 @@ def parse_args():
     parser.add_argument("--root", default=".")
     parser.add_argument("--class", dest="item_class", default=None, help="Only include one inventory class.")
     parser.add_argument("--target", default=None, help="Only include one archive target path.")
+    parser.add_argument("--name-prefix", default=None, help="Only include archive candidates with this name prefix.")
+    parser.add_argument("--name-glob", default=None, help="Only include archive candidates matching this glob.")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument(
         "--execute",
@@ -43,6 +45,8 @@ def main():
         root=args.root,
         item_class=args.item_class,
         target=args.target,
+        name_prefix=args.name_prefix,
+        name_glob=args.name_glob,
     )
     if args.limit is not None:
         moves = moves[: args.limit]

@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import shutil
 from dataclasses import dataclass
+from fnmatch import fnmatchcase
 from pathlib import Path
 
 
@@ -216,6 +217,8 @@ def build_archive_moves(
     include_missing: bool = False,
     item_class: str | None = None,
     target: str | None = None,
+    name_prefix: str | None = None,
+    name_glob: str | None = None,
 ) -> list[ArchiveMove]:
     root = Path(root)
     moves = []
@@ -225,6 +228,10 @@ def build_archive_moves(
         if item_class is not None and row.item_class != item_class:
             continue
         if target is not None and row.target != target:
+            continue
+        if name_prefix is not None and not row.name.startswith(name_prefix):
+            continue
+        if name_glob is not None and not fnmatchcase(row.name, name_glob):
             continue
         if not row.target:
             raise ValueError(f"Archive candidate has no target: {row.name}")

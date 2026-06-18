@@ -92,6 +92,61 @@ def test_build_archive_moves_filters_class_and_target(tmp_path):
     assert [move.name for move in moves] == [".pytest_cache"]
 
 
+def test_build_archive_moves_filters_name_prefix_and_glob(tmp_path):
+    rows = [
+        plan_inventory_row(
+            {
+                "name": "backtest_results_exp_base_avgw3_val",
+                "kind": "dir",
+                "class": "experiment_output",
+            }
+        ),
+        plan_inventory_row(
+            {
+                "name": "backtest_results_test_plan_v9_avgw3_val",
+                "kind": "dir",
+                "class": "experiment_output",
+            }
+        ),
+        plan_inventory_row(
+            {
+                "name": "candidate_model_validation_20260614",
+                "kind": "dir",
+                "class": "experiment_output",
+            }
+        ),
+        plan_inventory_row(
+            {
+                "name": "backtest_results_summary_20260528.txt",
+                "kind": "file",
+                "class": "experiment_output",
+            }
+        ),
+    ]
+    for row in rows:
+        path = tmp_path / row.name
+        if row.kind == "dir":
+            path.mkdir()
+        else:
+            path.write_text("summary", encoding="utf-8")
+
+    prefix_moves = build_archive_moves(
+        rows,
+        root=tmp_path,
+        item_class="experiment_output",
+        name_prefix="backtest_results_exp_",
+    )
+    assert [move.name for move in prefix_moves] == ["backtest_results_exp_base_avgw3_val"]
+
+    glob_moves = build_archive_moves(
+        rows,
+        root=tmp_path,
+        item_class="experiment_output",
+        name_glob="backtest_results_summary_*.txt",
+    )
+    assert [move.name for move in glob_moves] == ["backtest_results_summary_20260528.txt"]
+
+
 def test_execute_archive_moves_moves_file_in_tmpdir(tmp_path):
     rows = [
         plan_inventory_row({"name": "errors.log", "kind": "file", "class": "runtime_log_or_pid"}),

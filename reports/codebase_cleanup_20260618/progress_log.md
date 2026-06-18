@@ -2590,3 +2590,76 @@ rg "98|backtest_results_exp_\*|backtest_results_test_plan_\*|Snapshot Coverage|D
 
 Add a filtered archive option or explicit batch list for legacy backtest outputs
 only, then dry-run the first small `backtest_results_exp_*` batch.
+
+## Phase 8 Archive Filter Refinement
+
+### Completed
+
+Added name-based filtering to the archive move builder and CLI:
+
+```text
+experiments/archive_plan.py
+run/archive_from_plan.py
+```
+
+New dry-run filters:
+
+```text
+--name-prefix <prefix>
+--name-glob <glob>
+```
+
+This allows a safe legacy backtest batch such as:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class experiment_output `
+  --name-prefix backtest_results_exp_ `
+  --limit 10
+```
+
+without including active candidate evidence such as:
+
+```text
+candidate_model_validation_20260614
+open_reranker_current_v9_*
+v9_avgw3_filter095_validation_20260616
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py `
+  tests\test_review_docs.py -q
+```
+
+Result:
+
+```text
+15 passed
+```
+
+Dry-run checks:
+
+```text
+run\archive_from_plan.py --class experiment_output --name-prefix backtest_results_exp_ --limit 10
+```
+
+Result: 10 moves, all `backtest_results_exp_*`.
+
+```text
+run\archive_from_plan.py --class experiment_output --name-glob "backtest_results_summary_*.txt"
+```
+
+Result: 2 moves, both legacy summary txt files.
+
+No directories were moved.
+
+### Next Step
+
+Run one small execute batch for `backtest_results_exp_*` after reviewing the
+dry-run list again.
