@@ -7,6 +7,7 @@ from core.training_presets import (
     load_training_suites,
     params_to_train_argv,
     render_train_command,
+    validate_training_params,
 )
 
 
@@ -43,6 +44,75 @@ def test_load_training_suite_expands_common_params(tmp_path):
     assert experiment.output_dir == "checkpoints_A0"
     assert experiment.params["model"] == "v9"
     assert experiment.params["top_focus_loss_weight"] == 0.005
+
+
+def test_load_training_suite_rejects_unknown_common_key(tmp_path):
+    config = tmp_path / "bad_common.json"
+    config.write_text(
+        json.dumps(
+            {
+                "common": {
+                    "model": "v9",
+                    "epochz": 6,
+                },
+                "experiments": [
+                    {
+                        "id": "A0",
+                        "output_dir": "checkpoints_A0",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    try:
+        load_training_suite(config)
+    except ValueError as exc:
+        assert "epochz" in str(exc)
+        assert "bad_common.json:common" in str(exc)
+    else:
+        raise AssertionError("unknown common key must be rejected")
+
+
+def test_load_training_suite_rejects_unknown_experiment_key(tmp_path):
+    config = tmp_path / "bad_experiment.json"
+    config.write_text(
+        json.dumps(
+            {
+                "common": {
+                    "model": "v9",
+                },
+                "experiments": [
+                    {
+                        "id": "A0",
+                        "output_dir": "checkpoints_A0",
+                        "top_fokus_loss_weight": 0.005,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    try:
+        load_training_suite(config)
+    except ValueError as exc:
+        assert "top_fokus_loss_weight" in str(exc)
+        assert "bad_experiment.json:A0" in str(exc)
+    else:
+        raise AssertionError("unknown experiment key must be rejected")
+
+
+def test_validate_training_params_accepts_train_cli_keys():
+    validate_training_params(
+        {
+            "model": "v9",
+            "train_label_end": "2023-12-31",
+            "val_label_end": "2024-12-31",
+            "save_every_epoch": True,
+        }
+    )
 
 
 def test_params_to_train_argv_uses_train_cli_flags():

@@ -9,6 +9,54 @@ from pathlib import Path
 from typing import Any
 
 
+VALID_TRAIN_PARAM_KEYS = frozenset(
+    {
+        "model",
+        "test_stocks",
+        "epochs",
+        "lr",
+        "device",
+        "output_dir",
+        "data_dir",
+        "batch_size",
+        "val_batch_size",
+        "accum_steps",
+        "memmap_trim_interval",
+        "top_focus_loss_weight",
+        "top_focus_temperature",
+        "top_focus_delay_epochs",
+        "downside_loss_weight",
+        "downside_temperature",
+        "downside_delay_epochs",
+        "lag1_loss_weight",
+        "lag1_delay_epochs",
+        "lag1_top_focus_loss_weight",
+        "lag1_top_focus_temperature",
+        "lag1_top_focus_delay_epochs",
+        "pairwise_top_loss_weight",
+        "pairwise_top_frac",
+        "pairwise_num_pairs",
+        "pairwise_model_top_weight",
+        "pairwise_delay_epochs",
+        "best_val_metric",
+        "eval_top_fracs",
+        "horizon_weights",
+        "save_every_epoch",
+        "early_stop_patience",
+        "seed",
+        "industry_loss_weight",
+        "multi_loss_weight",
+        "diversity_loss_weight",
+        "spread_loss_weight",
+        "spread_delay_epochs",
+        "resume_from",
+        "reset_optimizer",
+        "train_label_end",
+        "val_label_end",
+    }
+)
+
+
 @dataclass(frozen=True)
 class TrainingExperiment:
     """One concrete train.py invocation expanded from a preset suite."""
@@ -49,6 +97,7 @@ def load_training_suite(path: str | Path) -> TrainingSuite:
     path = Path(path)
     payload = json.loads(path.read_text(encoding="utf-8"))
     common = dict(payload.get("common", {}))
+    validate_training_params(common, context=f"{path}:common")
     raw_experiments = payload.get("experiments", [])
     if not raw_experiments:
         raise ValueError(f"Training suite has no experiments: {path}")
@@ -59,6 +108,10 @@ def load_training_suite(path: str | Path) -> TrainingSuite:
             raise ValueError(f"Training experiment missing id in {path}")
         if "output_dir" not in raw:
             raise ValueError(f"Training experiment {raw['id']} missing output_dir")
+        validate_training_params(
+            {key: value for key, value in raw.items() if key != "id"},
+            context=f"{path}:{raw['id']}",
+        )
         params = {**common, **raw}
         experiment_id = str(params.pop("id"))
         experiments.append(
@@ -81,6 +134,16 @@ def load_training_suites(config_dir: str | Path) -> tuple[TrainingSuite, ...]:
         load_training_suite(path)
         for path in sorted(config_dir.glob("*.json"))
     )
+
+
+def validate_training_params(params: dict[str, Any], context: str = "training params") -> None:
+    unknown = sorted(set(params) - VALID_TRAIN_PARAM_KEYS)
+    if unknown:
+        allowed = ", ".join(sorted(VALID_TRAIN_PARAM_KEYS))
+        raise ValueError(
+            f"Unknown train.py parameter(s) in {context}: {', '.join(unknown)}. "
+            f"Allowed keys: {allowed}"
+        )
 
 
 def params_to_train_argv(params: dict[str, Any]) -> list[str]:

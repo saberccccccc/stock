@@ -1096,3 +1096,72 @@ printed one M1 command; no training launched
 
 The next Phase 5 step is to add validation around config keys, so typos in JSON
 presets fail before a long training run starts.
+
+## 2026-06-18 Phase 5 Training Config Key Validation
+
+### Completed
+
+Extended:
+
+```text
+core/training_presets.py
+tests/test_training_presets.py
+```
+
+Added an explicit whitelist for `run/train.py` parameters and validation during
+training suite loading. Unknown keys now fail early with the config path and
+experiment id in the error message.
+
+This catches mistakes such as:
+
+```text
+epochz
+top_fokus_loss_weight
+```
+
+before any training run starts.
+
+### Validation
+
+Compiled:
+
+```text
+core/training_presets.py
+tests/test_training_presets.py
+run/render_training_commands.py
+```
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_training_presets.py -q
+```
+
+Result:
+
+```text
+8 passed
+```
+
+Dry-run all configs with experiment filter:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\render_training_commands.py `
+  --config-dir configs `
+  --experiment-id A0 `
+  --python-exe python
+```
+
+Result:
+
+```text
+rendered loss_ablation_20260613:A0
+```
+
+No unknown config keys were found in the current `configs/*.json` files.
+
+### Next Step
+
+The next Phase 5 step is to add a small checkpoint-selection report helper that
+can rank saved epoch metrics by explicit gates instead of relying on IC alone.
