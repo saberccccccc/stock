@@ -2190,3 +2190,64 @@ reports/codebase_cleanup_20260618/reranker_research_index.md
 
 Do not move the source markdown files until the consolidation index has been
 created and checked.
+
+## Phase 7 Training Research Consolidation Index
+
+### Completed
+
+Created:
+
+```text
+reports/codebase_cleanup_20260618/training_research_index.md
+```
+
+This index consolidates the root-level training and loss-ablation documents:
+
+```text
+LOSS_ABLATION_PLAN.md
+PURGED_ALPHA_OPTIMIZATION_PLAN.md
+CANDIDATE_MODEL_VALIDATION_PLAN_20260614.md
+EXPERIMENTS.md
+```
+
+Key conclusions captured:
+
+```text
+9.5% signal-day return filter remains the strongest validated execution transform.
+A4-E6 was the strongest new purged candidate but did not pass the standalone 2024 promotion gate.
+Frozen V9 remains operationally useful, but its 2025-2026 confirmation is not clean model evidence.
+Alpha IC is a floor, not the final checkpoint-selection criterion.
+Top-focus, R1 raw Top30 return loss and R2 chase penalty remain research candidates, not proven production improvements.
+```
+
+No source markdown files were moved.
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_review_docs.py `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py -q
+```
+
+Result:
+
+```text
+14 passed
+```
+
+Content spot-check:
+
+```text
+rg "9.5%|A4-E6|old frozen V9|Top-focus|R1|R2|Promotion gate" `
+  reports\codebase_cleanup_20260618\training_research_index.md
+```
+
+### Next Step
+
+Create `reports/codebase_cleanup_20260618/reranker_research_index.md`, then
+the root reranker plans can be consolidated in the same way without losing the
+M0/V3/V4/V4.1 decision history.
