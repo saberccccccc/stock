@@ -164,7 +164,6 @@ FORWARD_TEST_LOG.md,file,experiment_output,4133,2026-06-12 22:21:41
 FROZEN_FORWARD_STRATEGY.md,file,source_or_docs,2420,2026-06-12 02:41:53
 lag1_checkpoint_sweep_m0_20260616,dir,experiment_output,,2026-06-16 15:51:46
 locked_candidate_confirmation_20260614,dir,experiment_output,,2026-06-14 14:19:01
-logs,dir,misc,,2026-06-10 20:59:59
 LOSS_ABLATION_PLAN.md,file,source_or_docs,6280,2026-06-13 18:11:35
 loss_ablation_portfolio_validation_20260614,dir,experiment_output,,2026-06-14 14:38:01
 m0_topfocus_validation_20260614,dir,experiment_output,,2026-06-14 18:15:05

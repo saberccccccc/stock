@@ -8,7 +8,7 @@ This is a non-destructive plan. No files are moved by this report.
 |---|---:|
 | archive_candidate | 172 |
 | protect | 18 |
-| review | 22 |
+| review | 21 |
 
 ## Protected Paths
 
@@ -222,7 +222,6 @@ This is a non-destructive plan. No files are moved by this report.
 | CLAUDE.md | file | source_or_docs | manual review before any move |
 | EXPERIMENTS.md | file | source_or_docs | manual review before any move |
 | FROZEN_FORWARD_STRATEGY.md | file | source_or_docs | manual review before any move |
-| logs | dir | misc | manual review before any move |
 | LOSS_ABLATION_PLAN.md | file | source_or_docs | manual review before any move |
 | PURGED_ALPHA_OPTIMIZATION_PLAN.md | file | source_or_docs | manual review before any move |
 | README.md | file | source_or_docs | manual review before any move |

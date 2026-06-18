@@ -54,6 +54,8 @@ def classify_top_level(name: str, kind: str) -> str:
             return "source_or_docs"
     if lower in {".pytest_cache", "__pycache__", "archive", "cache"} or lower.startswith("_archive"):
         return "archive_or_cache"
+    if kind == "dir" and lower == "logs":
+        return "runtime_log_or_pid"
     if kind == "file" and (
         lower.endswith(".pid")
         or lower.endswith(".log")

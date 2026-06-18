@@ -10,7 +10,7 @@ Generated without moving or modifying project outputs.
 | checkpoint_or_model, dir | 37 |
 | experiment_output, dir | 128 |
 | experiment_output, file | 9 |
-| misc, dir | 6 |
+| misc, dir | 5 |
 | misc, file | 2 |
 | source_or_docs, dir | 10 |
 | source_or_docs, file | 14 |
@@ -202,7 +202,6 @@ Generated without moving or modifying project outputs.
 | .claude | dir | misc | 2026-06-10 22:53:55 |
 | .vscode | dir | misc | 2026-06-10 20:58:10 |
 | backtest_result_snapshots | dir | misc | 2026-06-10 20:58:12 |
-| logs | dir | misc | 2026-06-10 20:59:59 |
 | rerun_v9_avgw3_open_to_open_20260616 | dir | misc | 2026-06-16 18:46:59 |
 | switch_value_data_20260604_top3_pv1m_raw | dir | misc | 2026-06-10 20:59:59 |
 | .gitignore | file | misc | 2026-06-18 13:59:14 |

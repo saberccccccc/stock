@@ -2044,3 +2044,76 @@ archive/logs_202606 contains 52 moved files
 Review the remaining 22 `review` entries and decide whether docs/scripts should
 be kept, indexed, or archived. Avoid moving checkpoints, experiment outputs, or
 backtest artifacts until each class has a narrower plan.
+
+## Phase 6 Legacy Logs Directory Archive
+
+### Completed
+
+Improved source inventory classification so the top-level `logs/` directory is
+classified as `runtime_log_or_pid` instead of generic `misc`.
+
+Dry-run reviewed:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class runtime_log_or_pid `
+  --limit 5
+```
+
+Then executed:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class runtime_log_or_pid `
+  --limit 5 `
+  --execute
+```
+
+Moved:
+
+```text
+logs -> archive/logs_202606/logs
+```
+
+Regenerated source inventory and archive plan.
+
+Current archive plan summary after the move:
+
+```text
+archive_candidate=172
+protect=18
+review=21
+runtime_log_or_pid remaining=0
+top-level inventory rows=211
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py -q
+```
+
+Result:
+
+```text
+11 passed
+```
+
+Spot checks:
+
+```text
+logs exists=False
+archive/logs_202606/logs exists=True
+archive/logs_202606 contains 53 top-level entries
+```
+
+### Next Step
+
+Create a separate review plan for the remaining 21 manual-review entries:
+keep active docs in place, archive local IDE/settings/cache separately, and
+handle historical backtest/report snapshots only after mapping which reports
+are still referenced by the current strategy documents.
