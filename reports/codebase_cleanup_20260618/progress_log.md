@@ -3259,6 +3259,66 @@ It also marks M0/M1 protected checkpoint references and warns against broad
 
 Generate a checkpoint-reference audit before moving any training checkpoints.
 
+## Phase 15 Checkpoint Reference Audit
+
+### Completed
+
+Added a repeatable checkpoint/model reference audit:
+
+```text
+experiments/checkpoint_reference_audit.py
+run/generate_checkpoint_reference_audit.py
+tests/test_checkpoint_reference_audit.py
+```
+
+Generated:
+
+```text
+reports/codebase_cleanup_20260618/checkpoint_reference_audit.csv
+reports/codebase_cleanup_20260618/checkpoint_reference_audit.md
+```
+
+Current checkpoint/model audit summary:
+
+```text
+keep=3
+hold=30
+archive_after_matching_artifact_ledger=4
+```
+
+The only checkpoint/model archive candidates with no direct lightweight text
+references are:
+
+```text
+checkpoints_batch4_benchmark_20260613
+checkpoints_batch8_benchmark_20260613
+checkpoints_smoke_rawmetrics_20260613
+switch_value_models_20260604_top3_pv1m_raw_lgb_h5
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_checkpoint_reference_audit.py `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py `
+  tests\test_review_docs.py -q
+```
+
+Result:
+
+```text
+19 passed
+```
+
+### Next Step
+
+Inspect and, if clean, archive the 4 no-reference benchmark/smoke/switch-value
+model directories using exact names only.
+
 ## Phase 8 Fourth Legacy Backtest Archive Batch
 
 ### Completed

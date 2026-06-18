@@ -38,6 +38,20 @@ top-level backtest_results_* entries=0
 | Reranker checkpoints | 6 | Pair with reranker artifact ledger; archive only after OOF/model reproducibility is documented. |
 | Other model outputs | 5 | Inspect individually: benchmarks, smoke rawmetrics, LightGBM/switch-value model directories. |
 
+Reference audit:
+
+```text
+reports/codebase_cleanup_20260618/checkpoint_reference_audit.md
+```
+
+Current audit decision counts:
+
+```text
+keep=3
+hold=30
+archive_after_matching_artifact_ledger=4
+```
+
 ## Recommended Next Order
 
 1. Update `experiment_output_ledger.md` for the current post-backtest state.
