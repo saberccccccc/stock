@@ -3231,6 +3231,34 @@ other_models=5
 Build the training-validation ledger before moving any M0/A0/A4/loss/lag1
 directories or their matching checkpoints.
 
+## Phase 14 Training Validation Ledger
+
+### Completed
+
+Created:
+
+```text
+reports/codebase_cleanup_20260618/training_validation_ledger.md
+```
+
+The ledger records the current training decision boundary:
+
+```text
+baseline=M0
+separate multi-horizon auxiliary loss=removed from baseline
+M0+Top-focus 0.005=rejected
+diversity=rejected
+spread=rejected
+lag1/downside=experimental only
+```
+
+It also marks M0/M1 protected checkpoint references and warns against broad
+`checkpoints_loss_ablation_*` archive moves.
+
+### Next Step
+
+Generate a checkpoint-reference audit before moving any training checkpoints.
+
 ## Phase 8 Fourth Legacy Backtest Archive Batch
 
 ### Completed

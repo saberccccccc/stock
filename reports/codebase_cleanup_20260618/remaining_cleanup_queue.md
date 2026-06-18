@@ -41,7 +41,7 @@ top-level backtest_results_* entries=0
 ## Recommended Next Order
 
 1. Update `experiment_output_ledger.md` for the current post-backtest state.
-2. Create a training-validation ledger for M0/A0/A4/loss/lag1 directories and related scripts.
+2. Use `training_validation_ledger.md` for M0/A0/A4/loss/lag1 directories and related scripts.
 3. Create a checkpoint-reference audit that searches reports/configs/scripts for each checkpoint directory name.
 4. Only after the audit, move rejected loss-ablation checkpoints in small exact-prefix batches.
 5. Leave official V9/open-ledger/cutoff evidence protected unless a newer protected baseline replaces it.
