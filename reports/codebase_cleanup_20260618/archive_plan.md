@@ -6,7 +6,7 @@ This is a non-destructive plan. No files are moved by this report.
 
 | Action | Count |
 |---|---:|
-| archive_candidate | 94 |
+| archive_candidate | 92 |
 | protect | 18 |
 | review | 21 |
 
@@ -40,8 +40,6 @@ This is a non-destructive plan. No files are moved by this report.
 | _archive_models_data_20260604 | dir | archive_or_cache | archive/cache_202606 |
 | _archive_results_20260604 | dir | archive_or_cache | archive/cache_202606 |
 | backtest_results_small_account_smoke_20260612 | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_summary_20260516.txt | file | experiment_output | archive/experiments_202606 |
-| backtest_results_summary_20260528.txt | file | experiment_output | archive/experiments_202606 |
 | backtest_results_switch_cache_smoke_fast2 | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_switch_cache_smoke_read | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_switch_cache_smoke_read5 | dir | experiment_output | archive/experiments_202606 |

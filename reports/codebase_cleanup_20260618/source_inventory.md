@@ -9,7 +9,7 @@ Generated without moving or modifying project outputs.
 | archive_or_cache, dir | 6 |
 | checkpoint_or_model, dir | 37 |
 | experiment_output, dir | 50 |
-| experiment_output, file | 9 |
+| experiment_output, file | 7 |
 | misc, dir | 5 |
 | misc, file | 2 |
 | source_or_docs, dir | 10 |
@@ -112,8 +112,6 @@ Generated without moving or modifying project outputs.
 | v9_avgw3_filter095_validation_20260616 | dir | experiment_output | 2026-06-16 21:04:16 |
 | v9_avgw3_open_ledger_20260616 | dir | experiment_output | 2026-06-17 00:12:37 |
 | v9_avgw3_open_ledger_20260617 | dir | experiment_output | 2026-06-18 00:45:42 |
-| backtest_results_summary_20260516.txt | file | experiment_output | 2026-05-19 02:46:36 |
-| backtest_results_summary_20260528.txt | file | experiment_output | 2026-05-28 14:07:38 |
 | FORWARD_TEST_LOG.md | file | experiment_output | 2026-06-12 22:21:41 |
 | resume_downside_topfocus_remaining_20260616.ps1 | file | experiment_output | 2026-06-16 12:30:18 |
 | run_forward_observation_candidates_20260617.ps1 | file | experiment_output | 2026-06-17 16:21:50 |

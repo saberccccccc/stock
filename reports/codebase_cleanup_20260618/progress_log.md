@@ -2897,6 +2897,69 @@ lowest-risk next batch is likely the summary text files:
 run\archive_from_plan.py --class experiment_output --name-glob "backtest_results_summary_*.txt"
 ```
 
+## Phase 9 Legacy Backtest Summary Text Archive
+
+### Completed
+
+Dry-ran and executed the summary-text batch:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class experiment_output `
+  --name-glob "backtest_results_summary_*.txt" `
+  --execute
+```
+
+Moved 2 legacy summary text files:
+
+```text
+backtest_results_summary_20260516.txt
+backtest_results_summary_20260528.txt
+```
+
+Destination:
+
+```text
+archive/experiments_202606/
+```
+
+Regenerated source inventory and archive plan.
+
+Current summary after the move:
+
+```text
+top-level inventory rows=131
+archive_candidate=92
+protect=18
+review=21
+experiment_output candidates=54
+checkpoint_or_model candidates=34
+archive_or_cache candidates=4
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py `
+  tests\test_review_docs.py -q
+```
+
+Result:
+
+```text
+15 passed
+```
+
+### Next Step
+
+Review the remaining `backtest_results_switch_*` and small smoke outputs before
+moving them. Do not move active V9/open-reranker/loss validation evidence until
+their ledgers prove the conclusions are represented elsewhere.
+
 ## Phase 8 Fourth Legacy Backtest Archive Batch
 
 ### Completed

@@ -13,8 +13,6 @@ archive,dir,archive_or_cache,protect,,"active source, official baseline, or forw
 backtest,dir,source_or_docs,protect,,"active source, official baseline, or forward-observation dependency"
 backtest_result_snapshots,dir,misc,review,,manual review before any move
 backtest_results_small_account_smoke_20260612,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
-backtest_results_summary_20260516.txt,file,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
-backtest_results_summary_20260528.txt,file,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
 backtest_results_switch_cache_smoke_fast2,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
 backtest_results_switch_cache_smoke_read,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
 backtest_results_switch_cache_smoke_read5,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
