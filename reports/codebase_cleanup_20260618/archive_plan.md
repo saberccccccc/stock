@@ -6,7 +6,7 @@ This is a non-destructive plan. No files are moved by this report.
 
 | Action | Count |
 |---|---:|
-| archive_candidate | 120 |
+| archive_candidate | 110 |
 | protect | 18 |
 | review | 21 |
 
@@ -57,16 +57,6 @@ This is a non-destructive plan. No files are moved by this report.
 | backtest_results_switch_value_20260604_v9_baseline_layer_val | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_temporal_full_eval_20260604 | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_temporal_retention_20260604_v10_v9warm_toploss | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_test_plan_fixed_names_avgw3_test | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_test_plan_fixed_names_avgw3_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_test_plan_share_ledger_avgw3_test | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_test_plan_share_ledger_avgw3_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_test_plan_share_ledger_candidate_sweep_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_test_plan_share_ledger_primary_stress_2x | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_test_plan_share_ledger_primary_stress_3x | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_test_plan_share_ledger_primary_stress_lag1 | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_test_plan_share_ledger_primary_test | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_test_plan_share_ledger_smoke | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_test_plan_share_ledger_stress_2x | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_test_plan_share_ledger_stress_3x | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_test_plan_share_ledger_stress_lag1 | dir | experiment_output | archive/experiments_202606 |

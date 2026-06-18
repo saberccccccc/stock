@@ -8,7 +8,7 @@ Generated without moving or modifying project outputs.
 |---|---:|
 | archive_or_cache, dir | 6 |
 | checkpoint_or_model, dir | 37 |
-| experiment_output, dir | 76 |
+| experiment_output, dir | 66 |
 | experiment_output, file | 9 |
 | misc, dir | 5 |
 | misc, file | 2 |
@@ -78,16 +78,6 @@ Generated without moving or modifying project outputs.
 | backtest_results_switch_value_20260604_v9_baseline_layer_val | dir | experiment_output | 2026-06-10 20:58:10 |
 | backtest_results_temporal_full_eval_20260604 | dir | experiment_output | 2026-06-10 20:58:10 |
 | backtest_results_temporal_retention_20260604_v10_v9warm_toploss | dir | experiment_output | 2026-06-10 20:58:10 |
-| backtest_results_test_plan_fixed_names_avgw3_test | dir | experiment_output | 2026-06-12 02:18:40 |
-| backtest_results_test_plan_fixed_names_avgw3_val | dir | experiment_output | 2026-06-12 02:17:35 |
-| backtest_results_test_plan_share_ledger_avgw3_test | dir | experiment_output | 2026-06-12 02:31:19 |
-| backtest_results_test_plan_share_ledger_avgw3_val | dir | experiment_output | 2026-06-12 02:29:40 |
-| backtest_results_test_plan_share_ledger_candidate_sweep_val | dir | experiment_output | 2026-06-12 02:37:07 |
-| backtest_results_test_plan_share_ledger_primary_stress_2x | dir | experiment_output | 2026-06-12 02:38:57 |
-| backtest_results_test_plan_share_ledger_primary_stress_3x | dir | experiment_output | 2026-06-12 02:39:50 |
-| backtest_results_test_plan_share_ledger_primary_stress_lag1 | dir | experiment_output | 2026-06-12 02:40:43 |
-| backtest_results_test_plan_share_ledger_primary_test | dir | experiment_output | 2026-06-12 02:38:04 |
-| backtest_results_test_plan_share_ledger_smoke | dir | experiment_output | 2026-06-12 02:27:14 |
 | backtest_results_test_plan_share_ledger_stress_2x | dir | experiment_output | 2026-06-12 02:33:23 |
 | backtest_results_test_plan_share_ledger_stress_3x | dir | experiment_output | 2026-06-12 02:34:17 |
 | backtest_results_test_plan_share_ledger_stress_lag1 | dir | experiment_output | 2026-06-12 02:35:15 |
