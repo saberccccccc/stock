@@ -34,6 +34,16 @@ def test_scan_top_level_and_write_csv(tmp_path):
     assert classes["loss_ablation_queue.pid"] == "runtime_log_or_pid"
 
 
+def test_scan_top_level_skips_volatile_cache_dirs(tmp_path):
+    (tmp_path / ".pytest_cache").mkdir()
+    (tmp_path / "__pycache__").mkdir()
+    (tmp_path / "core").mkdir()
+
+    items = scan_top_level(tmp_path)
+
+    assert [item.name for item in items] == ["core"]
+
+
 def test_inventory_markdown_contains_summary(tmp_path):
     (tmp_path / "run").mkdir()
     (tmp_path / "backtest_results_demo").mkdir()

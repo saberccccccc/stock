@@ -6,7 +6,7 @@ Generated without moving or modifying project outputs.
 
 | Group | Count |
 |---|---:|
-| archive_or_cache, dir | 6 |
+| archive_or_cache, dir | 2 |
 | checkpoint_or_model, dir | 33 |
 | experiment_output, dir | 32 |
 | experiment_output, file | 7 |
@@ -19,11 +19,7 @@ Generated without moving or modifying project outputs.
 
 | Name | Kind | Class | Last Write |
 |---|---|---|---|
-| .pytest_cache | dir | archive_or_cache | 2026-06-18 01:33:32 |
-| __pycache__ | dir | archive_or_cache | 2026-06-18 01:33:32 |
-| _archive_models_data_20260604 | dir | archive_or_cache | 2026-06-10 21:00:00 |
-| _archive_results_20260604 | dir | archive_or_cache | 2026-06-10 21:00:05 |
-| archive | dir | archive_or_cache | 2026-06-19 00:46:44 |
+| archive | dir | archive_or_cache | 2026-06-19 01:03:15 |
 | cache | dir | archive_or_cache | 2026-06-17 23:29:57 |
 | checkpoints | dir | checkpoint_or_model | 2026-06-10 20:59:43 |
 | checkpoints_exp | dir | checkpoint_or_model | 2026-06-10 20:59:44 |

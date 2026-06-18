@@ -8,8 +8,14 @@ It summarizes what remains in `archive_plan.csv` and sets the next safe order.
 | Class | Count |
 |---|---:|
 | `experiment_output` | 36 |
-| `checkpoint_or_model` | 34 |
-| `archive_or_cache` | 4 |
+| `checkpoint_or_model` | 30 |
+| `archive_or_cache` | 0 |
+
+After the no-reference checkpoint/model archive batch, checkpoint/model
+candidates are down to 30. The four remaining old archive/cache candidates were
+moved to `archive/cache_202606/`; regenerated `.pytest_cache` and `__pycache__`
+are now skipped by source inventory because they are volatile test/runtime
+caches.
 
 ## Remaining Experiment Outputs
 

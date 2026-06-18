@@ -33,6 +33,11 @@ SOURCE_FILES = {
     "__init__.py",
 }
 
+VOLATILE_TOP_LEVEL_CACHE = {
+    ".pytest_cache",
+    "__pycache__",
+}
+
 
 @dataclass(frozen=True)
 class InventoryItem:
@@ -110,7 +115,7 @@ def scan_top_level(root: str | Path) -> list[InventoryItem]:
     items = []
     for path in sorted(root.iterdir(), key=lambda item: item.name.lower()):
         name = path.name
-        if name == ".git":
+        if name == ".git" or name in VOLATILE_TOP_LEVEL_CACHE:
             continue
         stat = path.stat()
         kind = "dir" if path.is_dir() else "file"

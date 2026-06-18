@@ -1,12 +1,8 @@
 name,kind,class,action,target,reason
 .claude,dir,misc,review,,manual review before any move
 .gitignore,file,misc,review,,manual review before any move
-.pytest_cache,dir,archive_or_cache,archive_candidate,archive/cache_202606,classified as archive_or_cache
 .vscode,dir,misc,review,,manual review before any move
 __init__.py,file,source_or_docs,review,,manual review before any move
-__pycache__,dir,archive_or_cache,archive_candidate,archive/cache_202606,classified as archive_or_cache
-_archive_models_data_20260604,dir,archive_or_cache,archive_candidate,archive/cache_202606,classified as archive_or_cache
-_archive_results_20260604,dir,archive_or_cache,archive_candidate,archive/cache_202606,classified as archive_or_cache
 _sys_check.ps1,file,misc,review,,manual review before any move
 alpha,dir,source_or_docs,protect,,"active source, official baseline, or forward-observation dependency"
 archive,dir,archive_or_cache,protect,,"active source, official baseline, or forward-observation dependency"
