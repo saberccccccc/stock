@@ -2504,3 +2504,89 @@ required paths covered:
 
 Run representative sampling for legacy `backtest_results_*` directories, then
 archive a first small batch of clearly superseded legacy backtest outputs.
+
+## Phase 8 Legacy Backtest Results Sampling
+
+### Completed
+
+Created:
+
+```text
+reports/codebase_cleanup_20260618/legacy_backtest_sampling.csv
+reports/codebase_cleanup_20260618/legacy_backtest_sampling.md
+```
+
+The sampling pass reviewed archive candidates matching `backtest_results_*`.
+No directories were moved.
+
+Candidate count:
+
+```text
+backtest_results_* archive candidates=98
+```
+
+Group counts:
+
+```text
+backtest_results_exp_*=52
+backtest_results_test_plan_*=26
+backtest_results_switch_value_*=9
+backtest_results_temporal_*=2
+backtest_results_summary_*.txt=2
+other smoke/cache/topstable/retention outputs=7
+```
+
+Representative samples checked:
+
+```text
+backtest_results_exp_base_avgw3_val
+backtest_results_test_plan_share_ledger_primary_test
+backtest_results_switch_value_20260604_v9_alpha_baseline_test
+backtest_results_temporal_full_eval_20260604
+backtest_results_summary_20260528.txt
+backtest_results_v9_retention_20260531
+```
+
+Observed evidence:
+
+```text
+exp/test_plan samples contain diagnostics, monthly/yearly summaries, returns, and execution-cost CSVs.
+backtest_result_snapshots contains historical reports for long-only, switch-value, temporal, and model-strategy comparisons.
+```
+
+Recommendation:
+
+```text
+Start small-batch archives with backtest_results_exp_* and backtest_results_test_plan_*.
+Hold switch_value, temporal, retention/topstable, and smoke/cache outputs for a second pass.
+Do not use broad --class experiment_output alone, because it includes active candidate evidence.
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_review_docs.py `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py -q
+```
+
+Result:
+
+```text
+14 passed
+```
+
+Content spot-check:
+
+```text
+rg "98|backtest_results_exp_\*|backtest_results_test_plan_\*|Snapshot Coverage|Do not move protected|candidate_model_validation_20260614" `
+  reports\codebase_cleanup_20260618\legacy_backtest_sampling.md
+```
+
+### Next Step
+
+Add a filtered archive option or explicit batch list for legacy backtest outputs
+only, then dry-run the first small `backtest_results_exp_*` batch.
