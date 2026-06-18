@@ -1713,3 +1713,93 @@ If continuing root cleanup, run another dry-run with:
 ```
 
 and only execute after reviewing the printed list.
+
+## 2026-06-18 Phase 6 Second Log/PID Archive Batch
+
+### Completed
+
+Dry-run reviewed:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class runtime_log_or_pid `
+  --limit 10
+```
+
+Then executed the second small runtime-only batch:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class runtime_log_or_pid `
+  --limit 10 `
+  --execute
+```
+
+Moved 10 additional low-risk runtime files into:
+
+```text
+archive/logs_202606/
+```
+
+Moved files:
+
+```text
+candidate_validation_stderr.log
+candidate_validation_stdout.log
+downside_topfocus_ablation_20260615.err.log
+downside_topfocus_ablation_20260615.out.log
+errors.log
+formal_train.pid
+formal_train_stderr.log
+formal_train_stdout.log
+loss_ablation_A1_active.pid
+loss_ablation_A2_active.pid
+```
+
+Regenerated:
+
+```text
+reports/codebase_cleanup_20260618/source_inventory.csv
+reports/codebase_cleanup_20260618/source_inventory.md
+reports/codebase_cleanup_20260618/archive_plan.csv
+reports/codebase_cleanup_20260618/archive_plan.md
+```
+
+Current archive plan summary after the move:
+
+```text
+archive_candidate=204
+protect=18
+review=22
+runtime_log_or_pid remaining=32
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py -q
+```
+
+Result:
+
+```text
+11 passed
+```
+
+Spot checks:
+
+```text
+archive -> protect
+archive/logs_202606 contains 20 moved files
+loss_ablation_queue.pid remains an archive_candidate for a later batch
+```
+
+### Next Step
+
+Continue only with small `runtime_log_or_pid` batches after dry-run review. Do
+not move checkpoints or experiment output directories until the source/report
+references are audited.

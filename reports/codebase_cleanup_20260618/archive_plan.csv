@@ -115,8 +115,6 @@ breadth_triggered_target_20260617,dir,experiment_output,archive_candidate,archiv
 cache,dir,archive_or_cache,protect,,"active source, official baseline, or forward-observation dependency"
 candidate_model_validation_20260614,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
 CANDIDATE_MODEL_VALIDATION_PLAN_20260614.md,file,source_or_docs,review,,manual review before any move
-candidate_validation_stderr.log,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
-candidate_validation_stdout.log,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
 checkpoints,dir,checkpoint_or_model,archive_candidate,archive/checkpoints_202606,classified as checkpoint_or_model
 checkpoints_batch4_benchmark_20260613,dir,checkpoint_or_model,archive_candidate,archive/checkpoints_202606,classified as checkpoint_or_model
 checkpoints_batch8_benchmark_20260613,dir,checkpoint_or_model,archive_candidate,archive/checkpoints_202606,classified as checkpoint_or_model
@@ -158,23 +156,15 @@ configs,dir,source_or_docs,protect,,"active source, official baseline, or forwar
 core,dir,source_or_docs,protect,,"active source, official baseline, or forward-observation dependency"
 data,dir,source_or_docs,protect,,"active source, official baseline, or forward-observation dependency"
 diagnostics_negfilter_drop3_20260617,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
-downside_topfocus_ablation_20260615.err.log,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
-downside_topfocus_ablation_20260615.out.log,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
 downside_topfocus_validation_20260616,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
-errors.log,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
 experiments,dir,source_or_docs,protect,,"active source, official baseline, or forward-observation dependency"
 EXPERIMENTS.md,file,source_or_docs,review,,manual review before any move
-formal_train.pid,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
-formal_train_stderr.log,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
-formal_train_stdout.log,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
 forward_results,dir,experiment_output,protect,,"active source, official baseline, or forward-observation dependency"
 FORWARD_TEST_LOG.md,file,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
 FROZEN_FORWARD_STRATEGY.md,file,source_or_docs,review,,manual review before any move
 lag1_checkpoint_sweep_m0_20260616,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
 locked_candidate_confirmation_20260614,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
 logs,dir,misc,review,,manual review before any move
-loss_ablation_A1_active.pid,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
-loss_ablation_A2_active.pid,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
 LOSS_ABLATION_PLAN.md,file,source_or_docs,review,,manual review before any move
 loss_ablation_portfolio_validation_20260614,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
 loss_ablation_queue.pid,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid

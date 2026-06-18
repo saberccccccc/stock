@@ -6,7 +6,7 @@ This is a non-destructive plan. No files are moved by this report.
 
 | Action | Count |
 |---|---:|
-| archive_candidate | 214 |
+| archive_candidate | 204 |
 | protect | 18 |
 | review | 22 |
 
@@ -140,8 +140,6 @@ This is a non-destructive plan. No files are moved by this report.
 | breadth_triggered_market_20260617 | dir | experiment_output | archive/experiments_202606 |
 | breadth_triggered_target_20260617 | dir | experiment_output | archive/experiments_202606 |
 | candidate_model_validation_20260614 | dir | experiment_output | archive/experiments_202606 |
-| candidate_validation_stderr.log | file | runtime_log_or_pid | archive/logs_202606 |
-| candidate_validation_stdout.log | file | runtime_log_or_pid | archive/logs_202606 |
 | checkpoints | dir | checkpoint_or_model | archive/checkpoints_202606 |
 | checkpoints_batch4_benchmark_20260613 | dir | checkpoint_or_model | archive/checkpoints_202606 |
 | checkpoints_batch8_benchmark_20260613 | dir | checkpoint_or_model | archive/checkpoints_202606 |
@@ -176,18 +174,10 @@ This is a non-destructive plan. No files are moved by this report.
 | checkpoints_smoke_rawmetrics_20260613 | dir | checkpoint_or_model | archive/checkpoints_202606 |
 | conditional_negfilter_breadth_20260618 | dir | experiment_output | archive/experiments_202606 |
 | diagnostics_negfilter_drop3_20260617 | dir | experiment_output | archive/experiments_202606 |
-| downside_topfocus_ablation_20260615.err.log | file | runtime_log_or_pid | archive/logs_202606 |
-| downside_topfocus_ablation_20260615.out.log | file | runtime_log_or_pid | archive/logs_202606 |
 | downside_topfocus_validation_20260616 | dir | experiment_output | archive/experiments_202606 |
-| errors.log | file | runtime_log_or_pid | archive/logs_202606 |
-| formal_train.pid | file | runtime_log_or_pid | archive/logs_202606 |
-| formal_train_stderr.log | file | runtime_log_or_pid | archive/logs_202606 |
-| formal_train_stdout.log | file | runtime_log_or_pid | archive/logs_202606 |
 | FORWARD_TEST_LOG.md | file | experiment_output | archive/experiments_202606 |
 | lag1_checkpoint_sweep_m0_20260616 | dir | experiment_output | archive/experiments_202606 |
 | locked_candidate_confirmation_20260614 | dir | experiment_output | archive/experiments_202606 |
-| loss_ablation_A1_active.pid | file | runtime_log_or_pid | archive/logs_202606 |
-| loss_ablation_A2_active.pid | file | runtime_log_or_pid | archive/logs_202606 |
 | loss_ablation_portfolio_validation_20260614 | dir | experiment_output | archive/experiments_202606 |
 | loss_ablation_queue.pid | file | runtime_log_or_pid | archive/logs_202606 |
 | loss_ablation_queue_batch4_stderr.log | file | runtime_log_or_pid | archive/logs_202606 |

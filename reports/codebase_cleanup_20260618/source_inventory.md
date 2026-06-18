@@ -12,7 +12,7 @@ Generated without moving or modifying project outputs.
 | experiment_output, file | 9 |
 | misc, dir | 6 |
 | misc, file | 2 |
-| runtime_log_or_pid, file | 42 |
+| runtime_log_or_pid, file | 32 |
 | source_or_docs, dir | 10 |
 | source_or_docs, file | 14 |
 
@@ -208,16 +208,6 @@ Generated without moving or modifying project outputs.
 | switch_value_data_20260604_top3_pv1m_raw | dir | misc | 2026-06-10 20:59:59 |
 | .gitignore | file | misc | 2026-06-18 13:59:14 |
 | _sys_check.ps1 | file | misc | 2026-05-19 02:46:36 |
-| candidate_validation_stderr.log | file | runtime_log_or_pid | 2026-06-14 14:08:14 |
-| candidate_validation_stdout.log | file | runtime_log_or_pid | 2026-06-14 14:13:47 |
-| downside_topfocus_ablation_20260615.err.log | file | runtime_log_or_pid | 2026-06-16 02:39:27 |
-| downside_topfocus_ablation_20260615.out.log | file | runtime_log_or_pid | 2026-06-16 01:56:12 |
-| errors.log | file | runtime_log_or_pid | 2026-05-25 21:22:26 |
-| formal_train.pid | file | runtime_log_or_pid | 2026-06-13 01:06:49 |
-| formal_train_stderr.log | file | runtime_log_or_pid | 2026-06-13 01:06:49 |
-| formal_train_stdout.log | file | runtime_log_or_pid | 2026-06-13 02:47:28 |
-| loss_ablation_A1_active.pid | file | runtime_log_or_pid | 2026-06-13 23:27:57 |
-| loss_ablation_A2_active.pid | file | runtime_log_or_pid | 2026-06-14 00:21:43 |
 | loss_ablation_queue.pid | file | runtime_log_or_pid | 2026-06-14 12:26:21 |
 | loss_ablation_queue_batch4_stderr.log | file | runtime_log_or_pid | 2026-06-13 21:56:07 |
 | loss_ablation_queue_batch4_stdout.log | file | runtime_log_or_pid | 2026-06-13 23:31:03 |
