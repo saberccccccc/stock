@@ -1,4 +1,4 @@
-# Experiment Output Ledger 2026-06-18
+# Experiment Output Ledger 2026-06-19
 
 This ledger classifies non-reranker experiment outputs before any batch move to
 `archive/experiments_202606`. It is intentionally conservative: important
@@ -7,12 +7,23 @@ can be archived.
 
 ## Current Archive-Plan Context
 
-For non-reranker `experiment_output` entries:
+After the legacy `backtest_results_*` cleanup, archive-plan currently lists:
 
 | Action | Count |
 |---|---:|
-| `archive_candidate` | 126 |
+| `archive_candidate` | 36 |
 | `protect` | 3 |
+
+Remaining archive candidates by decision group:
+
+| Group | Count |
+|---|---:|
+| Candidate/loss/lag1 validation evidence | 13 |
+| Reranker artifacts | 8 |
+| Open-reranker/negfilter/edge candidates | 7 |
+| Breadth/state/conditional market overlays | 4 |
+| Official or superseded V9 strategy evidence | 3 |
+| Other | 1 |
 
 Protected roots:
 
@@ -30,7 +41,7 @@ Protected roots:
 | Official V9 filter/open-ledger evidence | Keep while it supports the official baseline |
 | Open-reranker/negfilter/edge candidates | Keep until forward observation and attack-candidate ledgers are complete |
 | Breadth/state/conditional overlays | Keep for now; archive only after caveats and summaries are indexed |
-| Legacy `backtest_results_*` groups | Archive candidates after representative summary sampling |
+| Legacy `backtest_results_*` groups | Complete: archived after representative summary sampling |
 | Run scripts tied to validation outputs | Archive with their matching outputs, not separately |
 
 ## Active Strategy Evidence
@@ -111,16 +122,26 @@ reports/forward_observation_plan_20260617.md
 
 ## Legacy Backtest Output Groups
 
-The following groups are archive candidates, but should be moved only after a
-small sampling check confirms their conclusions are represented in reports:
+The following legacy groups have been archived to `archive/experiments_202606`
+after representative sampling confirmed their conclusions are represented in
+reports or snapshots:
 
 | Pattern | Status | Sampling requirement |
 |---|---|---|
-| `backtest_results_exp_*` | Legacy experiment outputs | Check representative `summary.csv` / report files before batch move. |
-| `backtest_results_test_plan_*` | Legacy test-plan outputs | Verify official conclusions are in `TEST_PLAN.md` and `official_baselines.md`. |
-| `backtest_results_switch_value_*` | Legacy switch-value outputs | Verify switch-value reports are indexed. |
-| `backtest_results_temporal_*` | Legacy temporal probe outputs | Verify temporal reports and snapshots are indexed. |
-| `backtest_results_summary_*.txt` | Legacy summary files | Archive after source snapshots are indexed. |
+| `backtest_results_exp_*` | Complete | Sampled representative result bundle before move. |
+| `backtest_results_test_plan_*` | Complete | Checked against `TEST_PLAN.md` and `official_baselines.md`. |
+| `backtest_results_switch_value_*` | Complete | Checked against switch-value snapshot report. |
+| `backtest_results_temporal_*` | Complete | Checked against temporal reports and snapshots. |
+| `backtest_results_summary_*.txt` | Complete | Archived after source snapshots were indexed. |
+| `backtest_results_switch_cache_smoke_*` | Complete | Smoke/cache outputs archived in exact batches. |
+| `backtest_results_v9_retention_20260531` | Complete | Checked against model-strategy comparison report. |
+
+Current state:
+
+```text
+remaining backtest_results_* candidates=0
+top-level backtest_results_* entries=0
+```
 
 ## Cleanup Rules
 
@@ -136,5 +157,13 @@ small sampling check confirms their conclusions are represented in reports:
 
 ## Next Step
 
-Run a representative sampling pass for legacy `backtest_results_*` directories,
-then archive a first small batch of clearly superseded legacy backtest outputs.
+Do not move any more experiment-output directories broadly. Next cleanup should
+use category-specific ledgers:
+
+1. Keep reranker parent directories until mixed-status contents are split or
+   tagged.
+2. Keep open-reranker/negfilter/edge candidates until forward observation and
+   attack-candidate summaries are complete.
+3. Keep market overlay experiments until caveats are indexed.
+4. Keep training-validation evidence according to
+   `training_validation_ledger.md`.

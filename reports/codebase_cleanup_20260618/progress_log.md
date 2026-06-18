@@ -3386,6 +3386,48 @@ Stop checkpoint moving for now. All remaining checkpoint/model archive
 candidates are referenced or high risk and need a category-specific decision
 before any move. Continue with experiment-output ledgers instead.
 
+## Phase 17 Experiment Output Ledger Refresh
+
+### Completed
+
+Updated:
+
+```text
+reports/codebase_cleanup_20260618/experiment_output_ledger.md
+```
+
+The ledger now reflects the post-cleanup state:
+
+```text
+experiment_output archive candidates=36
+protected experiment outputs=3
+remaining backtest_results_* candidates=0
+top-level backtest_results_* entries=0
+```
+
+Remaining experiment-output candidates are grouped as:
+
+```text
+training_validation=13
+reranker_artifact=8
+open_reranker_attack=7
+market_overlay=4
+v9_strategy_evidence=3
+other=1
+```
+
+### Decision
+
+Do not move experiment-output directories broadly from this point. Reranker,
+open-reranker, market-overlay and training-validation outputs need
+category-specific ledgers or summaries before any move.
+
+### Next Step
+
+For actual cleanup movement, the next safest non-model class is
+`archive_or_cache`. For experiment-output movement, create a focused
+open-reranker/market-overlay decision ledger first.
+
 ## Phase 8 Fourth Legacy Backtest Archive Batch
 
 ### Completed
