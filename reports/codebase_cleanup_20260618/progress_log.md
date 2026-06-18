@@ -2960,6 +2960,90 @@ Review the remaining `backtest_results_switch_*` and small smoke outputs before
 moving them. Do not move active V9/open-reranker/loss validation evidence until
 their ledgers prove the conclusions are represented elsewhere.
 
+## Phase 10 Legacy Switch-Value Backtest Archive
+
+### Completed
+
+Reviewed switch-value coverage in:
+
+```text
+backtest_result_snapshots/20260530_switch_value_fixed_report.md
+```
+
+Representative directories were small raw-output bundles containing
+`switch_value_config.json`, diagnostics, returns, and summary CSV files. The
+historical conclusions are represented in the snapshot report, so the raw
+`backtest_results_switch_value_*` directories were archived.
+
+Executed:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class experiment_output `
+  --name-prefix backtest_results_switch_value_ `
+  --execute
+```
+
+Moved 9 legacy switch-value backtest result directories:
+
+```text
+backtest_results_switch_value_20260604_top3_pv1m_raw_alpha_val
+backtest_results_switch_value_20260604_top3_pv1m_raw_newmodel_val
+backtest_results_switch_value_20260604_v9_alpha_baseline_test
+backtest_results_switch_value_20260604_v9_alpha_baseline_val
+backtest_results_switch_value_20260604_v9_avgw3_alpha_val_pv1m
+backtest_results_switch_value_20260604_v9_avgw3_switch_val_pv1m
+backtest_results_switch_value_20260604_v9_baseline_layer_smoke
+backtest_results_switch_value_20260604_v9_baseline_layer_test
+backtest_results_switch_value_20260604_v9_baseline_layer_val
+```
+
+Destination:
+
+```text
+archive/experiments_202606/
+```
+
+Regenerated source inventory and archive plan.
+
+Current summary after the move:
+
+```text
+top-level inventory rows=122
+archive_candidate=83
+protect=18
+review=21
+experiment_output candidates=45
+checkpoint_or_model candidates=34
+archive_or_cache candidates=4
+remaining backtest_results_* candidates=9
+archived backtest_results_switch_value_* directories=9
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py `
+  tests\test_review_docs.py -q
+```
+
+Result:
+
+```text
+15 passed
+```
+
+### Next Step
+
+Review the last 9 scattered `backtest_results_*` outputs. The cache/smoke
+directories are likely low risk, while temporal/retention/topstable outputs
+should be checked against the temporal and V9-retention snapshot reports before
+moving.
+
 ## Phase 8 Fourth Legacy Backtest Archive Batch
 
 ### Completed

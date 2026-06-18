@@ -8,7 +8,7 @@ Generated without moving or modifying project outputs.
 |---|---:|
 | archive_or_cache, dir | 6 |
 | checkpoint_or_model, dir | 37 |
-| experiment_output, dir | 50 |
+| experiment_output, dir | 41 |
 | experiment_output, file | 7 |
 | misc, dir | 5 |
 | misc, file | 2 |
@@ -67,15 +67,6 @@ Generated without moving or modifying project outputs.
 | backtest_results_switch_cache_smoke_read | dir | experiment_output | 2026-06-10 20:58:10 |
 | backtest_results_switch_cache_smoke_read5 | dir | experiment_output | 2026-06-10 20:58:10 |
 | backtest_results_switch_cache_smoke_write | dir | experiment_output | 2026-06-10 20:58:10 |
-| backtest_results_switch_value_20260604_top3_pv1m_raw_alpha_val | dir | experiment_output | 2026-06-04 22:57:30 |
-| backtest_results_switch_value_20260604_top3_pv1m_raw_newmodel_val | dir | experiment_output | 2026-06-10 20:58:10 |
-| backtest_results_switch_value_20260604_v9_alpha_baseline_test | dir | experiment_output | 2026-06-10 20:58:10 |
-| backtest_results_switch_value_20260604_v9_alpha_baseline_val | dir | experiment_output | 2026-06-10 20:58:10 |
-| backtest_results_switch_value_20260604_v9_avgw3_alpha_val_pv1m | dir | experiment_output | 2026-06-10 20:58:10 |
-| backtest_results_switch_value_20260604_v9_avgw3_switch_val_pv1m | dir | experiment_output | 2026-06-10 20:58:10 |
-| backtest_results_switch_value_20260604_v9_baseline_layer_smoke | dir | experiment_output | 2026-06-10 20:58:10 |
-| backtest_results_switch_value_20260604_v9_baseline_layer_test | dir | experiment_output | 2026-06-10 20:58:10 |
-| backtest_results_switch_value_20260604_v9_baseline_layer_val | dir | experiment_output | 2026-06-10 20:58:10 |
 | backtest_results_temporal_full_eval_20260604 | dir | experiment_output | 2026-06-10 20:58:10 |
 | backtest_results_temporal_retention_20260604_v10_v9warm_toploss | dir | experiment_output | 2026-06-10 20:58:10 |
 | backtest_results_topstable_epoch9_val_avgw3 | dir | experiment_output | 2026-06-13 13:06:35 |

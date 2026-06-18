@@ -6,7 +6,7 @@ This is a non-destructive plan. No files are moved by this report.
 
 | Action | Count |
 |---|---:|
-| archive_candidate | 92 |
+| archive_candidate | 83 |
 | protect | 18 |
 | review | 21 |
 
@@ -44,15 +44,6 @@ This is a non-destructive plan. No files are moved by this report.
 | backtest_results_switch_cache_smoke_read | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_switch_cache_smoke_read5 | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_switch_cache_smoke_write | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_switch_value_20260604_top3_pv1m_raw_alpha_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_switch_value_20260604_top3_pv1m_raw_newmodel_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_switch_value_20260604_v9_alpha_baseline_test | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_switch_value_20260604_v9_alpha_baseline_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_switch_value_20260604_v9_avgw3_alpha_val_pv1m | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_switch_value_20260604_v9_avgw3_switch_val_pv1m | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_switch_value_20260604_v9_baseline_layer_smoke | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_switch_value_20260604_v9_baseline_layer_test | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_switch_value_20260604_v9_baseline_layer_val | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_temporal_full_eval_20260604 | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_temporal_retention_20260604_v10_v9warm_toploss | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_topstable_epoch9_val_avgw3 | dir | experiment_output | archive/experiments_202606 |
