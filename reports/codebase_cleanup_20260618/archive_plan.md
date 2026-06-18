@@ -6,7 +6,7 @@ This is a non-destructive plan. No files are moved by this report.
 
 | Action | Count |
 |---|---:|
-| archive_candidate | 142 |
+| archive_candidate | 132 |
 | protect | 18 |
 | review | 21 |
 
@@ -39,16 +39,6 @@ This is a non-destructive plan. No files are moved by this report.
 | __pycache__ | dir | archive_or_cache | archive/cache_202606 |
 | _archive_models_data_20260604 | dir | archive_or_cache | archive/cache_202606 |
 | _archive_results_20260604 | dir | archive_or_cache | archive/cache_202606 |
-| backtest_results_exp_market_dynamic_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_market_none_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_pairwise_w001_avgw3_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_pairwise_w001_band20_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_rank_smooth_w2_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_rank_smooth_w3_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_rank_smooth_w4_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_rank_smooth_w5_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_rebalance_band10_pv1m_stress_2x | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_rebalance_band10_pv1m_stress_3x | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_exp_rebalance_band10_pv1m_stress_lag1 | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_exp_rebalance_band10_pv1m_test | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_exp_rebalance_band20_stress_2x | dir | experiment_output | archive/experiments_202606 |

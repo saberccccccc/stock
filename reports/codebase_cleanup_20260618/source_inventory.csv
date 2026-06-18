@@ -12,16 +12,6 @@ alpha,dir,source_or_docs,,2026-06-18 01:31:14
 archive,dir,archive_or_cache,,2026-06-18 23:08:03
 backtest,dir,source_or_docs,,2026-06-18 01:50:08
 backtest_result_snapshots,dir,misc,,2026-06-10 20:58:12
-backtest_results_exp_market_dynamic_val,dir,experiment_output,,2026-06-12 19:37:29
-backtest_results_exp_market_none_val,dir,experiment_output,,2026-06-12 19:37:27
-backtest_results_exp_pairwise_w001_avgw3_val,dir,experiment_output,,2026-06-12 23:03:57
-backtest_results_exp_pairwise_w001_band20_val,dir,experiment_output,,2026-06-12 23:05:04
-backtest_results_exp_rank_smooth_w2_val,dir,experiment_output,,2026-06-12 22:57:00
-backtest_results_exp_rank_smooth_w3_val,dir,experiment_output,,2026-06-12 22:57:49
-backtest_results_exp_rank_smooth_w4_val,dir,experiment_output,,2026-06-12 22:58:37
-backtest_results_exp_rank_smooth_w5_val,dir,experiment_output,,2026-06-12 22:59:25
-backtest_results_exp_rebalance_band10_pv1m_stress_2x,dir,experiment_output,,2026-06-12 22:41:45
-backtest_results_exp_rebalance_band10_pv1m_stress_3x,dir,experiment_output,,2026-06-12 22:42:26
 backtest_results_exp_rebalance_band10_pv1m_stress_lag1,dir,experiment_output,,2026-06-12 22:43:06
 backtest_results_exp_rebalance_band10_pv1m_test,dir,experiment_output,,2026-06-12 22:40:31
 backtest_results_exp_rebalance_band20_stress_2x,dir,experiment_output,,2026-06-12 22:14:42

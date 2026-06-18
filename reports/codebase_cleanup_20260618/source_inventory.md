@@ -8,7 +8,7 @@ Generated without moving or modifying project outputs.
 |---|---:|
 | archive_or_cache, dir | 6 |
 | checkpoint_or_model, dir | 37 |
-| experiment_output, dir | 98 |
+| experiment_output, dir | 88 |
 | experiment_output, file | 9 |
 | misc, dir | 5 |
 | misc, file | 2 |
@@ -62,16 +62,6 @@ Generated without moving or modifying project outputs.
 | checkpoints_smoke_rawmetrics_20260613 | dir | checkpoint_or_model | 2026-06-13 17:02:07 |
 | models_multi_v9_tech_macro | dir | checkpoint_or_model | 2026-06-10 20:59:59 |
 | switch_value_models_20260604_top3_pv1m_raw_lgb_h5 | dir | checkpoint_or_model | 2026-06-10 21:00:00 |
-| backtest_results_exp_market_dynamic_val | dir | experiment_output | 2026-06-12 19:37:29 |
-| backtest_results_exp_market_none_val | dir | experiment_output | 2026-06-12 19:37:27 |
-| backtest_results_exp_pairwise_w001_avgw3_val | dir | experiment_output | 2026-06-12 23:03:57 |
-| backtest_results_exp_pairwise_w001_band20_val | dir | experiment_output | 2026-06-12 23:05:04 |
-| backtest_results_exp_rank_smooth_w2_val | dir | experiment_output | 2026-06-12 22:57:00 |
-| backtest_results_exp_rank_smooth_w3_val | dir | experiment_output | 2026-06-12 22:57:49 |
-| backtest_results_exp_rank_smooth_w4_val | dir | experiment_output | 2026-06-12 22:58:37 |
-| backtest_results_exp_rank_smooth_w5_val | dir | experiment_output | 2026-06-12 22:59:25 |
-| backtest_results_exp_rebalance_band10_pv1m_stress_2x | dir | experiment_output | 2026-06-12 22:41:45 |
-| backtest_results_exp_rebalance_band10_pv1m_stress_3x | dir | experiment_output | 2026-06-12 22:42:26 |
 | backtest_results_exp_rebalance_band10_pv1m_stress_lag1 | dir | experiment_output | 2026-06-12 22:43:06 |
 | backtest_results_exp_rebalance_band10_pv1m_test | dir | experiment_output | 2026-06-12 22:40:31 |
 | backtest_results_exp_rebalance_band20_stress_2x | dir | experiment_output | 2026-06-12 22:14:42 |
