@@ -17,6 +17,7 @@ training, validating, or cleaning artifacts.
 | Failed/unpromoted candidate summary | `reports/codebase_cleanup_20260618/rejected_candidate_summary.md` |
 | Checkpoint/model references | `reports/codebase_cleanup_20260618/checkpoint_reference_audit.md` |
 | Run script roles | `reports/codebase_cleanup_20260618/run_script_index.md` |
+| Document/report roles | `reports/codebase_cleanup_20260618/document_report_index.md` |
 
 ## Current Cleanup Boundary
 

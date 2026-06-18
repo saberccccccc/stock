@@ -3673,6 +3673,42 @@ If continuing cleanup, create a similar index for top-level plans and report
 directories that remain untracked, then decide which root-level docs can be
 consolidated or left as canonical sources.
 
+## Phase 24 Document And Report Index
+
+### Completed
+
+Created:
+
+```text
+reports/codebase_cleanup_20260618/document_report_index.md
+```
+
+The index classifies top-level plans and `reports/` outputs into:
+
+```text
+canonical cleanup navigation
+top-level source plans
+training/loss reports
+official strategy and open-ledger reports
+forward and market-overlay reports
+data-quality reports
+temporal and legacy snapshots
+```
+
+### Decision
+
+Do not move canonical reports, supporting CSV/JSONL evidence, historical
+snapshots, or top-level source plans yet. They remain referenced by current
+ledgers and are more useful as indexed evidence than as archived payloads.
+
+### Next Step
+
+Further cleanup should focus on either:
+
+1. splitting mixed artifact directories if a real need appears; or
+2. consolidating root-level source plans only after their successor canonical
+   indexes are complete enough to replace them.
+
 ## Phase 8 Fourth Legacy Backtest Archive Batch
 
 ### Completed
