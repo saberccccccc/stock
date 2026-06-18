@@ -2117,3 +2117,76 @@ Create a separate review plan for the remaining 21 manual-review entries:
 keep active docs in place, archive local IDE/settings/cache separately, and
 handle historical backtest/report snapshots only after mapping which reports
 are still referenced by the current strategy documents.
+
+## Phase 7 Manual-Review Document Index
+
+### Completed
+
+Added a reproducible review-document index generator:
+
+```text
+experiments/review_docs.py
+run/generate_review_docs_index.py
+```
+
+Generated:
+
+```text
+reports/codebase_cleanup_20260618/review_docs_index.csv
+reports/codebase_cleanup_20260618/review_docs_index.md
+```
+
+The index covers the 12 root-level markdown files still marked as manual
+review in the archive plan. It does not move those files. It records whether
+each file should be kept, consolidated into a cleanup index, or archived only
+after consolidation.
+
+Current review-document summary:
+
+```text
+keep=4
+keep_or_consolidate=7
+archive_after_consolidation=1
+```
+
+Important decisions captured:
+
+```text
+README.md -> keep
+CLAUDE.md -> keep
+RESEARCH_PROTOCOL.md -> keep
+FROZEN_FORWARD_STRATEGY.md -> keep
+TEST_PLAN.md and SHARPE_OPTIMIZATION_REPORT.md -> consolidate toward official_baselines
+LOSS_ABLATION/PURGED_ALPHA/CANDIDATE_MODEL plans -> consolidate toward training research index
+RERANKER plans -> consolidate toward reranker research index
+EXPERIMENTS.md -> archive only after key points are consolidated
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_review_docs.py `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py -q
+```
+
+Result:
+
+```text
+14 passed
+```
+
+### Next Step
+
+Create the first consolidation index, starting with either:
+
+```text
+reports/codebase_cleanup_20260618/training_research_index.md
+reports/codebase_cleanup_20260618/reranker_research_index.md
+```
+
+Do not move the source markdown files until the consolidation index has been
+created and checked.
