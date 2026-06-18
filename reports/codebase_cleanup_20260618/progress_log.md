@@ -1881,7 +1881,82 @@ low_lr_continuation_stderr.log remains an archive_candidate for a later batch
 archive/logs_202606 contains 30 moved files
 ```
 
+## Phase 6 Fourth Log/PID Archive Batch
+
+### Completed
+
+Dry-run reviewed:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class runtime_log_or_pid `
+  --limit 10
+```
+
+Then executed:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class runtime_log_or_pid `
+  --limit 10 `
+  --execute
+```
+
+Moved 10 additional runtime files into:
+
+```text
+archive/logs_202606/
+```
+
+Moved files:
+
+```text
+low_lr_continuation_stderr.log
+low_lr_continuation_stdout.log
+purged_rawmetric_A.pid
+purged_rawmetric_A_stderr.log
+purged_rawmetric_A_stdout.log
+ram_smoke_stderr.log
+ram_smoke_stdout.log
+resume_downside_topfocus_remaining_20260616.err.log
+resume_downside_topfocus_remaining_20260616.out.log
+run_lag1_loss_ablation_20260616.err.log
+```
+
+Regenerated source inventory and archive plan.
+
+Current archive plan summary after the move:
+
+```text
+archive_candidate=184
+protect=18
+review=22
+runtime_log_or_pid remaining=12
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py -q
+```
+
+Result:
+
+```text
+11 passed
+```
+
+Spot checks:
+
+```text
+archive/logs_202606 contains 40 moved files
+```
+
 ### Next Step
 
-Continue with one or two more small `runtime_log_or_pid` batches. Stop before
-moving checkpoint or experiment-output directories.
+Finish the remaining 12 `runtime_log_or_pid` candidates in one or two small
+batches. Stop before moving checkpoint or experiment-output directories.

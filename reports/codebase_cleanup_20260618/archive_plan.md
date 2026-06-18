@@ -6,7 +6,7 @@ This is a non-destructive plan. No files are moved by this report.
 
 | Action | Count |
 |---|---:|
-| archive_candidate | 194 |
+| archive_candidate | 184 |
 | protect | 18 |
 | review | 22 |
 
@@ -179,8 +179,6 @@ This is a non-destructive plan. No files are moved by this report.
 | lag1_checkpoint_sweep_m0_20260616 | dir | experiment_output | archive/experiments_202606 |
 | locked_candidate_confirmation_20260614 | dir | experiment_output | archive/experiments_202606 |
 | loss_ablation_portfolio_validation_20260614 | dir | experiment_output | archive/experiments_202606 |
-| low_lr_continuation_stderr.log | file | runtime_log_or_pid | archive/logs_202606 |
-| low_lr_continuation_stdout.log | file | runtime_log_or_pid | archive/logs_202606 |
 | m0_topfocus_validation_20260614 | dir | experiment_output | archive/experiments_202606 |
 | models_multi_v9_tech_macro | dir | checkpoint_or_model | archive/checkpoints_202606 |
 | multi_loss_validation_20260614 | dir | experiment_output | archive/experiments_202606 |
@@ -190,11 +188,6 @@ This is a non-destructive plan. No files are moved by this report.
 | open_reranker_current_v9_light_20260617 | dir | experiment_output | archive/experiments_202606 |
 | open_reranker_current_v9_market_switch_20260617 | dir | experiment_output | archive/experiments_202606 |
 | open_reranker_current_v9_negfilter_20260617 | dir | experiment_output | archive/experiments_202606 |
-| purged_rawmetric_A.pid | file | runtime_log_or_pid | archive/logs_202606 |
-| purged_rawmetric_A_stderr.log | file | runtime_log_or_pid | archive/logs_202606 |
-| purged_rawmetric_A_stdout.log | file | runtime_log_or_pid | archive/logs_202606 |
-| ram_smoke_stderr.log | file | runtime_log_or_pid | archive/logs_202606 |
-| ram_smoke_stdout.log | file | runtime_log_or_pid | archive/logs_202606 |
 | reranker_confirmation_20260615 | dir | experiment_output | archive/experiments_202606 |
 | reranker_data_20260614 | dir | experiment_output | archive/experiments_202606 |
 | reranker_models_20260615 | dir | experiment_output | archive/experiments_202606 |
@@ -203,11 +196,8 @@ This is a non-destructive plan. No files are moved by this report.
 | reranker_v2_data_20260615 | dir | experiment_output | archive/experiments_202606 |
 | reranker_v3_data_20260615 | dir | experiment_output | archive/experiments_202606 |
 | reranker_validation_20260615 | dir | experiment_output | archive/experiments_202606 |
-| resume_downside_topfocus_remaining_20260616.err.log | file | runtime_log_or_pid | archive/logs_202606 |
-| resume_downside_topfocus_remaining_20260616.out.log | file | runtime_log_or_pid | archive/logs_202606 |
 | resume_downside_topfocus_remaining_20260616.ps1 | file | experiment_output | archive/experiments_202606 |
 | run_forward_observation_candidates_20260617.ps1 | file | experiment_output | archive/experiments_202606 |
-| run_lag1_loss_ablation_20260616.err.log | file | runtime_log_or_pid | archive/logs_202606 |
 | run_lag1_loss_ablation_20260616.out.log | file | runtime_log_or_pid | archive/logs_202606 |
 | run_lag1_loss_ablation_after_sweep_20260616.ps1 | file | experiment_output | archive/experiments_202606 |
 | run_unified_good_ops_validation_20260616.err.log | file | runtime_log_or_pid | archive/logs_202606 |

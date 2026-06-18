@@ -167,8 +167,6 @@ locked_candidate_confirmation_20260614,dir,experiment_output,,2026-06-14 14:19:0
 logs,dir,misc,,2026-06-10 20:59:59
 LOSS_ABLATION_PLAN.md,file,source_or_docs,6280,2026-06-13 18:11:35
 loss_ablation_portfolio_validation_20260614,dir,experiment_output,,2026-06-14 14:38:01
-low_lr_continuation_stderr.log,file,runtime_log_or_pid,0,2026-06-14 12:26:21
-low_lr_continuation_stdout.log,file,runtime_log_or_pid,35937,2026-06-14 13:54:40
 m0_topfocus_validation_20260614,dir,experiment_output,,2026-06-14 18:15:05
 models_multi_v9_tech_macro,dir,checkpoint_or_model,,2026-06-10 20:59:59
 multi_loss_validation_20260614,dir,experiment_output,,2026-06-14 16:49:16
@@ -179,11 +177,6 @@ open_reranker_current_v9_light_20260617,dir,experiment_output,,2026-06-17 01:27:
 open_reranker_current_v9_market_switch_20260617,dir,experiment_output,,2026-06-17 15:34:17
 open_reranker_current_v9_negfilter_20260617,dir,experiment_output,,2026-06-17 15:42:21
 PURGED_ALPHA_OPTIMIZATION_PLAN.md,file,source_or_docs,5632,2026-06-13 16:44:59
-purged_rawmetric_A.pid,file,runtime_log_or_pid,7,2026-06-13 17:06:03
-purged_rawmetric_A_stderr.log,file,runtime_log_or_pid,0,2026-06-13 17:06:03
-purged_rawmetric_A_stdout.log,file,runtime_log_or_pid,46808,2026-06-13 20:20:43
-ram_smoke_stderr.log,file,runtime_log_or_pid,0,2026-06-13 00:41:04
-ram_smoke_stdout.log,file,runtime_log_or_pid,0,2026-06-13 00:41:04
 README.md,file,source_or_docs,5333,2026-06-12 01:45:28
 reports,dir,source_or_docs,,2026-06-18 13:33:39
 requirements.txt,file,source_or_docs,156,2026-06-12 01:58:50
@@ -199,12 +192,9 @@ RERANKER_V4_PLAN_20260615.md,file,source_or_docs,6735,2026-06-15 16:34:41
 reranker_validation_20260615,dir,experiment_output,,2026-06-15 16:31:31
 rerun_v9_avgw3_open_to_open_20260616,dir,misc,,2026-06-16 18:46:59
 RESEARCH_PROTOCOL.md,file,source_or_docs,1788,2026-06-12 12:13:47
-resume_downside_topfocus_remaining_20260616.err.log,file,runtime_log_or_pid,0,2026-06-16 12:30:18
-resume_downside_topfocus_remaining_20260616.out.log,file,runtime_log_or_pid,34203,2026-06-16 13:54:20
 resume_downside_topfocus_remaining_20260616.ps1,file,experiment_output,1805,2026-06-16 12:30:18
 run,dir,source_or_docs,,2026-06-18 13:52:41
 run_forward_observation_candidates_20260617.ps1,file,experiment_output,2450,2026-06-17 16:21:50
-run_lag1_loss_ablation_20260616.err.log,file,runtime_log_or_pid,515,2026-06-16 17:34:45
 run_lag1_loss_ablation_20260616.out.log,file,runtime_log_or_pid,26142,2026-06-16 17:18:19
 run_lag1_loss_ablation_after_sweep_20260616.ps1,file,experiment_output,472,2026-06-16 15:38:24
 run_unified_good_ops_validation_20260616.err.log,file,runtime_log_or_pid,0,2026-06-16 17:39:46
