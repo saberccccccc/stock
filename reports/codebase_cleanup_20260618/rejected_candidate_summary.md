@@ -123,3 +123,19 @@ reranker_models_20260615
 reranker_validation_20260615
 reranker_confirmation_20260615
 ```
+
+## Path-Reference Check 2026-06-19
+
+The first potential archive targets were checked with `rg` before any move.
+They should still be held:
+
+| Path | Reference status | Decision |
+|---|---|---|
+| `open_reranker_current_v9_light_20260617` | Referenced by protected `v9_avgw3_open_ledger_20260617/sweep_openrerank_w098` and `sweep_openrerank_w099` configs. | Hold. |
+| `breadth_triggered_target_20260617` | Referenced by protected open-ledger result directories and summary reports. | Hold. |
+| `state_triggered_target_20260617` | Referenced by protected open-ledger result directories and forward result summaries. | Hold. |
+| `downside_topfocus_validation_20260616` | Referenced by validation script and result audit CSVs. | Hold. |
+
+Do not archive these directories until either the referencing protected result
+directories are also archived or the references are intentionally rewritten to
+point at archived locations.

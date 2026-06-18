@@ -3568,6 +3568,46 @@ hold for now:
 Run path-reference checks before moving any potential archive target. Do not
 move active observation candidates or mixed reranker parent directories.
 
+## Phase 21 Potential Archive Path-Reference Check
+
+### Completed
+
+Checked references for the first potential archive targets:
+
+```text
+open_reranker_current_v9_light_20260617
+breadth_triggered_target_20260617
+state_triggered_target_20260617
+downside_topfocus_validation_20260616
+```
+
+### Decision
+
+Do not move them yet.
+
+Reasons:
+
+```text
+open_reranker_current_v9_light_20260617
+  referenced by protected v9_avgw3_open_ledger_20260617 sweep configs
+
+breadth_triggered_target_20260617
+  referenced by protected open-ledger result directories and reports
+
+state_triggered_target_20260617
+  referenced by protected open-ledger result directories and forward results
+
+downside_topfocus_validation_20260616
+  referenced by validation script and result audit CSVs
+```
+
+The rejected/observation summary was updated with this hold decision.
+
+### Next Step
+
+Continue with documentation/index cleanup rather than moving these referenced
+experiment-output directories.
+
 ## Phase 8 Fourth Legacy Backtest Archive Batch
 
 ### Completed
