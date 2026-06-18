@@ -8,7 +8,7 @@ Generated without moving or modifying project outputs.
 |---|---:|
 | archive_or_cache, dir | 6 |
 | checkpoint_or_model, dir | 37 |
-| experiment_output, dir | 56 |
+| experiment_output, dir | 50 |
 | experiment_output, file | 9 |
 | misc, dir | 5 |
 | misc, file | 2 |
@@ -78,12 +78,6 @@ Generated without moving or modifying project outputs.
 | backtest_results_switch_value_20260604_v9_baseline_layer_val | dir | experiment_output | 2026-06-10 20:58:10 |
 | backtest_results_temporal_full_eval_20260604 | dir | experiment_output | 2026-06-10 20:58:10 |
 | backtest_results_temporal_retention_20260604_v10_v9warm_toploss | dir | experiment_output | 2026-06-10 20:58:10 |
-| backtest_results_test_plan_stress_lag1_val | dir | experiment_output | 2026-06-12 02:21:48 |
-| backtest_results_test_plan_v9_avgw3_test | dir | experiment_output | 2026-06-12 02:09:30 |
-| backtest_results_test_plan_v9_avgw3_val | dir | experiment_output | 2026-06-12 02:08:02 |
-| backtest_results_test_plan_v9_raw_test | dir | experiment_output | 2026-06-12 02:06:44 |
-| backtest_results_test_plan_v9_raw_val | dir | experiment_output | 2026-06-12 02:05:20 |
-| backtest_results_test_plan_v9_smoke5 | dir | experiment_output | 2026-06-12 02:03:42 |
 | backtest_results_topstable_epoch9_val_avgw3 | dir | experiment_output | 2026-06-13 13:06:35 |
 | backtest_results_v9_retention_20260531 | dir | experiment_output | 2026-06-10 20:58:12 |
 | breadth_triggered_market_20260617 | dir | experiment_output | 2026-06-17 22:28:52 |

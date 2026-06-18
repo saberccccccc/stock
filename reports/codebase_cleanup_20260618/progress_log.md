@@ -2826,6 +2826,77 @@ archive/experiments_202606/backtest_results_exp_blend_raw75_avg25_test exists=Tr
 
 Dry-run and review the next `backtest_results_exp_*` batch before executing.
 
+## Phase 8 Final Legacy `backtest_results_test_plan_*` Archive Batch
+
+### Completed
+
+Executed the final already-reviewed `backtest_results_test_plan_*` batch:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class experiment_output `
+  --name-prefix backtest_results_test_plan_ `
+  --limit 10 `
+  --execute
+```
+
+Moved 6 legacy test-plan backtest result directories:
+
+```text
+backtest_results_test_plan_stress_lag1_val
+backtest_results_test_plan_v9_avgw3_test
+backtest_results_test_plan_v9_avgw3_val
+backtest_results_test_plan_v9_raw_test
+backtest_results_test_plan_v9_raw_val
+backtest_results_test_plan_v9_smoke5
+```
+
+Destination:
+
+```text
+archive/experiments_202606/
+```
+
+Regenerated source inventory and archive plan.
+
+Current summary after the move:
+
+```text
+top-level inventory rows=133
+archive_candidate=94
+protect=18
+review=21
+remaining backtest_results_test_plan_* candidates=0
+archived backtest_results_test_plan_* directories=26
+remaining backtest_results_* candidates=20
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py `
+  tests\test_review_docs.py -q
+```
+
+Result:
+
+```text
+15 passed
+```
+
+### Next Step
+
+Dry-run and review the remaining `backtest_results_*` candidate groups. The
+lowest-risk next batch is likely the summary text files:
+
+```text
+run\archive_from_plan.py --class experiment_output --name-glob "backtest_results_summary_*.txt"
+```
+
 ## Phase 8 Fourth Legacy Backtest Archive Batch
 
 ### Completed
