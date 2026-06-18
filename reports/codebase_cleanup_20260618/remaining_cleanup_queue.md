@@ -49,8 +49,12 @@ Current audit decision counts:
 ```text
 keep=3
 hold=30
-archive_after_matching_artifact_ledger=4
+archive_after_matching_artifact_ledger=0
 ```
+
+The four no-reference benchmark/smoke/switch-value model directories have been
+archived to `archive/checkpoints_202606/`. Remaining checkpoint/model candidates
+should stay in place until a category-specific decision ledger says otherwise.
 
 ## Recommended Next Order
 

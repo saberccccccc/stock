@@ -7,7 +7,7 @@ Generated without moving or modifying project outputs.
 | Group | Count |
 |---|---:|
 | archive_or_cache, dir | 6 |
-| checkpoint_or_model, dir | 37 |
+| checkpoint_or_model, dir | 33 |
 | experiment_output, dir | 32 |
 | experiment_output, file | 7 |
 | misc, dir | 5 |
@@ -23,11 +23,9 @@ Generated without moving or modifying project outputs.
 | __pycache__ | dir | archive_or_cache | 2026-06-18 01:33:32 |
 | _archive_models_data_20260604 | dir | archive_or_cache | 2026-06-10 21:00:00 |
 | _archive_results_20260604 | dir | archive_or_cache | 2026-06-10 21:00:05 |
-| archive | dir | archive_or_cache | 2026-06-18 23:08:03 |
+| archive | dir | archive_or_cache | 2026-06-19 00:46:44 |
 | cache | dir | archive_or_cache | 2026-06-17 23:29:57 |
 | checkpoints | dir | checkpoint_or_model | 2026-06-10 20:59:43 |
-| checkpoints_batch4_benchmark_20260613 | dir | checkpoint_or_model | 2026-06-13 01:01:52 |
-| checkpoints_batch8_benchmark_20260613 | dir | checkpoint_or_model | 2026-06-13 00:54:59 |
 | checkpoints_exp | dir | checkpoint_or_model | 2026-06-10 20:59:44 |
 | checkpoints_exp_pairwise_w003_20260530_011759 | dir | checkpoint_or_model | 2026-06-10 20:59:44 |
 | checkpoints_exp_purged_rawmetric_A_20260613 | dir | checkpoint_or_model | 2026-06-13 17:17:59 |
@@ -59,9 +57,7 @@ Generated without moving or modifying project outputs.
 | checkpoints_reranker_oof_F4_train2020_val2021 | dir | checkpoint_or_model | 2026-06-15 00:21:19 |
 | checkpoints_reranker_oof_F5_train2021_val2022 | dir | checkpoint_or_model | 2026-06-15 00:38:48 |
 | checkpoints_reranker_oof_F6_train2022_val2023 | dir | checkpoint_or_model | 2026-06-15 00:59:33 |
-| checkpoints_smoke_rawmetrics_20260613 | dir | checkpoint_or_model | 2026-06-13 17:02:07 |
 | models_multi_v9_tech_macro | dir | checkpoint_or_model | 2026-06-10 20:59:59 |
-| switch_value_models_20260604_top3_pv1m_raw_lgb_h5 | dir | checkpoint_or_model | 2026-06-10 21:00:00 |
 | breadth_triggered_market_20260617 | dir | experiment_output | 2026-06-17 22:28:52 |
 | breadth_triggered_target_20260617 | dir | experiment_output | 2026-06-17 22:10:40 |
 | candidate_model_validation_20260614 | dir | experiment_output | 2026-06-14 14:13:47 |
@@ -106,18 +102,18 @@ Generated without moving or modifying project outputs.
 | backtest_result_snapshots | dir | misc | 2026-06-10 20:58:12 |
 | rerun_v9_avgw3_open_to_open_20260616 | dir | misc | 2026-06-16 18:46:59 |
 | switch_value_data_20260604_top3_pv1m_raw | dir | misc | 2026-06-10 20:59:59 |
-| .gitignore | file | misc | 2026-06-18 13:59:14 |
+| .gitignore | file | misc | 2026-06-19 00:30:04 |
 | _sys_check.ps1 | file | misc | 2026-05-19 02:46:36 |
 | alpha | dir | source_or_docs | 2026-06-18 01:31:14 |
 | backtest | dir | source_or_docs | 2026-06-18 01:50:08 |
 | configs | dir | source_or_docs | 2026-06-16 15:38:03 |
 | core | dir | source_or_docs | 2026-06-18 13:23:09 |
 | data | dir | source_or_docs | 2026-06-12 01:46:17 |
-| experiments | dir | source_or_docs | 2026-06-18 14:27:16 |
+| experiments | dir | source_or_docs | 2026-06-19 00:37:44 |
 | reports | dir | source_or_docs | 2026-06-18 13:33:39 |
-| run | dir | source_or_docs | 2026-06-18 14:27:55 |
+| run | dir | source_or_docs | 2026-06-19 00:37:58 |
 | scripts | dir | source_or_docs | 2026-06-12 12:14:06 |
-| tests | dir | source_or_docs | 2026-06-18 14:28:19 |
+| tests | dir | source_or_docs | 2026-06-19 00:38:26 |
 | __init__.py | file | source_or_docs | 2026-05-19 02:46:36 |
 | CANDIDATE_MODEL_VALIDATION_PLAN_20260614.md | file | source_or_docs | 2026-06-14 14:23:43 |
 | CLAUDE.md | file | source_or_docs | 2026-06-12 01:52:30 |

@@ -6,7 +6,7 @@ This is a non-destructive plan. No files are moved by this report.
 
 | Action | Count |
 |---|---:|
-| archive_candidate | 74 |
+| archive_candidate | 70 |
 | protect | 18 |
 | review | 21 |
 
@@ -43,8 +43,6 @@ This is a non-destructive plan. No files are moved by this report.
 | breadth_triggered_target_20260617 | dir | experiment_output | archive/experiments_202606 |
 | candidate_model_validation_20260614 | dir | experiment_output | archive/experiments_202606 |
 | checkpoints | dir | checkpoint_or_model | archive/checkpoints_202606 |
-| checkpoints_batch4_benchmark_20260613 | dir | checkpoint_or_model | archive/checkpoints_202606 |
-| checkpoints_batch8_benchmark_20260613 | dir | checkpoint_or_model | archive/checkpoints_202606 |
 | checkpoints_exp | dir | checkpoint_or_model | archive/checkpoints_202606 |
 | checkpoints_exp_pairwise_w003_20260530_011759 | dir | checkpoint_or_model | archive/checkpoints_202606 |
 | checkpoints_exp_purged_rawmetric_A_20260613 | dir | checkpoint_or_model | archive/checkpoints_202606 |
@@ -73,7 +71,6 @@ This is a non-destructive plan. No files are moved by this report.
 | checkpoints_reranker_oof_F4_train2020_val2021 | dir | checkpoint_or_model | archive/checkpoints_202606 |
 | checkpoints_reranker_oof_F5_train2021_val2022 | dir | checkpoint_or_model | archive/checkpoints_202606 |
 | checkpoints_reranker_oof_F6_train2022_val2023 | dir | checkpoint_or_model | archive/checkpoints_202606 |
-| checkpoints_smoke_rawmetrics_20260613 | dir | checkpoint_or_model | archive/checkpoints_202606 |
 | conditional_negfilter_breadth_20260618 | dir | experiment_output | archive/experiments_202606 |
 | diagnostics_negfilter_drop3_20260617 | dir | experiment_output | archive/experiments_202606 |
 | downside_topfocus_validation_20260616 | dir | experiment_output | archive/experiments_202606 |
@@ -103,7 +100,6 @@ This is a non-destructive plan. No files are moved by this report.
 | run_lag1_loss_ablation_after_sweep_20260616.ps1 | file | experiment_output | archive/experiments_202606 |
 | run_unified_good_ops_validation_20260616.ps1 | file | experiment_output | archive/experiments_202606 |
 | state_triggered_target_20260617 | dir | experiment_output | archive/experiments_202606 |
-| switch_value_models_20260604_top3_pv1m_raw_lgb_h5 | dir | checkpoint_or_model | archive/checkpoints_202606 |
 | unified_good_ops_validation_20260616 | dir | experiment_output | archive/experiments_202606 |
 | v9_avgw3_filter095_validation_20260616 | dir | experiment_output | archive/experiments_202606 |
 | v9_avgw3_open_ledger_20260616 | dir | experiment_output | archive/experiments_202606 |

@@ -3319,6 +3319,73 @@ Result:
 Inspect and, if clean, archive the 4 no-reference benchmark/smoke/switch-value
 model directories using exact names only.
 
+## Phase 16 No-Reference Checkpoint/Model Archive Batch
+
+### Completed
+
+Archived the only checkpoint/model candidates with no direct lightweight text
+references:
+
+```text
+checkpoints_batch4_benchmark_20260613
+checkpoints_batch8_benchmark_20260613
+checkpoints_smoke_rawmetrics_20260613
+switch_value_models_20260604_top3_pv1m_raw_lgb_h5
+```
+
+Each move was dry-run with an exact prefix before execution.
+
+Destination:
+
+```text
+archive/checkpoints_202606/
+```
+
+Regenerated source inventory, archive plan, and checkpoint reference audit.
+
+Current summary after the move:
+
+```text
+top-level inventory rows=109
+archive_or_cache candidates=4
+checkpoint_or_model candidates=30
+experiment_output candidates=36
+checkpoint audit keep=3
+checkpoint audit hold=30
+checkpoint audit archive_after_matching_artifact_ledger=0
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_checkpoint_reference_audit.py `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py `
+  tests\test_review_docs.py -q
+```
+
+Result:
+
+```text
+19 passed
+```
+
+Spot check:
+
+```text
+source directories exist=False
+archive/checkpoints_202606 destinations exist=True
+```
+
+### Next Step
+
+Stop checkpoint moving for now. All remaining checkpoint/model archive
+candidates are referenced or high risk and need a category-specific decision
+before any move. Continue with experiment-output ledgers instead.
+
 ## Phase 8 Fourth Legacy Backtest Archive Batch
 
 ### Completed

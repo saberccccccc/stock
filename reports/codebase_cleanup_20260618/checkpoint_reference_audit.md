@@ -7,7 +7,6 @@ archive candidates. It is a cleanup guide, not permission for broad checkpoint m
 
 | Decision | Count |
 |---|---:|
-| `archive_after_matching_artifact_ledger` | 4 |
 | `hold` | 30 |
 | `keep` | 3 |
 
@@ -15,9 +14,7 @@ archive candidates. It is a cleanup guide, not permission for broad checkpoint m
 
 | Name | Action | Group | References | Decision | Note |
 |---|---|---|---:|---|---|
-| `checkpoints` | `archive_candidate` | `alpha_checkpoint` | 220 | `hold` | high-risk model/checkpoint family; audit manually before moving |
-| `checkpoints_batch4_benchmark_20260613` | `archive_candidate` | `other_model` | 0 | `archive_after_matching_artifact_ledger` | no direct text references found |
-| `checkpoints_batch8_benchmark_20260613` | `archive_candidate` | `other_model` | 0 | `archive_after_matching_artifact_ledger` | no direct text references found |
+| `checkpoints` | `archive_candidate` | `alpha_checkpoint` | 223 | `hold` | high-risk model/checkpoint family; audit manually before moving |
 | `checkpoints_exp` | `archive_candidate` | `alpha_checkpoint` | 78 | `hold` | high-risk model/checkpoint family; audit manually before moving |
 | `checkpoints_exp_pairwise_w003_20260530_011759` | `archive_candidate` | `alpha_checkpoint` | 0 | `hold` | high-risk model/checkpoint family; audit manually before moving |
 | `checkpoints_exp_purged_rawmetric_A_20260613` | `archive_candidate` | `alpha_checkpoint` | 2 | `hold` | high-risk model/checkpoint family; audit manually before moving |
@@ -49,6 +46,4 @@ archive candidates. It is a cleanup guide, not permission for broad checkpoint m
 | `checkpoints_reranker_oof_F4_train2020_val2021` | `archive_candidate` | `reranker_oof` | 1 | `hold` | referenced by text sources; inspect references before moving |
 | `checkpoints_reranker_oof_F5_train2021_val2022` | `archive_candidate` | `reranker_oof` | 1 | `hold` | referenced by text sources; inspect references before moving |
 | `checkpoints_reranker_oof_F6_train2022_val2023` | `archive_candidate` | `reranker_oof` | 1 | `hold` | referenced by text sources; inspect references before moving |
-| `checkpoints_smoke_rawmetrics_20260613` | `archive_candidate` | `other_model` | 0 | `archive_after_matching_artifact_ledger` | no direct text references found |
 | `models_multi_v9_tech_macro` | `archive_candidate` | `legacy_v9_model` | 1 | `hold` | high-risk model/checkpoint family; audit manually before moving |
-| `switch_value_models_20260604_top3_pv1m_raw_lgb_h5` | `archive_candidate` | `switch_value_model` | 0 | `archive_after_matching_artifact_ledger` | no direct text references found |

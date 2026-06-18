@@ -18,8 +18,6 @@ cache,dir,archive_or_cache,protect,,"active source, official baseline, or forwar
 candidate_model_validation_20260614,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
 CANDIDATE_MODEL_VALIDATION_PLAN_20260614.md,file,source_or_docs,review,,manual review before any move
 checkpoints,dir,checkpoint_or_model,archive_candidate,archive/checkpoints_202606,classified as checkpoint_or_model
-checkpoints_batch4_benchmark_20260613,dir,checkpoint_or_model,archive_candidate,archive/checkpoints_202606,classified as checkpoint_or_model
-checkpoints_batch8_benchmark_20260613,dir,checkpoint_or_model,archive_candidate,archive/checkpoints_202606,classified as checkpoint_or_model
 checkpoints_exp,dir,checkpoint_or_model,archive_candidate,archive/checkpoints_202606,classified as checkpoint_or_model
 checkpoints_exp_pairwise_w003_20260530_011759,dir,checkpoint_or_model,archive_candidate,archive/checkpoints_202606,classified as checkpoint_or_model
 checkpoints_exp_purged_rawmetric_A_20260613,dir,checkpoint_or_model,archive_candidate,archive/checkpoints_202606,classified as checkpoint_or_model
@@ -51,7 +49,6 @@ checkpoints_reranker_oof_F3_train2019_val2020,dir,checkpoint_or_model,archive_ca
 checkpoints_reranker_oof_F4_train2020_val2021,dir,checkpoint_or_model,archive_candidate,archive/checkpoints_202606,classified as checkpoint_or_model
 checkpoints_reranker_oof_F5_train2021_val2022,dir,checkpoint_or_model,archive_candidate,archive/checkpoints_202606,classified as checkpoint_or_model
 checkpoints_reranker_oof_F6_train2022_val2023,dir,checkpoint_or_model,archive_candidate,archive/checkpoints_202606,classified as checkpoint_or_model
-checkpoints_smoke_rawmetrics_20260613,dir,checkpoint_or_model,archive_candidate,archive/checkpoints_202606,classified as checkpoint_or_model
 CLAUDE.md,file,source_or_docs,review,,manual review before any move
 conditional_negfilter_breadth_20260618,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
 configs,dir,source_or_docs,protect,,"active source, official baseline, or forward-observation dependency"
@@ -102,7 +99,6 @@ scripts,dir,source_or_docs,protect,,"active source, official baseline, or forwar
 SHARPE_OPTIMIZATION_REPORT.md,file,source_or_docs,review,,manual review before any move
 state_triggered_target_20260617,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
 switch_value_data_20260604_top3_pv1m_raw,dir,misc,review,,manual review before any move
-switch_value_models_20260604_top3_pv1m_raw_lgb_h5,dir,checkpoint_or_model,archive_candidate,archive/checkpoints_202606,classified as checkpoint_or_model
 TEST_PLAN.md,file,source_or_docs,review,,manual review before any move
 tests,dir,source_or_docs,protect,,"active source, official baseline, or forward-observation dependency"
 unified_good_ops_validation_20260616,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
