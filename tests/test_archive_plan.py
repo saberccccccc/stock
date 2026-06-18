@@ -73,6 +73,22 @@ def test_build_archive_moves_only_uses_archive_candidates(tmp_path):
     assert len(moves) == 1
     assert moves[0].source == tmp_path / "errors.log"
     assert moves[0].target == tmp_path / "archive" / "logs_202606" / "errors.log"
+    assert moves[0].item_class == "runtime_log_or_pid"
+
+
+def test_build_archive_moves_filters_class_and_target(tmp_path):
+    rows = [
+        plan_inventory_row({"name": "errors.log", "kind": "file", "class": "runtime_log_or_pid"}),
+        plan_inventory_row({"name": ".pytest_cache", "kind": "dir", "class": "archive_or_cache"}),
+    ]
+    (tmp_path / "errors.log").write_text("oops", encoding="utf-8")
+    (tmp_path / ".pytest_cache").mkdir()
+
+    moves = build_archive_moves(rows, root=tmp_path, item_class="runtime_log_or_pid")
+    assert [move.name for move in moves] == ["errors.log"]
+
+    moves = build_archive_moves(rows, root=tmp_path, target="archive/cache_202606")
+    assert [move.name for move in moves] == [".pytest_cache"]
 
 
 def test_execute_archive_moves_moves_file_in_tmpdir(tmp_path):

@@ -59,6 +59,7 @@ class ArchiveMove:
     source: Path
     target: Path
     action: str
+    item_class: str
     reason: str
 
 
@@ -212,11 +213,17 @@ def build_archive_moves(
     rows: list[ArchivePlanRow],
     root: str | Path = ".",
     include_missing: bool = False,
+    item_class: str | None = None,
+    target: str | None = None,
 ) -> list[ArchiveMove]:
     root = Path(root)
     moves = []
     for row in rows:
         if row.action != "archive_candidate":
+            continue
+        if item_class is not None and row.item_class != item_class:
+            continue
+        if target is not None and row.target != target:
             continue
         if not row.target:
             raise ValueError(f"Archive candidate has no target: {row.name}")
@@ -231,6 +238,7 @@ def build_archive_moves(
                 source=source,
                 target=root / row.target / row.name,
                 action=row.action,
+                item_class=row.item_class,
                 reason=row.reason,
             )
         )

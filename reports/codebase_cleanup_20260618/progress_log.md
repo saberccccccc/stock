@@ -1535,3 +1535,85 @@ No files were moved.
 If root cleanup is desired, first run the dry-run mover without `--limit` and
 review the full printed move list. Only then consider a very small `--execute`
 batch, starting with harmless log/pid files.
+
+## 2026-06-18 Phase 6 Archive Mover Filters
+
+### Completed
+
+Extended:
+
+```text
+experiments/archive_plan.py
+run/archive_from_plan.py
+tests/test_archive_plan.py
+```
+
+Added dry-run filters:
+
+```text
+--class
+--target
+```
+
+This allows reviewing only one inventory class or target archive folder before
+any move. Example:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class runtime_log_or_pid `
+  --limit 10
+```
+
+### Validation
+
+Compiled:
+
+```text
+experiments/archive_plan.py
+run/archive_from_plan.py
+tests/test_archive_plan.py
+```
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_archive_plan.py -q
+```
+
+Result:
+
+```text
+8 passed
+```
+
+Filtered dry-run smoke:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class runtime_log_or_pid `
+  --limit 10
+```
+
+Result:
+
+```text
+DRY-RUN archive moves: 10
+a5_recovery.pid -> archive\logs_202606\a5_recovery.pid
+a5_recovery_stderr.log -> archive\logs_202606\a5_recovery_stderr.log
+a5_recovery_stdout.log -> archive\logs_202606\a5_recovery_stdout.log
+...
+candidate_validation.pid -> archive\logs_202606\candidate_validation.pid
+```
+
+No files were moved.
+
+### Next Step
+
+The first real cleanup batch, if desired, should be limited to:
+
+```text
+--class runtime_log_or_pid
+```
+
+and preferably a small `--limit` value after reviewing the full dry-run output.

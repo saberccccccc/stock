@@ -24,6 +24,8 @@ def parse_args():
         default="reports/codebase_cleanup_20260618/archive_plan.csv",
     )
     parser.add_argument("--root", default=".")
+    parser.add_argument("--class", dest="item_class", default=None, help="Only include one inventory class.")
+    parser.add_argument("--target", default=None, help="Only include one archive target path.")
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument(
         "--execute",
@@ -36,7 +38,12 @@ def parse_args():
 def main():
     args = parse_args()
     rows = load_archive_plan(args.plan_csv)
-    moves = build_archive_moves(rows, root=args.root)
+    moves = build_archive_moves(
+        rows,
+        root=args.root,
+        item_class=args.item_class,
+        target=args.target,
+    )
     if args.limit is not None:
         moves = moves[: args.limit]
     mode = "EXECUTE" if args.execute else "DRY-RUN"
