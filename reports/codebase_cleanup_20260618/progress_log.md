@@ -3044,6 +3044,77 @@ directories are likely low risk, while temporal/retention/topstable outputs
 should be checked against the temporal and V9-retention snapshot reports before
 moving.
 
+## Phase 11 Legacy Smoke/Cache Backtest Archive
+
+### Completed
+
+Dry-ran and executed the low-risk smoke/cache backtest outputs:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class experiment_output `
+  --name-glob "backtest_results_switch_cache_smoke*" `
+  --execute
+
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class experiment_output `
+  --name-prefix backtest_results_small_account_smoke_ `
+  --execute
+```
+
+Moved 5 legacy smoke/cache directories:
+
+```text
+backtest_results_switch_cache_smoke_fast2
+backtest_results_switch_cache_smoke_read
+backtest_results_switch_cache_smoke_read5
+backtest_results_switch_cache_smoke_write
+backtest_results_small_account_smoke_20260612
+```
+
+Destination:
+
+```text
+archive/experiments_202606/
+```
+
+Regenerated source inventory and archive plan.
+
+Current summary after the move:
+
+```text
+top-level inventory rows=117
+archive_candidate=78
+protect=18
+review=21
+experiment_output candidates=40
+checkpoint_or_model candidates=34
+archive_or_cache candidates=4
+remaining backtest_results_* candidates=4
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py `
+  tests\test_review_docs.py -q
+```
+
+Result:
+
+```text
+15 passed
+```
+
+### Next Step
+
+Check the remaining temporal/retention/topstable backtest directories against
+the snapshot reports before moving them.
+
 ## Phase 8 Fourth Legacy Backtest Archive Batch
 
 ### Completed
