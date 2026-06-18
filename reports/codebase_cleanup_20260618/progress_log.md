@@ -2825,3 +2825,79 @@ archive/experiments_202606/backtest_results_exp_blend_raw75_avg25_test exists=Tr
 ### Next Step
 
 Dry-run and review the next `backtest_results_exp_*` batch before executing.
+
+## Phase 8 Third Legacy Backtest Archive Batch
+
+### Completed
+
+Executed the next already-reviewed small batch:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class experiment_output `
+  --name-prefix backtest_results_exp_ `
+  --limit 10 `
+  --execute
+```
+
+Moved 10 legacy backtest result directories:
+
+```text
+backtest_results_exp_consensus_geo_val
+backtest_results_exp_consensus_min_val
+backtest_results_exp_legacy_bear40_test
+backtest_results_exp_legacy_bear40_val
+backtest_results_exp_legacy_bear50_val
+backtest_results_exp_legacy_bear60_val
+backtest_results_exp_legacy_bear80_val
+backtest_results_exp_market_dynamic_min35_val
+backtest_results_exp_market_dynamic_min50_val
+backtest_results_exp_market_dynamic_min65_val
+```
+
+Destination:
+
+```text
+archive/experiments_202606/
+```
+
+Regenerated source inventory and archive plan.
+
+Current summary after the move:
+
+```text
+top-level inventory rows=181
+archive_candidate=142
+protect=18
+review=21
+remaining backtest_results_exp_* candidates=22
+archived backtest_results_exp_* directories=30
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py `
+  tests\test_review_docs.py -q
+```
+
+Result:
+
+```text
+15 passed
+```
+
+Spot checks:
+
+```text
+backtest_results_exp_legacy_bear40_test exists=False
+archive/experiments_202606/backtest_results_exp_legacy_bear40_test exists=True
+```
+
+### Next Step
+
+Dry-run and review the next `backtest_results_exp_*` batch before executing.

@@ -6,7 +6,7 @@ This is a non-destructive plan. No files are moved by this report.
 
 | Action | Count |
 |---|---:|
-| archive_candidate | 152 |
+| archive_candidate | 142 |
 | protect | 18 |
 | review | 21 |
 
@@ -39,16 +39,6 @@ This is a non-destructive plan. No files are moved by this report.
 | __pycache__ | dir | archive_or_cache | archive/cache_202606 |
 | _archive_models_data_20260604 | dir | archive_or_cache | archive/cache_202606 |
 | _archive_results_20260604 | dir | archive_or_cache | archive/cache_202606 |
-| backtest_results_exp_consensus_geo_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_consensus_min_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_legacy_bear40_test | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_legacy_bear40_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_legacy_bear50_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_legacy_bear60_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_legacy_bear80_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_market_dynamic_min35_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_market_dynamic_min50_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_market_dynamic_min65_val | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_exp_market_dynamic_val | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_exp_market_none_val | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_exp_pairwise_w001_avgw3_val | dir | experiment_output | archive/experiments_202606 |

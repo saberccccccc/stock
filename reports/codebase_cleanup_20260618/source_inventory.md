@@ -8,7 +8,7 @@ Generated without moving or modifying project outputs.
 |---|---:|
 | archive_or_cache, dir | 6 |
 | checkpoint_or_model, dir | 37 |
-| experiment_output, dir | 108 |
+| experiment_output, dir | 98 |
 | experiment_output, file | 9 |
 | misc, dir | 5 |
 | misc, file | 2 |
@@ -62,16 +62,6 @@ Generated without moving or modifying project outputs.
 | checkpoints_smoke_rawmetrics_20260613 | dir | checkpoint_or_model | 2026-06-13 17:02:07 |
 | models_multi_v9_tech_macro | dir | checkpoint_or_model | 2026-06-10 20:59:59 |
 | switch_value_models_20260604_top3_pv1m_raw_lgb_h5 | dir | checkpoint_or_model | 2026-06-10 21:00:00 |
-| backtest_results_exp_consensus_geo_val | dir | experiment_output | 2026-06-12 20:01:53 |
-| backtest_results_exp_consensus_min_val | dir | experiment_output | 2026-06-12 20:01:53 |
-| backtest_results_exp_legacy_bear40_test | dir | experiment_output | 2026-06-12 19:42:06 |
-| backtest_results_exp_legacy_bear40_val | dir | experiment_output | 2026-06-12 19:40:38 |
-| backtest_results_exp_legacy_bear50_val | dir | experiment_output | 2026-06-12 19:40:38 |
-| backtest_results_exp_legacy_bear60_val | dir | experiment_output | 2026-06-12 19:40:38 |
-| backtest_results_exp_legacy_bear80_val | dir | experiment_output | 2026-06-12 19:40:38 |
-| backtest_results_exp_market_dynamic_min35_val | dir | experiment_output | 2026-06-12 19:38:36 |
-| backtest_results_exp_market_dynamic_min50_val | dir | experiment_output | 2026-06-12 19:38:36 |
-| backtest_results_exp_market_dynamic_min65_val | dir | experiment_output | 2026-06-12 19:38:36 |
 | backtest_results_exp_market_dynamic_val | dir | experiment_output | 2026-06-12 19:37:29 |
 | backtest_results_exp_market_none_val | dir | experiment_output | 2026-06-12 19:37:27 |
 | backtest_results_exp_pairwise_w001_avgw3_val | dir | experiment_output | 2026-06-12 23:03:57 |
