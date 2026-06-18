@@ -3608,6 +3608,40 @@ The rejected/observation summary was updated with this hold decision.
 Continue with documentation/index cleanup rather than moving these referenced
 experiment-output directories.
 
+## Phase 22 Project Entrypoints Index
+
+### Completed
+
+Created:
+
+```text
+reports/codebase_cleanup_20260618/project_entrypoints_index.md
+```
+
+This is now the main navigation map for:
+
+```text
+cleanup status
+official baseline reports
+training/loss decisions
+reranker decisions
+open-reranker and market-overlay decisions
+core runtime scripts
+cleanup tools
+```
+
+### Decision
+
+At this point, remaining top-level experiment/checkpoint candidates should not
+be moved mechanically. The next cleanup value comes from indexing, consolidating
+entrypoints, and later splitting mixed artifact directories if needed.
+
+### Next Step
+
+Use the entrypoints index as the front door, then continue consolidating
+untracked scripts/reports by theme only where it reduces ambiguity without
+breaking referenced paths.
+
 ## Phase 8 Fourth Legacy Backtest Archive Batch
 
 ### Completed

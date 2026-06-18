@@ -3,6 +3,12 @@
 This queue starts after the legacy `backtest_results_*` cleanup was completed.
 It summarizes what remains in `archive_plan.csv` and sets the next safe order.
 
+For navigation across the cleaned workspace, start with:
+
+```text
+reports/codebase_cleanup_20260618/project_entrypoints_index.md
+```
+
 ## Current Candidate Counts
 
 | Class | Count |
