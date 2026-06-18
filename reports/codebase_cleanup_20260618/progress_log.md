@@ -3188,6 +3188,49 @@ Move from legacy backtest outputs to the remaining experiment-output categories:
 candidate/loss validation, open-reranker attack candidates, market overlays, and
 reranker datasets. These need category-specific ledgers before any broad move.
 
+## Phase 13 Remaining Cleanup Queue
+
+### Completed
+
+Created a post-backtest cleanup queue:
+
+```text
+reports/codebase_cleanup_20260618/remaining_cleanup_queue.md
+```
+
+Current remaining archive candidates:
+
+```text
+experiment_output=36
+checkpoint_or_model=34
+archive_or_cache=4
+```
+
+The remaining experiment outputs are now grouped into:
+
+```text
+training_validation=13
+reranker_artifact=8
+open_reranker_attack=7
+market_overlay=4
+v9_strategy_evidence=3
+other=1
+```
+
+The remaining checkpoint/model outputs are now grouped into:
+
+```text
+loss_ablation_checkpoints=15
+alpha_checkpoints=8
+reranker_checkpoints=6
+other_models=5
+```
+
+### Next Step
+
+Build the training-validation ledger before moving any M0/A0/A4/loss/lag1
+directories or their matching checkpoints.
+
 ## Phase 8 Fourth Legacy Backtest Archive Batch
 
 ### Completed

@@ -1,0 +1,63 @@
+# Remaining Cleanup Queue 2026-06-19
+
+This queue starts after the legacy `backtest_results_*` cleanup was completed.
+It summarizes what remains in `archive_plan.csv` and sets the next safe order.
+
+## Current Candidate Counts
+
+| Class | Count |
+|---|---:|
+| `experiment_output` | 36 |
+| `checkpoint_or_model` | 34 |
+| `archive_or_cache` | 4 |
+
+## Remaining Experiment Outputs
+
+| Group | Count | Handling |
+|---|---:|---|
+| Training/candidate/loss validation | 13 | Build or update a training-validation ledger first. These directories still explain M0/A0/A4/loss/lag1 decisions. |
+| Reranker artifacts | 8 | Use the reranker artifact ledger before moving; keep anything needed for OOF reconstruction. |
+| Open-reranker attack candidates | 7 | Keep until forward/attack-candidate evidence is indexed and official baseline impact is clear. |
+| Market overlay experiments | 4 | Keep until breadth/state/conditional overlay caveats are indexed. |
+| V9 strategy evidence | 3 | Keep unless superseded by protected official baseline and report summaries. |
+| Other | 1 | Inspect manually before moving. |
+
+The legacy `backtest_results_*` group is complete:
+
+```text
+remaining backtest_results_* candidates=0
+top-level backtest_results_* entries=0
+```
+
+## Remaining Checkpoint/Model Outputs
+
+| Group | Count | Handling |
+|---|---:|---|
+| Loss-ablation checkpoints | 15 | Do not move until the loss-ablation decision ledger maps winners, rejected runs, and protected baselines. |
+| Alpha checkpoints | 8 | Highest risk; preserve current or historically referenced checkpoints until checkpoint references are audited. |
+| Reranker checkpoints | 6 | Pair with reranker artifact ledger; archive only after OOF/model reproducibility is documented. |
+| Other model outputs | 5 | Inspect individually: benchmarks, smoke rawmetrics, LightGBM/switch-value model directories. |
+
+## Recommended Next Order
+
+1. Update `experiment_output_ledger.md` for the current post-backtest state.
+2. Create a training-validation ledger for M0/A0/A4/loss/lag1 directories and related scripts.
+3. Create a checkpoint-reference audit that searches reports/configs/scripts for each checkpoint directory name.
+4. Only after the audit, move rejected loss-ablation checkpoints in small exact-prefix batches.
+5. Leave official V9/open-ledger/cutoff evidence protected unless a newer protected baseline replaces it.
+
+## Safety Rules
+
+1. Use exact `--name-prefix` or `--name-glob`; avoid broad `--class` moves.
+2. Dry-run before every move.
+3. Regenerate source inventory and archive plan after every move.
+4. Run focused cleanup tests after every move:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py `
+  tests\test_review_docs.py -q
+```
+
+5. Commit only code/report/index changes; do not commit archive payloads.
