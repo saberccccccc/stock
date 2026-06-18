@@ -8,7 +8,7 @@ Generated without moving or modifying project outputs.
 |---|---:|
 | archive_or_cache, dir | 6 |
 | checkpoint_or_model, dir | 37 |
-| experiment_output, dir | 128 |
+| experiment_output, dir | 118 |
 | experiment_output, file | 9 |
 | misc, dir | 5 |
 | misc, file | 2 |
@@ -23,7 +23,7 @@ Generated without moving or modifying project outputs.
 | __pycache__ | dir | archive_or_cache | 2026-06-18 01:33:32 |
 | _archive_models_data_20260604 | dir | archive_or_cache | 2026-06-10 21:00:00 |
 | _archive_results_20260604 | dir | archive_or_cache | 2026-06-10 21:00:05 |
-| archive | dir | archive_or_cache | 2026-06-18 13:59:25 |
+| archive | dir | archive_or_cache | 2026-06-18 23:08:03 |
 | cache | dir | archive_or_cache | 2026-06-17 23:29:57 |
 | checkpoints | dir | checkpoint_or_model | 2026-06-10 20:59:43 |
 | checkpoints_batch4_benchmark_20260613 | dir | checkpoint_or_model | 2026-06-13 01:01:52 |
@@ -62,16 +62,6 @@ Generated without moving or modifying project outputs.
 | checkpoints_smoke_rawmetrics_20260613 | dir | checkpoint_or_model | 2026-06-13 17:02:07 |
 | models_multi_v9_tech_macro | dir | checkpoint_or_model | 2026-06-10 20:59:59 |
 | switch_value_models_20260604_top3_pv1m_raw_lgb_h5 | dir | checkpoint_or_model | 2026-06-10 21:00:00 |
-| backtest_results_exp_ablate_fundamental_avgw3_val | dir | experiment_output | 2026-06-12 19:45:01 |
-| backtest_results_exp_ablate_fundamental_share_ledger_val | dir | experiment_output | 2026-06-12 19:46:29 |
-| backtest_results_exp_band20_mintrade_val | dir | experiment_output | 2026-06-12 22:29:07 |
-| backtest_results_exp_band20_rankshrink_val | dir | experiment_output | 2026-06-12 22:36:30 |
-| backtest_results_exp_band20_ranktilt_val | dir | experiment_output | 2026-06-12 22:34:24 |
-| backtest_results_exp_band20_volpen_val | dir | experiment_output | 2026-06-12 22:51:48 |
-| backtest_results_exp_base_avgw3_val | dir | experiment_output | 2026-06-12 23:13:37 |
-| backtest_results_exp_base_band20_val | dir | experiment_output | 2026-06-12 23:14:23 |
-| backtest_results_exp_blend_raw25_avg75_val | dir | experiment_output | 2026-06-12 19:47:48 |
-| backtest_results_exp_blend_raw50_avg50_val | dir | experiment_output | 2026-06-12 19:47:48 |
 | backtest_results_exp_blend_raw75_avg25_hold100_stress_2x | dir | experiment_output | 2026-06-12 19:53:42 |
 | backtest_results_exp_blend_raw75_avg25_hold100_stress_3x | dir | experiment_output | 2026-06-12 19:53:42 |
 | backtest_results_exp_blend_raw75_avg25_hold100_stress_lag1 | dir | experiment_output | 2026-06-12 19:53:42 |
@@ -211,11 +201,11 @@ Generated without moving or modifying project outputs.
 | configs | dir | source_or_docs | 2026-06-16 15:38:03 |
 | core | dir | source_or_docs | 2026-06-18 13:23:09 |
 | data | dir | source_or_docs | 2026-06-12 01:46:17 |
-| experiments | dir | source_or_docs | 2026-06-18 13:46:34 |
+| experiments | dir | source_or_docs | 2026-06-18 14:27:16 |
 | reports | dir | source_or_docs | 2026-06-18 13:33:39 |
-| run | dir | source_or_docs | 2026-06-18 13:52:41 |
+| run | dir | source_or_docs | 2026-06-18 14:27:55 |
 | scripts | dir | source_or_docs | 2026-06-12 12:14:06 |
-| tests | dir | source_or_docs | 2026-06-18 13:47:11 |
+| tests | dir | source_or_docs | 2026-06-18 14:28:19 |
 | __init__.py | file | source_or_docs | 2026-05-19 02:46:36 |
 | CANDIDATE_MODEL_VALIDATION_PLAN_20260614.md | file | source_or_docs | 2026-06-14 14:23:43 |
 | CLAUDE.md | file | source_or_docs | 2026-06-12 01:52:30 |

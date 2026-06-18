@@ -6,7 +6,7 @@ This is a non-destructive plan. No files are moved by this report.
 
 | Action | Count |
 |---|---:|
-| archive_candidate | 172 |
+| archive_candidate | 162 |
 | protect | 18 |
 | review | 21 |
 
@@ -39,16 +39,6 @@ This is a non-destructive plan. No files are moved by this report.
 | __pycache__ | dir | archive_or_cache | archive/cache_202606 |
 | _archive_models_data_20260604 | dir | archive_or_cache | archive/cache_202606 |
 | _archive_results_20260604 | dir | archive_or_cache | archive/cache_202606 |
-| backtest_results_exp_ablate_fundamental_avgw3_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_ablate_fundamental_share_ledger_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_band20_mintrade_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_band20_rankshrink_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_band20_ranktilt_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_band20_volpen_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_base_avgw3_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_base_band20_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_blend_raw25_avg75_val | dir | experiment_output | archive/experiments_202606 |
-| backtest_results_exp_blend_raw50_avg50_val | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_exp_blend_raw75_avg25_hold100_stress_2x | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_exp_blend_raw75_avg25_hold100_stress_3x | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_exp_blend_raw75_avg25_hold100_stress_lag1 | dir | experiment_output | archive/experiments_202606 |
