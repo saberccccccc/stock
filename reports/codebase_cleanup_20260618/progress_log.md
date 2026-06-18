@@ -2319,3 +2319,87 @@ archive candidate
 ```
 
 Do not move reranker artifact directories until this ledger exists.
+
+## Phase 8 Reranker Artifact Ledger
+
+### Completed
+
+Created:
+
+```text
+reports/codebase_cleanup_20260618/reranker_artifact_ledger.csv
+reports/codebase_cleanup_20260618/reranker_artifact_ledger.md
+```
+
+The ledger maps 23 reranker-related artifact paths, including top-level
+`reranker_*` directories, nested V1/V2/V3/V4/V4.1 model and validation
+subdirectories, and forward evidence directories:
+
+```text
+forward_results/m0_v3_20260615
+forward_results/m0_v41_20260615
+```
+
+Status summary:
+
+```text
+active_evidence=2
+frozen_shadow_artifact=7
+forward_shadow_evidence=1
+failed_experiment_evidence=8
+failed_forward_evidence=1
+failed_or_superseded_evidence=1
+mixed_confirmation_artifacts=1
+mixed_model_artifacts=1
+mixed_validation_artifacts=1
+```
+
+Important cleanup rules captured:
+
+```text
+Do not move parent directories with mixed statuses.
+Do not move V3/V4 evidence while they remain active shadow references.
+Failed V1/V2/V4.1 artifacts can be archived later only after failure summaries are indexed.
+Any move should be class-filtered and dry-run first.
+```
+
+No reranker artifact directories were moved.
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_review_docs.py `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py -q
+```
+
+Result:
+
+```text
+14 passed
+```
+
+Coverage spot-check:
+
+```text
+ledger rows=23
+required paths covered:
+  reranker_data_20260614
+  reranker_oof_20260614
+  reranker_training_20260615
+  reranker_v2_data_20260615
+  reranker_v3_data_20260615
+  reranker_models_20260615
+  reranker_validation_20260615
+  reranker_confirmation_20260615
+  forward_results/m0_v3_20260615
+  forward_results/m0_v41_20260615
+```
+
+### Next Step
+
+Create a broader experiment-output ledger for non-reranker result directories
+before moving any experiment outputs into `archive/experiments_202606`.
