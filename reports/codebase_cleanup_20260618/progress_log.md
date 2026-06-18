@@ -3642,6 +3642,37 @@ Use the entrypoints index as the front door, then continue consolidating
 untracked scripts/reports by theme only where it reduces ambiguity without
 breaking referenced paths.
 
+## Phase 23 Run Script Index
+
+### Completed
+
+Created:
+
+```text
+reports/codebase_cleanup_20260618/run_script_index.md
+```
+
+The index classifies `run/` scripts into:
+
+```text
+durable entrypoints
+training and candidate validation
+reranker research
+open-reranker and overlay research
+legacy research utilities
+recommendation and watchlist utilities
+```
+
+It also records cleanup rules for future script movement: do not move scripts
+referenced by active ledgers/reports, and archive one-off scripts only with
+their matching artifacts.
+
+### Next Step
+
+If continuing cleanup, create a similar index for top-level plans and report
+directories that remain untracked, then decide which root-level docs can be
+consolidated or left as canonical sources.
+
 ## Phase 8 Fourth Legacy Backtest Archive Batch
 
 ### Completed

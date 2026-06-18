@@ -16,6 +16,7 @@ training, validating, or cleaning artifacts.
 | Open-reranker and market-overlay decisions | `reports/codebase_cleanup_20260618/open_reranker_market_overlay_ledger.md` |
 | Failed/unpromoted candidate summary | `reports/codebase_cleanup_20260618/rejected_candidate_summary.md` |
 | Checkpoint/model references | `reports/codebase_cleanup_20260618/checkpoint_reference_audit.md` |
+| Run script roles | `reports/codebase_cleanup_20260618/run_script_index.md` |
 
 ## Current Cleanup Boundary
 
@@ -31,6 +32,12 @@ referenced or high risk. The remaining experiment outputs are active evidence,
 observation candidates, or referenced failed experiments.
 
 ## Core Runtime Entrypoints
+
+Detailed script classification lives in:
+
+```text
+reports/codebase_cleanup_20260618/run_script_index.md
+```
 
 | Task | Entrypoint |
 |---|---|
