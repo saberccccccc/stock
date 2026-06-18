@@ -68,7 +68,13 @@ The next cleanup movement in this family should wait for one of:
 
 ## Safe Follow-Up
 
-Create a compact rejected-overlay summary for:
+Rejected/unpromoted decisions are summarized in:
+
+```text
+reports/codebase_cleanup_20260618/rejected_candidate_summary.md
+```
+
+Before any archive move, run a path-reference check for:
 
 ```text
 breadth_triggered_target_20260617
@@ -77,5 +83,6 @@ conditional_negfilter_breadth_20260618
 open_reranker_current_v9_light_20260617
 ```
 
-After that summary exists, these rejected/unpromoted outputs can be considered
-for exact-name archive batches.
+Only exact-name archive batches should be considered, and active candidates
+such as `negfilter_r030_100_drop3`, `edge_r030_100`, and
+`breadth_triggered_market_20260617` should remain in place.

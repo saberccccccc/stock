@@ -24,7 +24,7 @@ caches.
 | Training/candidate/loss validation | 13 | Build or update a training-validation ledger first. These directories still explain M0/A0/A4/loss/lag1 decisions. |
 | Reranker artifacts | 8 | Use the reranker artifact ledger before moving; keep anything needed for OOF reconstruction. |
 | Open-reranker attack candidates | 7 | Use `open_reranker_market_overlay_ledger.md`; keep until forward/attack-candidate evidence is frozen. |
-| Market overlay experiments | 4 | Use `open_reranker_market_overlay_ledger.md`; rejected overlays need a compact summary before archive. |
+| Market overlay experiments | 4 | Use `open_reranker_market_overlay_ledger.md` and `rejected_candidate_summary.md`; rejected overlays need path-reference checks before archive. |
 | V9 strategy evidence | 3 | Keep unless superseded by protected official baseline and report summaries. |
 | Other | 1 | Inspect manually before moving. |
 

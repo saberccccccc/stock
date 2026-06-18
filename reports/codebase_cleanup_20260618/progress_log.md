@@ -3527,6 +3527,47 @@ conditional_negfilter_breadth_20260618
 open_reranker_current_v9_light_20260617
 ```
 
+## Phase 20 Rejected/Observation Candidate Summary
+
+### Completed
+
+Created:
+
+```text
+reports/codebase_cleanup_20260618/rejected_candidate_summary.md
+```
+
+The summary consolidates decisions for:
+
+```text
+rejected training losses
+failed/unpromoted rerankers
+open-reranker observation candidates
+market overlay experiments
+```
+
+Key cleanup implication:
+
+```text
+potential later archive targets:
+  open_reranker_current_v9_light_20260617
+  breadth_triggered_target_20260617
+  state_triggered_target_20260617
+  downside_topfocus_validation_20260616
+
+hold for now:
+  open_reranker_current_v9_negfilter_20260617
+  open_reranker_current_v9_edge_20260617
+  open_reranker_current_v9_forward_20260617
+  breadth_triggered_market_20260617
+  reranker mixed parent directories
+```
+
+### Next Step
+
+Run path-reference checks before moving any potential archive target. Do not
+move active observation candidates or mixed reranker parent directories.
+
 ## Phase 8 Fourth Legacy Backtest Archive Batch
 
 ### Completed
