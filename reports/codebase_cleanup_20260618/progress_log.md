@@ -833,3 +833,122 @@ experiments/leaderboard.py
 
 This will prevent future candidate comparisons from being rebuilt manually and
 will keep execution-family rankings separated.
+
+## 2026-06-18 Phase 4 Experiment Registry / Leaderboard
+
+### Completed
+
+Created a reproducible experiment comparison layer:
+
+```text
+experiments/__init__.py
+experiments/registry.py
+experiments/leaderboard.py
+tests/test_experiment_leaderboard.py
+```
+
+The registry now records current open-price share-ledger candidates:
+
+```text
+official
+breadth_m085
+edge_r030_100
+negfilter_drop3
+risk_target_r004
+```
+
+Each result source carries explicit metadata:
+
+```text
+split
+stress
+source_type
+target_frac
+hold_frac
+portfolio_value
+```
+
+This prevents grid/sweep summaries from leaking unrelated target or hold
+settings into the leaderboard. The official validation source is pinned to the
+historical grid row:
+
+```text
+target_frac=0.006
+hold_frac=0.10
+```
+
+Generated:
+
+```text
+reports/candidate_leaderboard_20260617/candidate_leaderboard_from_registry.csv
+```
+
+### Validation
+
+Compiled:
+
+```text
+experiments/__init__.py
+experiments/registry.py
+experiments/leaderboard.py
+tests/test_experiment_leaderboard.py
+```
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_experiment_leaderboard.py -q
+```
+
+Result:
+
+```text
+7 passed
+```
+
+Registry leaderboard generation:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m experiments.leaderboard `
+  --output-csv reports\candidate_leaderboard_20260617\candidate_leaderboard_from_registry.csv `
+  --fail-on-missing
+```
+
+Result:
+
+```text
+rows=78
+missing=0
+```
+
+Compared against the existing manual leaderboard:
+
+```text
+old_rows=78
+new_rows=78
+missing_in_new=0
+extra_in_new=0
+```
+
+Maximum numeric differences were only floating-point noise:
+
+```text
+ann: 5.68e-14
+sharpe: 4.88e-15
+mdd: 5.00e-16
+exec_to: 5.00e-16
+blocked_buy: 0
+```
+
+### Next Step
+
+Next recommended phase:
+
+```text
+Phase 5: training/config organization
+```
+
+Start by extracting stable training experiment definitions for M0/V9/loss
+ablation runs, but do not change training behavior or checkpoint-selection
+rules until each config wrapper has a dry-run or smoke test.
