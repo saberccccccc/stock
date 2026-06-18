@@ -8,10 +8,8 @@ __pycache__,dir,archive_or_cache,archive_candidate,archive/cache_202606,classifi
 _archive_models_data_20260604,dir,archive_or_cache,archive_candidate,archive/cache_202606,classified as archive_or_cache
 _archive_results_20260604,dir,archive_or_cache,archive_candidate,archive/cache_202606,classified as archive_or_cache
 _sys_check.ps1,file,misc,review,,manual review before any move
-a5_recovery.pid,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
-a5_recovery_stderr.log,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
-a5_recovery_stdout.log,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
 alpha,dir,source_or_docs,protect,,"active source, official baseline, or forward-observation dependency"
+archive,dir,archive_or_cache,protect,,"active source, official baseline, or forward-observation dependency"
 backtest,dir,source_or_docs,protect,,"active source, official baseline, or forward-observation dependency"
 backtest_result_snapshots,dir,misc,review,,manual review before any move
 backtest_results_exp_ablate_fundamental_avgw3_val,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
@@ -112,18 +110,11 @@ backtest_results_test_plan_v9_raw_val,dir,experiment_output,archive_candidate,ar
 backtest_results_test_plan_v9_smoke5,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
 backtest_results_topstable_epoch9_val_avgw3,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
 backtest_results_v9_retention_20260531,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
-batch4_timing_stderr.log,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
-batch4_timing_stdout.log,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
-batch8_benchmark_stderr.log,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
-batch8_benchmark_stdout.log,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
-batch8_timing_stderr.log,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
-batch8_timing_stdout.log,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
 breadth_triggered_market_20260617,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
 breadth_triggered_target_20260617,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
 cache,dir,archive_or_cache,protect,,"active source, official baseline, or forward-observation dependency"
 candidate_model_validation_20260614,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
 CANDIDATE_MODEL_VALIDATION_PLAN_20260614.md,file,source_or_docs,review,,manual review before any move
-candidate_validation.pid,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
 candidate_validation_stderr.log,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
 candidate_validation_stdout.log,file,runtime_log_or_pid,archive_candidate,archive/logs_202606,classified as runtime_log_or_pid
 checkpoints,dir,checkpoint_or_model,archive_candidate,archive/checkpoints_202606,classified as checkpoint_or_model

@@ -6,13 +6,14 @@ This is a non-destructive plan. No files are moved by this report.
 
 | Action | Count |
 |---|---:|
-| archive_candidate | 224 |
-| protect | 17 |
+| archive_candidate | 214 |
+| protect | 18 |
 | review | 22 |
 
 ## Protected Paths
 
 - `alpha`
+- `archive`
 - `backtest`
 - `cache`
 - `checkpoints_exp_topfocus_w005_topic`
@@ -38,9 +39,6 @@ This is a non-destructive plan. No files are moved by this report.
 | __pycache__ | dir | archive_or_cache | archive/cache_202606 |
 | _archive_models_data_20260604 | dir | archive_or_cache | archive/cache_202606 |
 | _archive_results_20260604 | dir | archive_or_cache | archive/cache_202606 |
-| a5_recovery.pid | file | runtime_log_or_pid | archive/logs_202606 |
-| a5_recovery_stderr.log | file | runtime_log_or_pid | archive/logs_202606 |
-| a5_recovery_stdout.log | file | runtime_log_or_pid | archive/logs_202606 |
 | backtest_results_exp_ablate_fundamental_avgw3_val | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_exp_ablate_fundamental_share_ledger_val | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_exp_band20_mintrade_val | dir | experiment_output | archive/experiments_202606 |
@@ -139,16 +137,9 @@ This is a non-destructive plan. No files are moved by this report.
 | backtest_results_test_plan_v9_smoke5 | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_topstable_epoch9_val_avgw3 | dir | experiment_output | archive/experiments_202606 |
 | backtest_results_v9_retention_20260531 | dir | experiment_output | archive/experiments_202606 |
-| batch4_timing_stderr.log | file | runtime_log_or_pid | archive/logs_202606 |
-| batch4_timing_stdout.log | file | runtime_log_or_pid | archive/logs_202606 |
-| batch8_benchmark_stderr.log | file | runtime_log_or_pid | archive/logs_202606 |
-| batch8_benchmark_stdout.log | file | runtime_log_or_pid | archive/logs_202606 |
-| batch8_timing_stderr.log | file | runtime_log_or_pid | archive/logs_202606 |
-| batch8_timing_stdout.log | file | runtime_log_or_pid | archive/logs_202606 |
 | breadth_triggered_market_20260617 | dir | experiment_output | archive/experiments_202606 |
 | breadth_triggered_target_20260617 | dir | experiment_output | archive/experiments_202606 |
 | candidate_model_validation_20260614 | dir | experiment_output | archive/experiments_202606 |
-| candidate_validation.pid | file | runtime_log_or_pid | archive/logs_202606 |
 | candidate_validation_stderr.log | file | runtime_log_or_pid | archive/logs_202606 |
 | candidate_validation_stdout.log | file | runtime_log_or_pid | archive/logs_202606 |
 | checkpoints | dir | checkpoint_or_model | archive/checkpoints_202606 |

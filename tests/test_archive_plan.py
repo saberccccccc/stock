@@ -13,6 +13,7 @@ from experiments.archive_plan import (
 
 def test_is_protected_covers_active_paths():
     assert is_protected("forward_results")
+    assert is_protected("archive")
     assert is_protected("v9_avgw3_open_ledger_20260617")
     assert is_protected("checkpoints_exp_topfocus_w005_topic")
     assert not is_protected("backtest_results_exp_base_avgw3_val")

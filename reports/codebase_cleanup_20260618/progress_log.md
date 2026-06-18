@@ -1617,3 +1617,99 @@ The first real cleanup batch, if desired, should be limited to:
 ```
 
 and preferably a small `--limit` value after reviewing the full dry-run output.
+
+## 2026-06-18 Phase 6 First Log/PID Archive Batch
+
+### Completed
+
+Updated `.gitignore` so archived logs and pid files do not pollute git status:
+
+```text
+*.pid
+archive/logs_202606/
+archive/cache_202606/
+```
+
+Executed the first very small archive batch:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class runtime_log_or_pid `
+  --limit 10 `
+  --execute
+```
+
+Moved 10 low-risk runtime files into:
+
+```text
+archive/logs_202606/
+```
+
+Moved files:
+
+```text
+a5_recovery.pid
+a5_recovery_stderr.log
+a5_recovery_stdout.log
+batch4_timing_stderr.log
+batch4_timing_stdout.log
+batch8_benchmark_stderr.log
+batch8_benchmark_stdout.log
+batch8_timing_stderr.log
+batch8_timing_stdout.log
+candidate_validation.pid
+```
+
+Then regenerated:
+
+```text
+reports/codebase_cleanup_20260618/source_inventory.csv
+reports/codebase_cleanup_20260618/source_inventory.md
+reports/codebase_cleanup_20260618/archive_plan.csv
+reports/codebase_cleanup_20260618/archive_plan.md
+```
+
+Current archive plan summary after the move:
+
+```text
+archive_candidate=214
+protect=18
+review=22
+```
+
+`archive/` itself is now protected so future archive plans cannot recursively
+archive the archive directory.
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py -q
+```
+
+Result:
+
+```text
+11 passed
+```
+
+Spot checks:
+
+```text
+archive -> protect
+candidate_validation_stderr.log -> archive_candidate
+archive/logs_202606 contains the 10 moved files
+```
+
+### Next Step
+
+If continuing root cleanup, run another dry-run with:
+
+```text
+--class runtime_log_or_pid --limit 10
+```
+
+and only execute after reviewing the printed list.

@@ -1,6 +1,6 @@
 name,kind,class,length,last_write
 .claude,dir,misc,,2026-06-10 22:53:55
-.gitignore,file,misc,377,2026-06-12 01:43:24
+.gitignore,file,misc,420,2026-06-18 13:59:14
 .pytest_cache,dir,archive_or_cache,,2026-06-18 01:33:32
 .vscode,dir,misc,,2026-06-10 20:58:10
 __init__.py,file,source_or_docs,59,2026-05-19 02:46:36
@@ -8,10 +8,8 @@ __pycache__,dir,archive_or_cache,,2026-06-18 01:33:32
 _archive_models_data_20260604,dir,archive_or_cache,,2026-06-10 21:00:00
 _archive_results_20260604,dir,archive_or_cache,,2026-06-10 21:00:05
 _sys_check.ps1,file,misc,1304,2026-05-19 02:46:36
-a5_recovery.pid,file,runtime_log_or_pid,7,2026-06-14 12:26:21
-a5_recovery_stderr.log,file,runtime_log_or_pid,0,2026-06-14 12:26:21
-a5_recovery_stdout.log,file,runtime_log_or_pid,6123,2026-06-14 12:43:51
 alpha,dir,source_or_docs,,2026-06-18 01:31:14
+archive,dir,archive_or_cache,,2026-06-18 13:59:25
 backtest,dir,source_or_docs,,2026-06-18 01:50:08
 backtest_result_snapshots,dir,misc,,2026-06-10 20:58:12
 backtest_results_exp_ablate_fundamental_avgw3_val,dir,experiment_output,,2026-06-12 19:45:01
@@ -112,18 +110,11 @@ backtest_results_test_plan_v9_raw_val,dir,experiment_output,,2026-06-12 02:05:20
 backtest_results_test_plan_v9_smoke5,dir,experiment_output,,2026-06-12 02:03:42
 backtest_results_topstable_epoch9_val_avgw3,dir,experiment_output,,2026-06-13 13:06:35
 backtest_results_v9_retention_20260531,dir,experiment_output,,2026-06-10 20:58:12
-batch4_timing_stderr.log,file,runtime_log_or_pid,0,2026-06-13 01:01:52
-batch4_timing_stdout.log,file,runtime_log_or_pid,0,2026-06-13 01:01:52
-batch8_benchmark_stderr.log,file,runtime_log_or_pid,0,2026-06-13 00:58:48
-batch8_benchmark_stdout.log,file,runtime_log_or_pid,0,2026-06-13 00:58:48
-batch8_timing_stderr.log,file,runtime_log_or_pid,0,2026-06-13 01:04:04
-batch8_timing_stdout.log,file,runtime_log_or_pid,0,2026-06-13 01:04:04
 breadth_triggered_market_20260617,dir,experiment_output,,2026-06-17 22:28:52
 breadth_triggered_target_20260617,dir,experiment_output,,2026-06-17 22:10:40
 cache,dir,archive_or_cache,,2026-06-17 23:29:57
 candidate_model_validation_20260614,dir,experiment_output,,2026-06-14 14:13:47
 CANDIDATE_MODEL_VALIDATION_PLAN_20260614.md,file,source_or_docs,5523,2026-06-14 14:23:43
-candidate_validation.pid,file,runtime_log_or_pid,7,2026-06-14 14:08:14
 candidate_validation_stderr.log,file,runtime_log_or_pid,0,2026-06-14 14:08:14
 candidate_validation_stdout.log,file,runtime_log_or_pid,21447,2026-06-14 14:13:47
 checkpoints,dir,checkpoint_or_model,,2026-06-10 20:59:43
@@ -171,7 +162,7 @@ downside_topfocus_ablation_20260615.err.log,file,runtime_log_or_pid,50,2026-06-1
 downside_topfocus_ablation_20260615.out.log,file,runtime_log_or_pid,85114,2026-06-16 01:56:12
 downside_topfocus_validation_20260616,dir,experiment_output,,2026-06-16 15:16:25
 errors.log,file,runtime_log_or_pid,1089,2026-05-25 21:22:26
-experiments,dir,source_or_docs,,2026-06-18 13:37:54
+experiments,dir,source_or_docs,,2026-06-18 13:46:34
 EXPERIMENTS.md,file,source_or_docs,1491,2026-06-12 01:45:36
 formal_train.pid,file,runtime_log_or_pid,7,2026-06-13 01:06:49
 formal_train_stderr.log,file,runtime_log_or_pid,0,2026-06-13 01:06:49
@@ -231,7 +222,7 @@ RESEARCH_PROTOCOL.md,file,source_or_docs,1788,2026-06-12 12:13:47
 resume_downside_topfocus_remaining_20260616.err.log,file,runtime_log_or_pid,0,2026-06-16 12:30:18
 resume_downside_topfocus_remaining_20260616.out.log,file,runtime_log_or_pid,34203,2026-06-16 13:54:20
 resume_downside_topfocus_remaining_20260616.ps1,file,experiment_output,1805,2026-06-16 12:30:18
-run,dir,source_or_docs,,2026-06-18 13:38:08
+run,dir,source_or_docs,,2026-06-18 13:52:41
 run_forward_observation_candidates_20260617.ps1,file,experiment_output,2450,2026-06-17 16:21:50
 run_lag1_loss_ablation_20260616.err.log,file,runtime_log_or_pid,515,2026-06-16 17:34:45
 run_lag1_loss_ablation_20260616.out.log,file,runtime_log_or_pid,26142,2026-06-16 17:18:19
@@ -248,7 +239,7 @@ state_triggered_target_20260617,dir,experiment_output,,2026-06-17 21:58:14
 switch_value_data_20260604_top3_pv1m_raw,dir,misc,,2026-06-10 20:59:59
 switch_value_models_20260604_top3_pv1m_raw_lgb_h5,dir,checkpoint_or_model,,2026-06-10 21:00:00
 TEST_PLAN.md,file,source_or_docs,5602,2026-06-12 12:13:24
-tests,dir,source_or_docs,,2026-06-18 13:38:27
+tests,dir,source_or_docs,,2026-06-18 13:47:11
 train_gat.log,file,runtime_log_or_pid,8166,2026-05-27 19:39:34
 train_v9.log,file,runtime_log_or_pid,6084,2026-06-16 17:34:28
 unified_good_ops_validation_20260616,dir,experiment_output,,2026-06-16 18:10:19

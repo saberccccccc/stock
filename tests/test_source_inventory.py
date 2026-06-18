@@ -13,6 +13,7 @@ def test_classify_top_level_known_groups():
     assert classify_top_level("checkpoints_loss_ablation_A0", "dir") == "checkpoint_or_model"
     assert classify_top_level("backtest_results_exp_base_val", "dir") == "experiment_output"
     assert classify_top_level("loss_ablation_queue.pid", "file") == "runtime_log_or_pid"
+    assert classify_top_level("archive", "dir") == "archive_or_cache"
     assert classify_top_level("cache", "dir") == "archive_or_cache"
 
 

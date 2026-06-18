@@ -11,6 +11,7 @@ from pathlib import Path
 PROTECTED_PATHS = frozenset(
     {
         "alpha",
+        "archive",
         "backtest",
         "cache",
         "configs",

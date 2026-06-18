@@ -52,7 +52,7 @@ def classify_top_level(name: str, kind: str) -> str:
             return "source_or_docs"
         if name in SOURCE_DIRS or name in SOURCE_FILES:
             return "source_or_docs"
-    if lower in {".pytest_cache", "__pycache__", "cache"} or lower.startswith("_archive"):
+    if lower in {".pytest_cache", "__pycache__", "archive", "cache"} or lower.startswith("_archive"):
         return "archive_or_cache"
     if kind == "file" and (
         lower.endswith(".pid")

@@ -6,13 +6,13 @@ Generated without moving or modifying project outputs.
 
 | Group | Count |
 |---|---:|
-| archive_or_cache, dir | 5 |
+| archive_or_cache, dir | 6 |
 | checkpoint_or_model, dir | 37 |
 | experiment_output, dir | 128 |
 | experiment_output, file | 9 |
 | misc, dir | 6 |
 | misc, file | 2 |
-| runtime_log_or_pid, file | 52 |
+| runtime_log_or_pid, file | 42 |
 | source_or_docs, dir | 10 |
 | source_or_docs, file | 14 |
 
@@ -24,6 +24,7 @@ Generated without moving or modifying project outputs.
 | __pycache__ | dir | archive_or_cache | 2026-06-18 01:33:32 |
 | _archive_models_data_20260604 | dir | archive_or_cache | 2026-06-10 21:00:00 |
 | _archive_results_20260604 | dir | archive_or_cache | 2026-06-10 21:00:05 |
+| archive | dir | archive_or_cache | 2026-06-18 13:59:25 |
 | cache | dir | archive_or_cache | 2026-06-17 23:29:57 |
 | checkpoints | dir | checkpoint_or_model | 2026-06-10 20:59:43 |
 | checkpoints_batch4_benchmark_20260613 | dir | checkpoint_or_model | 2026-06-13 01:01:52 |
@@ -205,18 +206,8 @@ Generated without moving or modifying project outputs.
 | logs | dir | misc | 2026-06-10 20:59:59 |
 | rerun_v9_avgw3_open_to_open_20260616 | dir | misc | 2026-06-16 18:46:59 |
 | switch_value_data_20260604_top3_pv1m_raw | dir | misc | 2026-06-10 20:59:59 |
-| .gitignore | file | misc | 2026-06-12 01:43:24 |
+| .gitignore | file | misc | 2026-06-18 13:59:14 |
 | _sys_check.ps1 | file | misc | 2026-05-19 02:46:36 |
-| a5_recovery.pid | file | runtime_log_or_pid | 2026-06-14 12:26:21 |
-| a5_recovery_stderr.log | file | runtime_log_or_pid | 2026-06-14 12:26:21 |
-| a5_recovery_stdout.log | file | runtime_log_or_pid | 2026-06-14 12:43:51 |
-| batch4_timing_stderr.log | file | runtime_log_or_pid | 2026-06-13 01:01:52 |
-| batch4_timing_stdout.log | file | runtime_log_or_pid | 2026-06-13 01:01:52 |
-| batch8_benchmark_stderr.log | file | runtime_log_or_pid | 2026-06-13 00:58:48 |
-| batch8_benchmark_stdout.log | file | runtime_log_or_pid | 2026-06-13 00:58:48 |
-| batch8_timing_stderr.log | file | runtime_log_or_pid | 2026-06-13 01:04:04 |
-| batch8_timing_stdout.log | file | runtime_log_or_pid | 2026-06-13 01:04:04 |
-| candidate_validation.pid | file | runtime_log_or_pid | 2026-06-14 14:08:14 |
 | candidate_validation_stderr.log | file | runtime_log_or_pid | 2026-06-14 14:08:14 |
 | candidate_validation_stdout.log | file | runtime_log_or_pid | 2026-06-14 14:13:47 |
 | downside_topfocus_ablation_20260615.err.log | file | runtime_log_or_pid | 2026-06-16 02:39:27 |
@@ -264,11 +255,11 @@ Generated without moving or modifying project outputs.
 | configs | dir | source_or_docs | 2026-06-16 15:38:03 |
 | core | dir | source_or_docs | 2026-06-18 13:23:09 |
 | data | dir | source_or_docs | 2026-06-12 01:46:17 |
-| experiments | dir | source_or_docs | 2026-06-18 13:37:54 |
+| experiments | dir | source_or_docs | 2026-06-18 13:46:34 |
 | reports | dir | source_or_docs | 2026-06-18 13:33:39 |
-| run | dir | source_or_docs | 2026-06-18 13:38:08 |
+| run | dir | source_or_docs | 2026-06-18 13:52:41 |
 | scripts | dir | source_or_docs | 2026-06-12 12:14:06 |
-| tests | dir | source_or_docs | 2026-06-18 13:38:27 |
+| tests | dir | source_or_docs | 2026-06-18 13:47:11 |
 | __init__.py | file | source_or_docs | 2026-05-19 02:46:36 |
 | CANDIDATE_MODEL_VALIDATION_PLAN_20260614.md | file | source_or_docs | 2026-06-14 14:23:43 |
 | CLAUDE.md | file | source_or_docs | 2026-06-12 01:52:30 |
