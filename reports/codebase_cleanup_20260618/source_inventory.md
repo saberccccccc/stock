@@ -12,7 +12,6 @@ Generated without moving or modifying project outputs.
 | experiment_output, file | 9 |
 | misc, dir | 6 |
 | misc, file | 2 |
-| runtime_log_or_pid, file | 12 |
 | source_or_docs, dir | 10 |
 | source_or_docs, file | 14 |
 
@@ -208,18 +207,6 @@ Generated without moving or modifying project outputs.
 | switch_value_data_20260604_top3_pv1m_raw | dir | misc | 2026-06-10 20:59:59 |
 | .gitignore | file | misc | 2026-06-18 13:59:14 |
 | _sys_check.ps1 | file | misc | 2026-05-19 02:46:36 |
-| run_lag1_loss_ablation_20260616.out.log | file | runtime_log_or_pid | 2026-06-16 17:18:19 |
-| run_unified_good_ops_validation_20260616.err.log | file | runtime_log_or_pid | 2026-06-16 17:39:46 |
-| run_unified_good_ops_validation_20260616.out.log | file | runtime_log_or_pid | 2026-06-16 18:34:13 |
-| stall_execution_queue.pid | file | runtime_log_or_pid | 2026-06-14 12:26:21 |
-| stall_execution_queue_stderr.log | file | runtime_log_or_pid | 2026-06-14 12:26:21 |
-| stall_execution_queue_stdout.log | file | runtime_log_or_pid | 2026-06-14 13:57:22 |
-| train_gat.log | file | runtime_log_or_pid | 2026-05-27 19:39:34 |
-| train_v9.log | file | runtime_log_or_pid | 2026-06-16 17:34:28 |
-| validate_downside_topfocus_candidates_20260616.err.log | file | runtime_log_or_pid | 2026-06-16 15:03:06 |
-| validate_downside_topfocus_candidates_20260616.out.log | file | runtime_log_or_pid | 2026-06-16 15:16:25 |
-| validate_m0_epoch_lag1_sweep_20260616.err.log | file | runtime_log_or_pid | 2026-06-16 15:34:43 |
-| validate_m0_epoch_lag1_sweep_20260616.out.log | file | runtime_log_or_pid | 2026-06-16 15:52:12 |
 | alpha | dir | source_or_docs | 2026-06-18 01:31:14 |
 | backtest | dir | source_or_docs | 2026-06-18 01:50:08 |
 | configs | dir | source_or_docs | 2026-06-16 15:38:03 |

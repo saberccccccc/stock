@@ -1960,3 +1960,87 @@ archive/logs_202606 contains 40 moved files
 
 Finish the remaining 12 `runtime_log_or_pid` candidates in one or two small
 batches. Stop before moving checkpoint or experiment-output directories.
+
+## Phase 6 Final Log/PID Archive Batch
+
+### Completed
+
+Dry-run reviewed:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class runtime_log_or_pid `
+  --limit 20
+```
+
+Then executed:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe run\archive_from_plan.py `
+  --class runtime_log_or_pid `
+  --limit 20 `
+  --execute
+```
+
+Moved the final 12 top-level runtime files into:
+
+```text
+archive/logs_202606/
+```
+
+Moved files:
+
+```text
+run_lag1_loss_ablation_20260616.out.log
+run_unified_good_ops_validation_20260616.err.log
+run_unified_good_ops_validation_20260616.out.log
+stall_execution_queue.pid
+stall_execution_queue_stderr.log
+stall_execution_queue_stdout.log
+train_gat.log
+train_v9.log
+validate_downside_topfocus_candidates_20260616.err.log
+validate_downside_topfocus_candidates_20260616.out.log
+validate_m0_epoch_lag1_sweep_20260616.err.log
+validate_m0_epoch_lag1_sweep_20260616.out.log
+```
+
+Regenerated source inventory and archive plan.
+
+Current archive plan summary after the move:
+
+```text
+archive_candidate=172
+protect=18
+review=22
+runtime_log_or_pid remaining=0
+top-level inventory rows=212
+```
+
+### Validation
+
+Focused pytest:
+
+```text
+C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
+  tests\test_archive_plan.py `
+  tests\test_source_inventory.py -q
+```
+
+Result:
+
+```text
+11 passed
+```
+
+Spot checks:
+
+```text
+archive/logs_202606 contains 52 moved files
+```
+
+### Next Step
+
+Review the remaining 22 `review` entries and decide whether docs/scripts should
+be kept, indexed, or archived. Avoid moving checkpoints, experiment outputs, or
+backtest artifacts until each class has a narrower plan.

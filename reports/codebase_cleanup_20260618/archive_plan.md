@@ -6,7 +6,7 @@ This is a non-destructive plan. No files are moved by this report.
 
 | Action | Count |
 |---|---:|
-| archive_candidate | 184 |
+| archive_candidate | 172 |
 | protect | 18 |
 | review | 22 |
 
@@ -198,26 +198,14 @@ This is a non-destructive plan. No files are moved by this report.
 | reranker_validation_20260615 | dir | experiment_output | archive/experiments_202606 |
 | resume_downside_topfocus_remaining_20260616.ps1 | file | experiment_output | archive/experiments_202606 |
 | run_forward_observation_candidates_20260617.ps1 | file | experiment_output | archive/experiments_202606 |
-| run_lag1_loss_ablation_20260616.out.log | file | runtime_log_or_pid | archive/logs_202606 |
 | run_lag1_loss_ablation_after_sweep_20260616.ps1 | file | experiment_output | archive/experiments_202606 |
-| run_unified_good_ops_validation_20260616.err.log | file | runtime_log_or_pid | archive/logs_202606 |
-| run_unified_good_ops_validation_20260616.out.log | file | runtime_log_or_pid | archive/logs_202606 |
 | run_unified_good_ops_validation_20260616.ps1 | file | experiment_output | archive/experiments_202606 |
-| stall_execution_queue.pid | file | runtime_log_or_pid | archive/logs_202606 |
-| stall_execution_queue_stderr.log | file | runtime_log_or_pid | archive/logs_202606 |
-| stall_execution_queue_stdout.log | file | runtime_log_or_pid | archive/logs_202606 |
 | state_triggered_target_20260617 | dir | experiment_output | archive/experiments_202606 |
 | switch_value_models_20260604_top3_pv1m_raw_lgb_h5 | dir | checkpoint_or_model | archive/checkpoints_202606 |
-| train_gat.log | file | runtime_log_or_pid | archive/logs_202606 |
-| train_v9.log | file | runtime_log_or_pid | archive/logs_202606 |
 | unified_good_ops_validation_20260616 | dir | experiment_output | archive/experiments_202606 |
 | v9_avgw3_filter095_validation_20260616 | dir | experiment_output | archive/experiments_202606 |
 | v9_avgw3_open_ledger_20260616 | dir | experiment_output | archive/experiments_202606 |
-| validate_downside_topfocus_candidates_20260616.err.log | file | runtime_log_or_pid | archive/logs_202606 |
-| validate_downside_topfocus_candidates_20260616.out.log | file | runtime_log_or_pid | archive/logs_202606 |
 | validate_downside_topfocus_candidates_20260616.ps1 | file | experiment_output | archive/experiments_202606 |
-| validate_m0_epoch_lag1_sweep_20260616.err.log | file | runtime_log_or_pid | archive/logs_202606 |
-| validate_m0_epoch_lag1_sweep_20260616.out.log | file | runtime_log_or_pid | archive/logs_202606 |
 | validate_m0_epoch_lag1_sweep_20260616.ps1 | file | experiment_output | archive/experiments_202606 |
 
 ## Manual Review
