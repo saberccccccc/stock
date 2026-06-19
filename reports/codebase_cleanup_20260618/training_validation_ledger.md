@@ -51,6 +51,25 @@ Safety properties:
 - raw-return and lag1 batch tensors are loaded only when required;
 - fresh per-epoch runs truncate stale metrics JSONL before writing.
 
+## Reproducibility Tools
+
+The following source utilities are retained as one reviewed bundle:
+
+```text
+run/analyze_alpha_execution_quality.py
+run/confirm_locked_candidate.py
+run/generate_v9_inference_alpha.py
+run/run_loss_ablation.py
+run/screen_stall_execution.py
+run/summarize_loss_ablation.py
+run/validate_candidate_models.py
+```
+
+`run/run_loss_ablation.py` now consumes the validated shared training-preset
+API instead of maintaining a second JSON-to-CLI implementation. Import-smoke
+coverage protects all seven tools. Keeping these sources preserves experiment
+reproducibility; it does not promote any checkpoint or candidate.
+
 ## Experiment Output Candidates
 
 | Path | Status | Cleanup action |

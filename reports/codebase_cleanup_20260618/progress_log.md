@@ -4299,3 +4299,25 @@ module import smoke test: passed
 Classify the remaining untracked non-reranker run scripts into coherent source
 bundles, starting with training/candidate validation utilities already linked
 from the training ledger.
+
+## Phase 30 Training And Candidate Utility Bundle
+
+### Completed
+
+Reviewed the seven remaining training, candidate-validation, and execution-
+quality utilities linked from the training ledger. Corrected the execution-
+quality analyzer's package import and moved the loss-ablation runner onto the
+validated `core.training_presets` representation.
+
+Added `tests/test_training_candidate_tools.py` to protect module imports and
+the shared preset-to-command contract.
+
+### Decision Boundary
+
+This bundle preserves reproducibility only. M0 remains the baseline, and no
+loss or candidate is promoted by tracking its runner or validation source.
+
+### Next Step
+
+Review the open-ledger diagnostics and parameter-sweep utilities as the next
+coherent source bundle.

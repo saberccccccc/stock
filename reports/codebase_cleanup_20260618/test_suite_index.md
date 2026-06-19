@@ -34,6 +34,7 @@ committed separately from the implementation they exercise.
 | `tests/test_metrics.py` | Validation metrics. | Maintain. |
 | `tests/test_fundamental_update.py` | Point-in-time fundamental update behavior. | Maintain. |
 | `tests/test_training_presets.py` | Registered training presets. | Maintain. |
+| `tests/test_training_candidate_tools.py` | Import compatibility and shared preset use for training/candidate utilities. | Maintain. |
 | `tests/test_downside_loss.py` | Downside loss and independent lag1-loss activation semantics. | Maintain; experimental losses remain disabled by default. |
 
 ## Reranker Tests
