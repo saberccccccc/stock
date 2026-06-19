@@ -56,6 +56,7 @@ committed separately from the implementation they exercise.
 | `tests/test_experiment_leaderboard.py` | Candidate registry and leaderboard grouping. | Maintain. |
 | `tests/test_review_docs.py` | Review-document indexing. | Maintain. |
 | `tests/test_run_script_index.py` | Complete classification of `run/*.py`. | Maintain. |
+| `tests/test_repro_powershell_scripts.py` | Portable paths and stale-PID protection for retained PowerShell repro runners. | Maintain. |
 | `tests/test_source_inventory.py` | Top-level source inventory behavior. | Maintain. |
 | `tests/test_test_suite_index.py` | Complete classification of `tests/test_*.py`. | Maintain. |
 

@@ -4366,3 +4366,21 @@ remain rejected, and market switch remains a conservative watch candidate.
 
 Audit and classify the remaining root plans, shell repro scripts, reports, and
 large experiment-output directories before any archive moves.
+
+## Phase 33 Root Plans And Reproduction Runners
+
+### Completed
+
+Retained the five indexed root research plans at their documented paths and
+reviewed the six PowerShell reproduction runners referenced by the training,
+strategy, and forward-observation ledgers.
+
+Removed machine-specific repository paths, made the torch Python interpreter
+overridable through `PYTHON` with a portable fallback, and replaced the stale
+fixed lag1 wait PID with optional `WAIT_PID`. Experiment parameters and output
+locations remain unchanged.
+
+### Next Step
+
+Track the indexed decision reports and compact CSV evidence, then regenerate
+the inventory/archive plan before considering exact-name artifact moves.
