@@ -4404,3 +4404,37 @@ documented where the referenced files still exist outside the repository.
 Regenerate inventory, report indexes, checkpoint references, and the archive
 plan from the now-tracked source/report state. Only then consider exact-name
 archive moves for rejected artifacts.
+
+## Phase 35 Inventory Safety Correction
+
+### Completed
+
+Regeneration exposed that the inventory classifier still treated six retained,
+version-controlled PowerShell reproduction entrypoints as archiveable
+experiment outputs. Added an exact reviewed whitelist so those scripts are
+classified as `source_or_docs`; arbitrary future `run_*.ps1` files remain
+experiment-output candidates until reviewed.
+
+### Next Step
+
+Regenerate all cleanup indexes once more and audit exact rejected artifact
+directories. Checkpoint families remain on hold while referenced.
+
+## Phase 36 Local Artifact Visibility
+
+### Completed
+
+Added root-anchored Git ignore rules for registered checkpoint and experiment-
+output families. These directories remain in place and continue to appear in
+the generated inventory and archive audits; they no longer flood normal source
+status checks.
+
+The compact `backtest_result_snapshots/` directory is retained in version
+control because it replaces archived raw backtest trees with reviewable
+evidence.
+
+### Decision
+
+No additional large artifact directory is moved in this pass. Current
+checkpoint families have `hold`/`keep` audit decisions, and rejected overlay
+directories are still referenced by protected result configurations.

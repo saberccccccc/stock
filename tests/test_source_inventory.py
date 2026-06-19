@@ -16,6 +16,11 @@ def test_classify_top_level_known_groups():
     assert classify_top_level("logs", "dir") == "runtime_log_or_pid"
     assert classify_top_level("archive", "dir") == "archive_or_cache"
     assert classify_top_level("cache", "dir") == "archive_or_cache"
+    assert (
+        classify_top_level("run_forward_observation_candidates_20260617.ps1", "file")
+        == "source_or_docs"
+    )
+    assert classify_top_level("run_temporary_sweep.ps1", "file") == "experiment_output"
 
 
 def test_scan_top_level_and_write_csv(tmp_path):

@@ -86,11 +86,11 @@ RERANKER_V4_PLAN_20260615.md,file,source_or_docs,review,,manual review before an
 reranker_validation_20260615,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
 rerun_v9_avgw3_open_to_open_20260616,dir,misc,review,,manual review before any move
 RESEARCH_PROTOCOL.md,file,source_or_docs,review,,manual review before any move
-resume_downside_topfocus_remaining_20260616.ps1,file,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
+resume_downside_topfocus_remaining_20260616.ps1,file,source_or_docs,review,,manual review before any move
 run,dir,source_or_docs,protect,,"active source, official baseline, or forward-observation dependency"
-run_forward_observation_candidates_20260617.ps1,file,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
-run_lag1_loss_ablation_after_sweep_20260616.ps1,file,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
-run_unified_good_ops_validation_20260616.ps1,file,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
+run_forward_observation_candidates_20260617.ps1,file,source_or_docs,review,,manual review before any move
+run_lag1_loss_ablation_after_sweep_20260616.ps1,file,source_or_docs,review,,manual review before any move
+run_unified_good_ops_validation_20260616.ps1,file,source_or_docs,review,,manual review before any move
 scripts,dir,source_or_docs,protect,,"active source, official baseline, or forward-observation dependency"
 SHARPE_OPTIMIZATION_REPORT.md,file,source_or_docs,review,,manual review before any move
 state_triggered_target_20260617,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
@@ -102,5 +102,5 @@ v9_avgw3_extend_to_20260518_20260616,dir,experiment_output,protect,,"active sour
 v9_avgw3_filter095_validation_20260616,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
 v9_avgw3_open_ledger_20260616,dir,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
 v9_avgw3_open_ledger_20260617,dir,experiment_output,protect,,"active source, official baseline, or forward-observation dependency"
-validate_downside_topfocus_candidates_20260616.ps1,file,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
-validate_m0_epoch_lag1_sweep_20260616.ps1,file,experiment_output,archive_candidate,archive/experiments_202606,classified as experiment_output
+validate_downside_topfocus_candidates_20260616.ps1,file,source_or_docs,review,,manual review before any move
+validate_m0_epoch_lag1_sweep_20260616.ps1,file,source_or_docs,review,,manual review before any move

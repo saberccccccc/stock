@@ -25,6 +25,29 @@ recommendations/
 # Backtest results
 backtest_results*/
 
+# Registered local experiment artifacts (indexed by cleanup reports)
+/breadth_triggered_*_20*/
+/candidate_model_validation_*/
+/checkpoints_exp_*/
+/checkpoints_loss_ablation_*/
+/checkpoints_reranker_oof_*/
+/conditional_negfilter_*/
+/diagnostics_negfilter_*/
+/downside_topfocus_validation_*/
+/forward_results/
+/lag1_checkpoint_sweep_*/
+/locked_candidate_confirmation_*/
+/loss_ablation_portfolio_validation_*/
+/m0_topfocus_validation_*/
+/multi_loss_validation_*/
+/open_reranker_*_20*/
+/reranker_*_20*/
+/rerun_v9_*/
+/state_triggered_target_*/
+/switch_value_data_*/
+/unified_good_ops_validation_*/
+/v9_*_20*/
+
 # LightGBM models
 models_multi_v9_tech_macro/
 

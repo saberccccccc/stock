@@ -33,6 +33,15 @@ SOURCE_FILES = {
     "__init__.py",
 }
 
+REPRO_SCRIPT_FILES = {
+    "resume_downside_topfocus_remaining_20260616.ps1",
+    "run_forward_observation_candidates_20260617.ps1",
+    "run_lag1_loss_ablation_after_sweep_20260616.ps1",
+    "run_unified_good_ops_validation_20260616.ps1",
+    "validate_downside_topfocus_candidates_20260616.ps1",
+    "validate_m0_epoch_lag1_sweep_20260616.ps1",
+}
+
 VOLATILE_TOP_LEVEL_CACHE = {
     ".pytest_cache",
     "__pycache__",
@@ -50,6 +59,8 @@ class InventoryItem:
 
 def classify_top_level(name: str, kind: str) -> str:
     lower = name.lower()
+    if name in REPRO_SCRIPT_FILES:
+        return "source_or_docs"
     if name in SOURCE_DIRS or name in SOURCE_FILES or lower.endswith((".md", ".txt", ".ps1")):
         if lower.endswith((".pid", ".log")) or "_stdout.log" in lower or "_stderr.log" in lower:
             return "runtime_log_or_pid"

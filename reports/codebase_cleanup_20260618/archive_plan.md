@@ -6,9 +6,9 @@ This is a non-destructive plan. No files are moved by this report.
 
 | Action | Count |
 |---|---:|
-| archive_candidate | 66 |
+| archive_candidate | 60 |
 | protect | 18 |
-| review | 21 |
+| review | 27 |
 
 ## Protected Paths
 
@@ -91,16 +91,10 @@ This is a non-destructive plan. No files are moved by this report.
 | reranker_v2_data_20260615 | dir | experiment_output | archive/experiments_202606 |
 | reranker_v3_data_20260615 | dir | experiment_output | archive/experiments_202606 |
 | reranker_validation_20260615 | dir | experiment_output | archive/experiments_202606 |
-| resume_downside_topfocus_remaining_20260616.ps1 | file | experiment_output | archive/experiments_202606 |
-| run_forward_observation_candidates_20260617.ps1 | file | experiment_output | archive/experiments_202606 |
-| run_lag1_loss_ablation_after_sweep_20260616.ps1 | file | experiment_output | archive/experiments_202606 |
-| run_unified_good_ops_validation_20260616.ps1 | file | experiment_output | archive/experiments_202606 |
 | state_triggered_target_20260617 | dir | experiment_output | archive/experiments_202606 |
 | unified_good_ops_validation_20260616 | dir | experiment_output | archive/experiments_202606 |
 | v9_avgw3_filter095_validation_20260616 | dir | experiment_output | archive/experiments_202606 |
 | v9_avgw3_open_ledger_20260616 | dir | experiment_output | archive/experiments_202606 |
-| validate_downside_topfocus_candidates_20260616.ps1 | file | experiment_output | archive/experiments_202606 |
-| validate_m0_epoch_lag1_sweep_20260616.ps1 | file | experiment_output | archive/experiments_202606 |
 
 ## Manual Review
 
@@ -124,6 +118,12 @@ This is a non-destructive plan. No files are moved by this report.
 | RERANKER_V4_PLAN_20260615.md | file | source_or_docs | manual review before any move |
 | rerun_v9_avgw3_open_to_open_20260616 | dir | misc | manual review before any move |
 | RESEARCH_PROTOCOL.md | file | source_or_docs | manual review before any move |
+| resume_downside_topfocus_remaining_20260616.ps1 | file | source_or_docs | manual review before any move |
+| run_forward_observation_candidates_20260617.ps1 | file | source_or_docs | manual review before any move |
+| run_lag1_loss_ablation_after_sweep_20260616.ps1 | file | source_or_docs | manual review before any move |
+| run_unified_good_ops_validation_20260616.ps1 | file | source_or_docs | manual review before any move |
 | SHARPE_OPTIMIZATION_REPORT.md | file | source_or_docs | manual review before any move |
 | switch_value_data_20260604_top3_pv1m_raw | dir | misc | manual review before any move |
 | TEST_PLAN.md | file | source_or_docs | manual review before any move |
+| validate_downside_topfocus_candidates_20260616.ps1 | file | source_or_docs | manual review before any move |
+| validate_m0_epoch_lag1_sweep_20260616.ps1 | file | source_or_docs | manual review before any move |

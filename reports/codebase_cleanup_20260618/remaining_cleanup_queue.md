@@ -91,3 +91,14 @@ C:\Users\x\miniconda3\envs\torch\python.exe -m pytest `
 ```
 
 5. Commit only code/report/index changes; do not commit archive payloads.
+
+## Working-Tree Policy
+
+Registered root-level checkpoint and experiment-output families are ignored by
+Git using anchored artifact patterns. They remain visible to
+`generate_source_inventory.py` and the archive/reference audits, but no longer
+obscure source and report changes in daily `git status` output.
+
+`backtest_result_snapshots/` is the exception: it is compact replacement
+evidence for already archived raw backtest directories and is versioned with
+the reports.

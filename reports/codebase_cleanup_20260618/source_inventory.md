@@ -9,11 +9,11 @@ Generated without moving or modifying project outputs.
 | archive_or_cache, dir | 2 |
 | checkpoint_or_model, dir | 33 |
 | experiment_output, dir | 32 |
-| experiment_output, file | 7 |
+| experiment_output, file | 1 |
 | misc, dir | 5 |
 | misc, file | 2 |
 | source_or_docs, dir | 10 |
-| source_or_docs, file | 14 |
+| source_or_docs, file | 20 |
 
 ## Top-Level Items
 
@@ -87,12 +87,6 @@ Generated without moving or modifying project outputs.
 | v9_avgw3_open_ledger_20260616 | dir | experiment_output | 2026-06-17 00:12:37 |
 | v9_avgw3_open_ledger_20260617 | dir | experiment_output | 2026-06-18 00:45:42 |
 | FORWARD_TEST_LOG.md | file | experiment_output | 2026-06-12 22:21:41 |
-| resume_downside_topfocus_remaining_20260616.ps1 | file | experiment_output | 2026-06-16 12:30:18 |
-| run_forward_observation_candidates_20260617.ps1 | file | experiment_output | 2026-06-17 16:21:50 |
-| run_lag1_loss_ablation_after_sweep_20260616.ps1 | file | experiment_output | 2026-06-16 15:38:24 |
-| run_unified_good_ops_validation_20260616.ps1 | file | experiment_output | 2026-06-16 17:39:31 |
-| validate_downside_topfocus_candidates_20260616.ps1 | file | experiment_output | 2026-06-16 15:03:06 |
-| validate_m0_epoch_lag1_sweep_20260616.ps1 | file | experiment_output | 2026-06-16 15:34:43 |
 | .claude | dir | misc | 2026-06-10 22:53:55 |
 | .vscode | dir | misc | 2026-06-10 20:58:10 |
 | backtest_result_snapshots | dir | misc | 2026-06-10 20:58:12 |
@@ -101,15 +95,15 @@ Generated without moving or modifying project outputs.
 | .gitignore | file | misc | 2026-06-19 00:30:04 |
 | _sys_check.ps1 | file | misc | 2026-05-19 02:46:36 |
 | alpha | dir | source_or_docs | 2026-06-18 01:31:14 |
-| backtest | dir | source_or_docs | 2026-06-18 01:50:08 |
+| backtest | dir | source_or_docs | 2026-06-19 12:42:28 |
 | configs | dir | source_or_docs | 2026-06-16 15:38:03 |
-| core | dir | source_or_docs | 2026-06-18 13:23:09 |
+| core | dir | source_or_docs | 2026-06-19 12:10:13 |
 | data | dir | source_or_docs | 2026-06-12 01:46:17 |
 | experiments | dir | source_or_docs | 2026-06-19 00:37:44 |
 | reports | dir | source_or_docs | 2026-06-18 13:33:39 |
-| run | dir | source_or_docs | 2026-06-19 00:37:58 |
+| run | dir | source_or_docs | 2026-06-19 12:09:34 |
 | scripts | dir | source_or_docs | 2026-06-12 12:14:06 |
-| tests | dir | source_or_docs | 2026-06-19 00:38:26 |
+| tests | dir | source_or_docs | 2026-06-19 12:46:36 |
 | __init__.py | file | source_or_docs | 2026-05-19 02:46:36 |
 | CANDIDATE_MODEL_VALIDATION_PLAN_20260614.md | file | source_or_docs | 2026-06-14 14:23:43 |
 | CLAUDE.md | file | source_or_docs | 2026-06-12 01:52:30 |
@@ -122,5 +116,11 @@ Generated without moving or modifying project outputs.
 | RERANKER_IMPLEMENTATION_PLAN_20260614.md | file | source_or_docs | 2026-06-15 16:34:41 |
 | RERANKER_V4_PLAN_20260615.md | file | source_or_docs | 2026-06-15 16:34:41 |
 | RESEARCH_PROTOCOL.md | file | source_or_docs | 2026-06-12 12:13:47 |
+| resume_downside_topfocus_remaining_20260616.ps1 | file | source_or_docs | 2026-06-19 12:46:22 |
+| run_forward_observation_candidates_20260617.ps1 | file | source_or_docs | 2026-06-19 12:46:22 |
+| run_lag1_loss_ablation_after_sweep_20260616.ps1 | file | source_or_docs | 2026-06-19 12:46:22 |
+| run_unified_good_ops_validation_20260616.ps1 | file | source_or_docs | 2026-06-19 12:46:22 |
 | SHARPE_OPTIMIZATION_REPORT.md | file | source_or_docs | 2026-06-12 22:43:33 |
 | TEST_PLAN.md | file | source_or_docs | 2026-06-12 12:13:24 |
+| validate_downside_topfocus_candidates_20260616.ps1 | file | source_or_docs | 2026-06-19 12:46:22 |
+| validate_m0_epoch_lag1_sweep_20260616.ps1 | file | source_or_docs | 2026-06-19 12:46:22 |

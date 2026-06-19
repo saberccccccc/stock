@@ -14,7 +14,7 @@ archive candidates. It is a cleanup guide, not permission for broad checkpoint m
 
 | Name | Action | Group | References | Decision | Note |
 |---|---|---|---:|---|---|
-| `checkpoints` | `archive_candidate` | `alpha_checkpoint` | 229 | `hold` | high-risk model/checkpoint family; audit manually before moving |
+| `checkpoints` | `archive_candidate` | `alpha_checkpoint` | 232 | `hold` | high-risk model/checkpoint family; audit manually before moving |
 | `checkpoints_exp` | `archive_candidate` | `alpha_checkpoint` | 78 | `hold` | high-risk model/checkpoint family; audit manually before moving |
 | `checkpoints_exp_pairwise_w003_20260530_011759` | `archive_candidate` | `alpha_checkpoint` | 0 | `hold` | high-risk model/checkpoint family; audit manually before moving |
 | `checkpoints_exp_purged_rawmetric_A_20260613` | `archive_candidate` | `alpha_checkpoint` | 2 | `hold` | high-risk model/checkpoint family; audit manually before moving |
