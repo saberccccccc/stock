@@ -4113,3 +4113,56 @@ entrypoints.
 Review the three currently untracked tests and decide whether each should join
 the maintained test suite. Then record that decision before returning to the
 remaining artifact directories.
+
+## Phase 26 Test Suite Classification
+
+### Completed
+
+Created:
+
+```text
+reports/codebase_cleanup_20260618/test_suite_index.md
+tests/test_test_suite_index.py
+```
+
+The index classifies every `tests/test_*.py` file by subsystem and maintenance
+decision. The coverage test prevents new test files from being left
+unclassified.
+
+Reviewed the three previously untracked tests:
+
+| Test | Decision |
+|---|---|
+| `tests/test_transform_alpha_for_execution.py` | Add now; it protects the committed compatibility wrapper and combined transform behavior. |
+| `tests/test_downside_loss.py` | Keep in place; commit with the pending training/loss implementation bundle. |
+| `tests/test_reranker_dataset.py` | Keep in place; commit with the pending reranker implementation bundle. |
+
+### Validation
+
+The three reviewed tests passed before classification:
+
+```text
+8 passed
+```
+
+The complete test suite passed after adding the index and compatibility test:
+
+```text
+117 passed in 5.18s
+```
+
+### Next Step
+
+Review the pending training implementation bundle together:
+
+```text
+core/config.py
+core/train_utils.py
+data/pipeline.py
+run/train.py
+tests/test_precomputed_memmap_dataset.py
+tests/test_train_batch_config.py
+tests/test_downside_loss.py
+```
+
+Do not split `test_downside_loss.py` from that implementation review.

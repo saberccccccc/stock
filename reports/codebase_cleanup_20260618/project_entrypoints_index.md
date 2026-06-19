@@ -18,6 +18,7 @@ training, validating, or cleaning artifacts.
 | Checkpoint/model references | `reports/codebase_cleanup_20260618/checkpoint_reference_audit.md` |
 | Run script roles | `reports/codebase_cleanup_20260618/run_script_index.md` |
 | Document/report roles | `reports/codebase_cleanup_20260618/document_report_index.md` |
+| Test suite roles | `reports/codebase_cleanup_20260618/test_suite_index.md` |
 
 ## Current Cleanup Boundary
 
