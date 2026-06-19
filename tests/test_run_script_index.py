@@ -1,3 +1,5 @@
+import subprocess
+import sys
 from pathlib import Path
 
 
@@ -18,3 +20,23 @@ def test_every_run_python_file_is_classified():
 
     assert len(run_scripts) == 93
     assert missing == []
+
+
+def test_documented_primary_entrypoints_render_help():
+    entrypoints = (
+        ROOT / "data" / "update.py",
+        ROOT / "run" / "backtest.py",
+        ROOT / "run" / "daily_top10.py",
+    )
+
+    for entrypoint in entrypoints:
+        result = subprocess.run(
+            [sys.executable, str(entrypoint), "--help"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "usage:" in result.stdout.lower()

@@ -67,6 +67,9 @@ python run/train.py --model v9
 python run/backtest.py --experiment ensemble
 ```
 
+`data/update.py` 写入 `data/raw` 时会自动把结束日期限制为
+`2026-05-18`；更新真实前向数据请使用 `data/forward_raw`，不要解除研究集冻结。
+
 ## 每日推荐
 
 ```bash

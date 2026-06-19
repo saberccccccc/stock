@@ -181,7 +181,7 @@ def parse_args():
     parser.add_argument("--risk-filter-vol-quantile", type=float, default=1.0)
     parser.add_argument("--risk-filter-beta-abs-max", type=float, default=None)
     parser.add_argument("--alpha-vol-power", type=float, default=0.0)
-    parser.add_argument("--long-hold-frac", type=float, default=None, help="Long-only hysteresis hold threshold, e.g. 0.15 keeps existing names until top15%.")
+    parser.add_argument("--long-hold-frac", type=float, default=None, help="Long-only hysteresis hold threshold, e.g. 0.15 keeps existing names until the top 15 percent.")
     return parser.parse_args()
 
 

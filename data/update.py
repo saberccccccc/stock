@@ -16,12 +16,31 @@ import sys
 import time
 from datetime import datetime, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
+from core.research_protocol import RESEARCH_DATA_DIR, assert_research_end_date
 from data.api_utils import SafeAPICaller, resolve_tushare_token
+
+
+def resolve_update_end_date(data_dir, end_date=None):
+    data_path = Path(data_dir)
+    if not data_path.is_absolute():
+        data_path = ROOT / data_path
+    research_path = ROOT / RESEARCH_DATA_DIR
+
+    if data_path.resolve() == research_path.resolve():
+        resolved = assert_research_end_date(end_date, context="data/raw update")
+    else:
+        resolved = pd.Timestamp(end_date or datetime.today().date())
+    return resolved.strftime("%Y%m%d")
 
 
 # ==================== TushareProLite（精简自用版本）===================
@@ -65,9 +84,9 @@ class TushareProLite:
         print(f"got {len(stable)} stable stocks")
         return stable['ts_code'].tolist()
 
-    def update_single_stock(self, ts_code, data_dir, start_date='20100101'):
+    def update_single_stock(self, ts_code, data_dir, start_date='20100101', end_date=None):
         """智能增量更新：补全缺失的历史 + 追加最新数据"""
-        end_date = datetime.today().strftime('%Y%m%d')
+        end_date = end_date or datetime.today().strftime('%Y%m%d')
         csv_path = os.path.join(data_dir, f"{ts_code}.csv")
 
         # 读取本地数据
@@ -152,7 +171,8 @@ class TushareProLite:
 
 # ==================== 批量更新 ====================
 def batch_update(data_dir, token, start_date='20100101', max_workers=3,
-                 batch_size=200, batch_sleep=30, limit=None, stock_list=None):
+                 batch_size=200, batch_sleep=30, limit=None, stock_list=None,
+                 end_date=None):
     """
     批量增量更新所有股票
 
@@ -197,7 +217,7 @@ def batch_update(data_dir, token, start_date='20100101', max_workers=3,
             futures = {}
             for code in batch:
                 futures[executor.submit(
-                    td.update_single_stock, code, data_dir, start_date
+                    td.update_single_stock, code, data_dir, start_date, end_date
                 )] = code
 
             for future in tqdm(as_completed(futures), total=len(futures),
@@ -265,6 +285,10 @@ def main():
                         help='数据目录')
     parser.add_argument('--start-date', type=str, default='20100101',
                         help='起始日期 YYYYMMDD (默认20100101)')
+    parser.add_argument('--end-date', type=str, default=None,
+                        help='End date YYYYMMDD or YYYY-MM-DD; data/raw is capped at 2026-05-18')
+    parser.add_argument('--init', action='store_true',
+                        help='Initialize index and industry files, then exit')
     parser.add_argument('--extend', type=str, nargs='?', const='20100101',
                         help='extend history data to specified date (default 20100101)')
     parser.add_argument('--rebuild-cache', action='store_true',
@@ -284,6 +308,17 @@ def main():
 
     args = parser.parse_args()
     start_date = args.extend if args.extend else args.start_date
+    end_date = resolve_update_end_date(args.data_dir, args.end_date)
+
+    if args.init:
+        fetch_broad_index_data(
+            data_dir=args.data_dir,
+            start_date=pd.Timestamp(start_date).strftime('%Y-%m-%d'),
+            end_date=pd.Timestamp(end_date).strftime('%Y-%m-%d'),
+        )
+        fetch_industry_data()
+        return
+
     token = resolve_tushare_token(args.token)
 
     print(f"{'='*60}")
@@ -298,6 +333,7 @@ def main():
         data_dir=args.data_dir,
         token=token,
         start_date=start_date,
+        end_date=end_date,
         max_workers=args.workers,
         batch_size=args.batch_size,
         batch_sleep=args.batch_sleep,
@@ -366,9 +402,4 @@ def fetch_industry_data(save_path="data/stock_industry.csv"):
 
 
 if __name__ == "__main__":
-    import sys
-    if len(sys.argv) > 1 and sys.argv[1] == "--init":
-        fetch_broad_index_data()
-        fetch_industry_data()
-    else:
-        main()
+    main()

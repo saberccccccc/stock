@@ -70,6 +70,19 @@ def test_build_v9_config():
     print("  build_v9_backtest_config: OK")
 
 
+def test_data_update_respects_research_boundary():
+    from data.update import resolve_update_end_date
+
+    assert resolve_update_end_date("data/raw") == "20260518"
+    assert resolve_update_end_date("data/forward_raw", "2026-06-19") == "20260619"
+    try:
+        resolve_update_end_date("data/raw", "2026-05-19")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("data/raw update must reject dates after research cutoff")
+
+
 def test_global_constants():
     from core.config import TRADING_DAYS, ADV_LIMIT_RATIO, TARGET_VOL, EPS
     assert TRADING_DAYS == 252

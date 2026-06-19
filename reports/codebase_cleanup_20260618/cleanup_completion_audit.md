@@ -22,7 +22,7 @@ active research evidence.
 ## Verification
 
 ```text
-full pytest suite: 160 passed
+full pytest suite: 162 passed
 target modules: 12/12 present
 run scripts: 93/93 tracked
 test files: 33/33 tracked
@@ -49,6 +49,18 @@ still contained a user-specific Python path. The portability test now covers
 all tracked PowerShell scripts. Active setup documentation now uses portable
 interpreter discovery and distinguishes the official open-price share-ledger
 baseline from legacy close-based return diagnostics.
+
+A third pass exercised the documented commands as subprocesses rather than
+only importing their modules. It fixed direct package discovery in
+`data/update.py` and an argparse help-format failure in `run/backtest.py`.
+It also made `run/daily_top10.py --help` exit before its operational side
+effects. All three documented entrypoints now have a regression smoke test
+for `--help`.
+
+The same command audit found that the legacy `data/update.py` default could
+extend `data/raw` beyond the frozen research cutoff. Research-directory
+updates and `--init` are now capped at 2026-05-18 before any API call, while
+other data directories may use an explicit later `--end-date`.
 
 ## Remaining Local Artifacts
 

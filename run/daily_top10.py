@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """每日收盘后：更新数据 → 删缓存 → 跑 top_union_bottom_intersection 推荐 Top10 → 写入日志文件"""
 
+import argparse
 import os
 import subprocess
 import sys
@@ -15,6 +16,13 @@ sys.path.insert(0, str(PROJECT_ROOT))
 PYTHON = sys.executable
 LOG_FILE = PROJECT_ROOT / "recommendations" / "daily_top10_log.txt"
 ERROR_LOG = PROJECT_ROOT / "errors.log"
+
+
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(
+        description="Update tracking data and write the daily Top10 recommendation."
+    )
+    return parser.parse_args(argv)
 
 
 def log_error(script, exc):
@@ -35,6 +43,7 @@ def run(cmd, timeout=600):
     return result.stdout
 
 def main():
+    parse_args()
     today = datetime.now().strftime("%Y-%m-%d")
     weekday = datetime.now().weekday()
     if weekday >= 5:
