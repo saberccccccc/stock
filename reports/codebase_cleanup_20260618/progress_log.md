@@ -4466,3 +4466,17 @@ while preserving their historical output metadata.
 Created `alpha/diagnostics.py` for TopN signal-day return, chase-share, and
 cross-day rank-overlap diagnostics. The execution-quality CLI now uses shared
 Alpha I/O, shared signal-return loading, and the reusable diagnostics module.
+
+## Phase 40 Completion Audit
+
+### Completed
+
+Audited the cleanup plan against the current filesystem, Git index, generated
+ledgers, compatibility entrypoints, tests, and active processes. All target
+modules exist; all run scripts and tests are tracked and indexed; the working
+tree is clean; no training/backtest process is active.
+
+The full evidence and residual hold policy are recorded in
+`cleanup_completion_audit.md`. Large local artifacts remain intentionally
+preserved and ignored by Git because their checkpoint/reference decisions are
+`hold` or `keep`, not because source cleanup is unfinished.

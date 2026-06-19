@@ -68,13 +68,20 @@ The four no-reference benchmark/smoke/switch-value model directories have been
 archived to `archive/checkpoints_202606/`. Remaining checkpoint/model candidates
 should stay in place until a category-specific decision ledger says otherwise.
 
-## Recommended Next Order
+## Current Hold Policy
 
-1. Update `experiment_output_ledger.md` for the current post-backtest state.
-2. Use `training_validation_ledger.md` for M0/A0/A4/loss/lag1 directories and related scripts.
-3. Create a checkpoint-reference audit that searches reports/configs/scripts for each checkpoint directory name.
-4. Only after the audit, move rejected loss-ablation checkpoints in small exact-prefix batches.
-5. Leave official V9/open-ledger/cutoff evidence protected unless a newer protected baseline replaces it.
+The experiment, training, reranker, and checkpoint ledgers now exist and the
+checkpoint reference audit has been regenerated. Its current decisions are:
+
+```text
+hold=30
+keep=3
+```
+
+Therefore no checkpoint/model batch is eligible for automatic movement. Leave
+official V9/open-ledger/cutoff evidence protected. Revisit exact rejected
+artifact directories only when their protected references are retired or a
+new baseline supersedes them.
 
 ## Safety Rules
 
