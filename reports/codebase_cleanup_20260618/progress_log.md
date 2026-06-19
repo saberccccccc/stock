@@ -4384,3 +4384,23 @@ locations remain unchanged.
 
 Track the indexed decision reports and compact CSV evidence, then regenerate
 the inventory/archive plan before considering exact-name artifact moves.
+
+## Phase 34 Decision Report Preservation
+
+### Completed
+
+Reviewed the remaining untracked report tree against
+`document_report_index.md`. The files are canonical decisions, compact
+supporting CSV/JSONL evidence, data-quality audits, or historical snapshots;
+the full untracked report set is small enough for version control and contains
+no checkpoint/model payloads.
+
+Portable command examples now use `python` from the active environment rather
+than a machine-specific interpreter path. External Alpha snapshot paths remain
+documented where the referenced files still exist outside the repository.
+
+### Next Step
+
+Regenerate inventory, report indexes, checkpoint references, and the archive
+plan from the now-tracked source/report state. Only then consider exact-name
+archive moves for rejected artifacts.
