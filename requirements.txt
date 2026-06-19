@@ -9,3 +9,4 @@ baostock>=0.8
 tushare>=1.4
 torch-geometric>=2.5
 tqdm>=4.65
+pytest>=8.0

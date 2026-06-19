@@ -11,6 +11,15 @@ REPRO_SCRIPTS = (
 )
 
 
+def test_all_tracked_powershell_scripts_avoid_user_specific_paths():
+    scripts = tuple(Path(".").glob("*.ps1")) + tuple(Path("scripts").glob("*.ps1"))
+
+    assert scripts
+    for script in scripts:
+        text = script.read_text(encoding="utf-8-sig")
+        assert "C:\\Users\\" not in text, script
+
+
 def test_repro_scripts_are_portable_and_present():
     for name in REPRO_SCRIPTS:
         text = Path(name).read_text(encoding="utf-8-sig")

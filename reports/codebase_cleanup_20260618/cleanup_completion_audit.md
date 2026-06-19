@@ -22,11 +22,12 @@ active research evidence.
 ## Verification
 
 ```text
-full pytest suite: 159 passed
+full pytest suite: 160 passed
 target modules: 12/12 present
 run scripts: 93/93 tracked
 test files: 33/33 tracked
 PowerShell repro parse errors: 0
+all tracked PowerShell scripts free of user-specific absolute paths
 active training/backtest Python processes: 0
 git diff --check: passed
 git status: clean
@@ -39,6 +40,15 @@ git status: clean
 - Forward-only observations begin on 2026-05-19 and require explicit mode.
 - No loss, reranker, or overlay was promoted during cleanup.
 - Historical CLI import paths remain compatible where wrappers were thinned.
+
+## Follow-up Audit
+
+A second independent pass found and corrected one portability gap that the
+original six-script repro audit did not cover: `scripts/run_full_training.ps1`
+still contained a user-specific Python path. The portability test now covers
+all tracked PowerShell scripts. Active setup documentation now uses portable
+interpreter discovery and distinguishes the official open-price share-ledger
+baseline from legacy close-based return diagnostics.
 
 ## Remaining Local Artifacts
 

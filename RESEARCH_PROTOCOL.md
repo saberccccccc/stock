@@ -20,15 +20,16 @@
 Initialize and update forward data:
 
 ```powershell
+$python = if ($env:PYTHON) { $env:PYTHON } else { "python" }
 powershell -ExecutionPolicy Bypass -File scripts/init_forward_data.ps1
-C:/Users/x/miniconda3/envs/torch/python data/update_daily.py --data-dir data/forward_raw
-C:/Users/x/miniconda3/envs/torch/python scripts/update_forward_market_data.py --data-dir data/forward_raw
+& $python data/update_daily.py --data-dir data/forward_raw
+& $python scripts/update_forward_market_data.py --data-dir data/forward_raw
 ```
 
 Generate the frozen forward Alpha only after both update commands succeed:
 
 ```powershell
-C:/Users/x/miniconda3/envs/torch/python run/forward_frozen_strategy.py `
+& $python run/forward_frozen_strategy.py `
   --data-dir data/forward_raw `
   --end-date YYYY-MM-DD `
   --output forward_results/frozen_v9_avgw3/alpha.jsonl `
