@@ -4458,3 +4458,11 @@ Created `alpha/market_overlays.py` for stock breadth calculation, rolling
 breadth values, target-bucket shrink ordering, and row-level market multiplier
 metadata. Breadth and state CLI scripts now focus on boundary checks and I/O
 while preserving their historical output metadata.
+
+## Phase 39 Alpha Diagnostics Module Extraction
+
+### Completed
+
+Created `alpha/diagnostics.py` for TopN signal-day return, chase-share, and
+cross-day rank-overlap diagnostics. The execution-quality CLI now uses shared
+Alpha I/O, shared signal-return loading, and the reusable diagnostics module.

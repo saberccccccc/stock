@@ -9,6 +9,7 @@ committed separately from the implementation they exercise.
 | Test | Purpose | Decision |
 |---|---|---|
 | `tests/test_alpha_io.py` | Alpha JSONL loading, validation, and writing. | Maintain. |
+| `tests/test_alpha_diagnostics.py` | Top-rank chase risk, signal-day returns, and cross-day overlap summaries. | Maintain. |
 | `tests/test_alpha_transforms.py` | Shared alpha transform behavior. | Maintain. |
 | `tests/test_market_overlay_tools.py` | Market overlay imports and no working-directory side effects. | Maintain. |
 | `tests/test_market_overlays.py` | Shared breadth calculation, target shrink, and row market-mult contracts. | Maintain. |
