@@ -4216,3 +4216,49 @@ git diff --check: passed
 Review the reranker implementation bundle and `tests/test_reranker_dataset.py`
 as one unit. Keep research conclusions separate from whether the code is
 reproducible.
+
+## Phase 28 Historical Reranker Source Bundle
+
+### Completed
+
+Reviewed the 20-script V1-V4.1 reranker source family covering dataset builds,
+model fitting, 2024 validation, historical confirmation, forward evaluation,
+and replacement diagnostics.
+
+Corrected three direct-script-only imports so every script is also importable
+as a `run.*` module:
+
+```text
+run/build_reranker_v3_dataset.py
+run/validate_conservative_reranker_2024.py
+run/validate_reranker_v2_2024.py
+```
+
+Added:
+
+```text
+tests/test_reranker_imports.py
+```
+
+`tests/test_reranker_dataset.py` now joins the maintained test suite with the
+implementation it exercises.
+
+### Decision Boundary
+
+Source reproducibility is separate from model promotion. V1, V2 and V4.1 stay
+rejected/failed evidence; V3 and V4 stay frozen shadow references; M0 remains
+the live baseline.
+
+### Validation
+
+```text
+reranker focused tests: 3 passed
+20 reranker modules: py_compile passed
+direct-script-only reranker imports remaining: 0
+```
+
+### Next Step
+
+Review the two current open-reranker scripts separately because they belong to
+the newer open-price execution research branch, not the historical V1-V4
+bundle.

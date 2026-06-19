@@ -39,7 +39,8 @@ committed separately from the implementation they exercise.
 
 | Test | Purpose | Decision |
 |---|---|---|
-| `tests/test_reranker_dataset.py` | Candidate percentile rank and graded relevance labels. | Hold; commit with reranker dataset implementation. |
+| `tests/test_reranker_dataset.py` | Candidate percentile rank and graded relevance labels. | Maintain. |
+| `tests/test_reranker_imports.py` | Import compatibility across the V1-V4 historical reranker script family. | Maintain. |
 
 ## Experiment And Cleanup Infrastructure Tests
 

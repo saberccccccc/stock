@@ -38,6 +38,26 @@ evidence that is still needed to explain M0, V3, V4, and the rejected V4.1.
 | `reranker_models_20260615/gated_v4` | `frozen_shadow_artifact` | Keep | V4 is the preferred safe shadow candidate because it can abstain to exact M0. |
 | `reranker_models_20260615/meta_gate_v41` | `failed_experiment_evidence` | Keep for now | V4.1 failed frozen forward and must not be promoted or retuned. |
 
+## Source Reproducibility
+
+The V1-V4.1 historical reranker source family is maintained as a single
+reproducibility bundle:
+
+```text
+build_reranker_dataset.py through build_reranker_v3_forward.py
+train_reranker.py through train_reranker_v41.py
+validate/confirm/evaluate reranker V1-V4.1 scripts
+diagnose_reranker_replacements.py
+```
+
+The modules compile and can be imported through the `run.*` package. Import
+compatibility is enforced by `tests/test_reranker_imports.py`; label helpers
+remain covered by `tests/test_reranker_dataset.py`.
+
+Tracking this source does not promote any candidate. V1, V2 and V4.1 remain
+failed evidence; V3 remains a frozen research reference; V4 remains the safe
+shadow candidate; M0 remains the live baseline.
+
 ## Validation And Confirmation Status
 
 | Path | Status | Decision | Reason |
