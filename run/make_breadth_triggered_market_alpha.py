@@ -17,11 +17,15 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from alpha.io import iter_alpha_rows, load_alpha_dates, write_alpha_rows
+from alpha.market_overlays import (
+    attach_breadth_market_multiplier,
+    compute_breadth,
+    rolling_breadth_map,
+)
 from core.research_protocol import (
     assert_alpha_dates_within_forward,
     assert_alpha_dates_within_research,
 )
-from run.make_breadth_triggered_target_alpha import compute_breadth
 
 
 def parse_args():
@@ -50,16 +54,11 @@ def main():
     start = min(dates) - pd.Timedelta(days=max(int(args.start_pad_days), int(args.breadth_window) * 3))
     end = max(dates)
     breadth = compute_breadth(args.data_dir, start, end)
-    roll_col = f"up_ma{int(args.breadth_window)}"
-    breadth[roll_col] = breadth["up_ratio"].rolling(int(args.breadth_window)).mean()
+    breadth_map = rolling_breadth_map(breadth, args.breadth_window)
     if args.breadth_output:
         out_b = Path(args.breadth_output)
         out_b.parent.mkdir(parents=True, exist_ok=True)
         breadth.to_csv(out_b, index=False)
-    breadth_map = {
-        pd.Timestamp(row.date).normalize(): getattr(row, roll_col)
-        for row in breadth.itertuples(index=False)
-    }
 
     output = Path(args.output_alpha)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -71,14 +70,14 @@ def main():
             date = pd.Timestamp(row["date"]).normalize()
             value = breadth_map.get(date, np.nan)
             triggered = bool(pd.notna(value) and float(value) <= float(args.breadth_below))
-            out = dict(row)
-            out["breadth_market_transform"] = {
-                "triggered": triggered,
-                "breadth_window": int(args.breadth_window),
-                "breadth_below": float(args.breadth_below),
-                "breadth_value": None if pd.isna(value) else float(value),
-                "effective_market_mult": float(args.risk_market_mult) if triggered else 1.0,
-            }
+            out = attach_breadth_market_multiplier(
+                row,
+                triggered=triggered,
+                breadth_window=args.breadth_window,
+                breadth_below=args.breadth_below,
+                breadth_value=value,
+                risk_market_mult=args.risk_market_mult,
+            )
             rows += 1
             triggered_rows += int(triggered)
             yield out

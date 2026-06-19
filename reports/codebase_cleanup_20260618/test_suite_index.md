@@ -11,6 +11,7 @@ committed separately from the implementation they exercise.
 | `tests/test_alpha_io.py` | Alpha JSONL loading, validation, and writing. | Maintain. |
 | `tests/test_alpha_transforms.py` | Shared alpha transform behavior. | Maintain. |
 | `tests/test_market_overlay_tools.py` | Market overlay imports and no working-directory side effects. | Maintain. |
+| `tests/test_market_overlays.py` | Shared breadth calculation, target shrink, and row market-mult contracts. | Maintain. |
 | `tests/test_signal_blend.py` | Saved-alpha blend behavior. | Maintain. |
 | `tests/test_transform_alpha_for_execution.py` | Backward-compatible execution wrapper and combined transforms. | Add to maintained suite. |
 

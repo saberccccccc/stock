@@ -4449,3 +4449,12 @@ tax, and slippage now have a dedicated ownership boundary.
 
 `backtest.open_ledger` re-exports the functions for compatibility, so existing
 CLI wrappers and imports keep working without behavior changes.
+
+## Phase 38 Market Overlay Module Extraction
+
+### Completed
+
+Created `alpha/market_overlays.py` for stock breadth calculation, rolling
+breadth values, target-bucket shrink ordering, and row-level market multiplier
+metadata. Breadth and state CLI scripts now focus on boundary checks and I/O
+while preserving their historical output metadata.

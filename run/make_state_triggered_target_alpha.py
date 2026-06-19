@@ -18,6 +18,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from alpha.io import iter_alpha_rows, load_alpha_dates, write_alpha_rows
+from alpha.market_overlays import shrink_target_row
 from core.research_protocol import (
     assert_alpha_dates_within_forward,
     assert_alpha_dates_within_research,
@@ -81,40 +82,17 @@ def build_trigger_by_signal_date(args):
 
 
 def transform_row(row, args, state):
-    codes = list(row.get("codes", []))
-    alpha = list(row.get("alpha", []))
-    n = len(codes)
-    if n == 0:
-        return row
-
     triggered = bool(state.get("triggered", False))
-    effective_target = float(args.risk_target_frac if triggered else args.base_target_frac)
-    base_n = max(int(n * float(args.base_target_frac)), 1)
-    risk_n = max(int(n * float(args.risk_target_frac)), 1)
-    keep_n = risk_n if triggered else base_n
-
-    if triggered and keep_n < base_n:
-        kept = list(range(keep_n))
-        demoted = list(range(keep_n, base_n))
-        rest = list(range(base_n, n))
-        order = kept + rest + demoted
-        codes = [codes[i] for i in order]
-        if len(alpha) == n:
-            alpha = [alpha[i] for i in order]
-        else:
-            alpha = [float(n - i) for i in range(n)]
-
-    out = dict(row)
-    out["codes"] = codes
-    out["alpha"] = alpha
+    out, details = shrink_target_row(
+        row,
+        triggered=triggered,
+        base_target_frac=args.base_target_frac,
+        risk_target_frac=args.risk_target_frac,
+    )
+    if details is None:
+        return row
     out["state_target_transform"] = {
-        "triggered": triggered,
-        "base_target_frac": float(args.base_target_frac),
-        "risk_target_frac": float(args.risk_target_frac),
-        "effective_target_frac": effective_target,
-        "base_n": int(base_n),
-        "risk_n": int(risk_n),
-        "keep_n": int(keep_n),
+        **details,
         "prior_window_cumret": state.get("cumret"),
         "prior_window_drawdown": state.get("drawdown"),
     }
