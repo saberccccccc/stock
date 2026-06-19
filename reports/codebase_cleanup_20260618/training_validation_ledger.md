@@ -26,6 +26,31 @@ evidence that still explains the current M0/loss/lag1 decisions.
 | Lag1 loss | Experimental only. Accept only if executable base, lag1, and cost2x are all competitive with M0. |
 | Downside loss | Experimental only; must be judged by executable portfolio, not IC. |
 
+## Implementation Boundary
+
+The training runtime now supports reproducible ablation parameters for:
+
+```text
+multi/diversity/industry/spread/top-focus weights
+downside loss
+lag1 IC and lag1 Top-focus loss
+purged train/validation label boundaries
+per-epoch checkpoints and raw Top-bucket metrics
+external checkpoint continuation
+```
+
+This is capability preservation, not candidate promotion. Downside and lag1
+weights remain zero by default, and the M0/loss decisions above remain
+authoritative.
+
+Safety properties:
+
+- lag1 labels require explicit train/validation boundaries;
+- lag1 purging extends one extra trading day beyond the normal horizon;
+- lag1 IC and lag1 Top-focus delays activate independently;
+- raw-return and lag1 batch tensors are loaded only when required;
+- fresh per-epoch runs truncate stale metrics JSONL before writing.
+
 ## Experiment Output Candidates
 
 | Path | Status | Cleanup action |

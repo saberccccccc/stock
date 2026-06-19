@@ -28,12 +28,12 @@ committed separately from the implementation they exercise.
 |---|---|---|
 | `tests/test_config.py` | Core configuration behavior. | Maintain. |
 | `tests/test_pipeline.py` | Dataset pipeline behavior. | Maintain. |
-| `tests/test_precomputed_memmap_dataset.py` | Memmap dataset and label exposure. | Maintain; pending edits stay with the training bundle. |
-| `tests/test_train_batch_config.py` | Training CLI batch/config/time-split behavior. | Maintain; pending edits stay with the training bundle. |
+| `tests/test_precomputed_memmap_dataset.py` | Memmap dataset and optional raw/lag1 label exposure. | Maintain. |
+| `tests/test_train_batch_config.py` | Training CLI batch/config/time-split behavior. | Maintain. |
 | `tests/test_metrics.py` | Validation metrics. | Maintain. |
 | `tests/test_fundamental_update.py` | Point-in-time fundamental update behavior. | Maintain. |
 | `tests/test_training_presets.py` | Registered training presets. | Maintain. |
-| `tests/test_downside_loss.py` | Experimental downside loss semantics. | Hold; commit with pending training/loss implementation. |
+| `tests/test_downside_loss.py` | Downside loss and independent lag1-loss activation semantics. | Maintain; experimental losses remain disabled by default. |
 
 ## Reranker Tests
 

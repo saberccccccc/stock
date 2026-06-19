@@ -79,6 +79,8 @@ class DataConfig:
 
     # ==================== 实验：行业感知损失 ====================
     industry_loss_weight: float = 0.1           # 行业内IC loss权重，0=纯全局，1=纯行业内
+    multi_loss_weight: float = 0.3
+    diversity_loss_weight: float = 0.05
 
     # ==================== 实验：Top-Bottom spread loss ====================
     spread_loss_weight: float = 0.001           # head-tail spread loss 权重，0=关闭
@@ -89,6 +91,14 @@ class DataConfig:
     top_focus_loss_weight: float = 0.0          # 仅奖励多头端质量，0=关闭
     top_focus_temperature: float = 0.75         # long-only softmax 温度
     top_focus_delay_epochs: int = 5             # 前N个epoch关闭top-focus loss
+    downside_loss_weight: float = 0.0
+    downside_temperature: float = 0.75
+    downside_delay_epochs: int = 2
+    lag1_loss_weight: float = 0.0
+    lag1_delay_epochs: int = 2
+    lag1_top_focus_loss_weight: float = 0.0
+    lag1_top_focus_temperature: float = 0.75
+    lag1_top_focus_delay_epochs: int = 2
     eval_top_fracs: Tuple[float, ...] = (0.05, 0.10)  # validation top bucket sizes
     best_val_metric: str = "alpha"              # alpha/topic/topret/topstable metrics
 
@@ -111,6 +121,8 @@ class DataConfig:
     use_fused_adam: bool = True                # fused AdamW (CUDA only, PyTorch≥2.0, 5-10% 提速)
     cleanup_cache_interval: int = 0            # 每N batch清理GPU缓存，0=关闭 (模型小时碎片少不需要)
     memmap_trim_interval: int = 0              # Windows每N batch释放文件映射驻留页，0=关闭
+    save_every_epoch: bool = False
+    epoch_checkpoint_dir: Optional[str] = None
 
     # ==================== 防过拟合 ====================
     transformer_dropout: float = 0.35           # Transformer dropout

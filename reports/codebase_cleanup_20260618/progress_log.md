@@ -4166,3 +4166,53 @@ tests/test_downside_loss.py
 ```
 
 Do not split `test_downside_loss.py` from that implementation review.
+
+## Phase 27 Training And Loss Implementation Review
+
+### Completed
+
+Reviewed and consolidated the pending training bundle:
+
+```text
+core/config.py
+core/train_utils.py
+run/train.py
+tests/test_precomputed_memmap_dataset.py
+tests/test_train_batch_config.py
+tests/test_downside_loss.py
+```
+
+The bundle preserves the loss-ablation and purged-split capabilities used by
+the retained experiment configs. Experimental downside and lag1 losses remain
+disabled by default.
+
+### Corrections Made During Review
+
+1. Lag1 IC and lag1 Top-focus delays now activate independently.
+2. Purged splits include the extra one-day lag1 label shift.
+3. Lag1 training without explicit date boundaries is rejected.
+4. Baseline batches no longer construct unused lag1 tensors.
+5. Raw-return tensors are loaded only for downside training or raw checkpoint
+   metrics.
+6. Stock-subsampling collate preserves optional raw/lag1 labels.
+7. Fresh per-epoch runs clear stale metrics JSONL before appending.
+8. Console metrics now classify raw Top-bucket metrics correctly and include
+   multi/diversity loss components.
+
+The unrelated inference-cache universe fix was separated into its own commit
+with a regression test.
+
+### Validation
+
+```text
+focused training/loss tests: 26 passed
+full test suite: 121 passed in 5.60s
+py_compile: passed
+git diff --check: passed
+```
+
+### Next Step
+
+Review the reranker implementation bundle and `tests/test_reranker_dataset.py`
+as one unit. Keep research conclusions separate from whether the code is
+reproducible.

@@ -8,6 +8,7 @@ from torch.utils.data import Dataset, DataLoader
 import numpy as np
 # V9: tqdm removed - too verbose, use simple prints instead
 import pickle
+import json
 import math
 import time
 import warnings
@@ -182,11 +183,14 @@ class PrecomputedMemmapDataset(Dataset):
 
     def __init__(self, x_norm_mm, risk_full_mm, y_norm_mm, y_seq_norm_mm,
                  industry_array, all_codes, all_dates, time_indices,
-                 n_industries, max_horizon, min_stocks=30):
+                 n_industries, max_horizon, min_stocks=30, raw_ret_mm=None,
+                 include_lag1_labels=False):
         self.X_mm = x_norm_mm
         self.R_mm = risk_full_mm
         self.Y_mm = y_norm_mm
         self.YS_mm = y_seq_norm_mm
+        self.raw_ret_mm = raw_ret_mm
+        self.include_lag1_labels = bool(include_lag1_labels)
         self.industry_array = industry_array
         self.all_codes = np.array(all_codes)
         self.all_dates = list(all_dates)
@@ -211,13 +215,29 @@ class PrecomputedMemmapDataset(Dataset):
         valid = (self.Y_mm[:, t] != SENTINEL)
         valid_idx = np.where(valid)[0]
 
-        return {
+        item = {
             "X": torch.from_numpy(self.X_mm[valid_idx, t, :].astype(np.float32) / SCALE).float(),
             "y": torch.from_numpy(self.Y_mm[valid_idx, t].astype(np.float32) / SCALE).float(),
             "y_seq": torch.from_numpy(self.YS_mm[valid_idx, t, :].astype(np.float32) / SCALE).float(),
             "risk": torch.from_numpy(self.R_mm[valid_idx, t, :].astype(np.float32) / SCALE).float(),
             "industry_ids": torch.from_numpy(self.industry_array[valid_idx, t]).long(),
         }
+        if self.raw_ret_mm is not None:
+            item["raw_y_seq"] = torch.from_numpy(
+                self.raw_ret_mm[valid_idx, t, :].astype(np.float32)
+            ).float()
+        if self.include_lag1_labels:
+            lag1_y_seq = np.zeros((len(valid_idx), self.max_horizon), dtype=np.float32)
+            lag1_valid = np.zeros(len(valid_idx), dtype=bool)
+            if t + 1 < len(self.all_dates):
+                lag1_valid = self.Y_mm[valid_idx, t + 1] != SENTINEL
+                if lag1_valid.any():
+                    lag1_y_seq[lag1_valid] = (
+                        self.YS_mm[valid_idx[lag1_valid], t + 1, :].astype(np.float32) / SCALE
+                    )
+            item["lag1_y_seq"] = torch.from_numpy(lag1_y_seq).float()
+            item["lag1_mask"] = torch.from_numpy(lag1_valid).bool()
+        return item
 
 
 # ============================ Collate ============================
@@ -233,6 +253,9 @@ def collate_fn_eval(batch):
     risk = torch.zeros(B, max_N, R)
     industry_ids = torch.full((B, max_N), -1, dtype=torch.long)
     mask = torch.zeros(B, max_N, dtype=torch.bool)
+    raw_y_seq = torch.zeros(B, max_N, H) if "raw_y_seq" in batch[0] else None
+    lag1_y_seq = torch.zeros(B, max_N, H) if "lag1_y_seq" in batch[0] else None
+    lag1_mask = torch.zeros(B, max_N, dtype=torch.bool) if "lag1_mask" in batch[0] else None
     for i, item in enumerate(batch):
         n = item["X"].shape[0]
         X[i, :n] = item["X"]
@@ -241,13 +264,29 @@ def collate_fn_eval(batch):
         risk[i, :n] = item["risk"]
         industry_ids[i, :n] = item["industry_ids"]
         mask[i, :n] = 1
-    return {"X": X, "y": y, "y_seq": y_seq, "risk": risk, "industry_ids": industry_ids, "mask": mask}
+        if raw_y_seq is not None:
+            raw_y_seq[i, :n] = item["raw_y_seq"]
+        if lag1_y_seq is not None:
+            lag1_y_seq[i, :n] = item["lag1_y_seq"]
+            lag1_mask[i, :n] = item["lag1_mask"]
+    result = {"X": X, "y": y, "y_seq": y_seq, "risk": risk, "industry_ids": industry_ids, "mask": mask}
+    if raw_y_seq is not None:
+        result["raw_y_seq"] = raw_y_seq
+    if lag1_y_seq is not None:
+        result["lag1_y_seq"] = lag1_y_seq
+        result["lag1_mask"] = lag1_mask
+    return result
 
 
 def collate_fn(batch, keep_ratio=0.7, min_keep=20):
     """动态子采样：每截面随机保留 keep_ratio 股票"""
     B = len(batch)
     X_list, y_list, yseq_list, risk_list, ind_list = [], [], [], [], []
+    has_raw_y_seq = "raw_y_seq" in batch[0]
+    has_lag1 = "lag1_y_seq" in batch[0] and "lag1_mask" in batch[0]
+    raw_yseq_list = []
+    lag1_yseq_list = []
+    lag1_mask_list = []
     for item in batch:
         N = item["X"].shape[0]
         keep_n = max(min_keep, int(N * keep_ratio))
@@ -258,6 +297,11 @@ def collate_fn(batch, keep_ratio=0.7, min_keep=20):
         yseq_list.append(item["y_seq"][idx])
         risk_list.append(item["risk"][idx])
         ind_list.append(item["industry_ids"][idx])
+        if has_raw_y_seq:
+            raw_yseq_list.append(item["raw_y_seq"][idx])
+        if has_lag1:
+            lag1_yseq_list.append(item["lag1_y_seq"][idx])
+            lag1_mask_list.append(item["lag1_mask"][idx])
 
     max_N = max(x.shape[0] for x in X_list)
     F = X_list[0].shape[1]
@@ -270,6 +314,9 @@ def collate_fn(batch, keep_ratio=0.7, min_keep=20):
     risk = torch.zeros(B, max_N, R)
     industry_ids = torch.full((B, max_N), -1, dtype=torch.long)
     mask = torch.zeros(B, max_N, dtype=torch.bool)
+    raw_y_seq = torch.zeros(B, max_N, H) if has_raw_y_seq else None
+    lag1_y_seq = torch.zeros(B, max_N, H) if has_lag1 else None
+    lag1_mask = torch.zeros(B, max_N, dtype=torch.bool) if has_lag1 else None
 
     for i in range(B):
         n = X_list[i].shape[0]
@@ -279,7 +326,19 @@ def collate_fn(batch, keep_ratio=0.7, min_keep=20):
         risk[i, :n] = risk_list[i]
         industry_ids[i, :n] = ind_list[i]
         mask[i, :n] = 1
-    return {"X": X, "y": y, "y_seq": y_seq, "risk": risk, "industry_ids": industry_ids, "mask": mask}
+        if raw_y_seq is not None:
+            raw_y_seq[i, :n] = raw_yseq_list[i]
+        if lag1_y_seq is not None:
+            lag1_y_seq[i, :n] = lag1_yseq_list[i]
+            lag1_mask[i, :n] = lag1_mask_list[i]
+
+    result = {"X": X, "y": y, "y_seq": y_seq, "risk": risk, "industry_ids": industry_ids, "mask": mask}
+    if raw_y_seq is not None:
+        result["raw_y_seq"] = raw_y_seq
+    if lag1_y_seq is not None:
+        result["lag1_y_seq"] = lag1_y_seq
+        result["lag1_mask"] = lag1_mask
+    return result
 
 
 # ============================ 损失函数 ============================
@@ -378,7 +437,9 @@ def correlation_ic_loss_within_industry(pred, target, mask, industry_ids):
 def total_loss_v7(
     alpha_raw, alphas, horizon_preds, y, y_seq, mask, cfg,
     industry_ids=None, spread_enabled=True, top_focus_enabled=True,
-    pairwise_enabled=True,
+    pairwise_enabled=True, raw_y_seq=None, downside_enabled=True,
+    lag1_y_seq=None, lag1_mask=None, lag1_enabled=True,
+    lag1_top_focus_enabled=True,
 ):
     """
     V7 多周期联合损失
@@ -440,6 +501,46 @@ def total_loss_v7(
             top_focus = top_focus / n_h
     comp['top_focus'] = top_focus.detach()
 
+    w_downside = getattr(cfg, 'downside_loss_weight', 0.0)
+    downside = torch.tensor(0.0, device=alpha_raw.device)
+    if w_downside > 0 and downside_enabled:
+        downside_path = raw_y_seq if raw_y_seq is not None else y_seq
+        downside = downside_top_loss(
+            alpha_raw,
+            downside_path,
+            mask,
+            horizon_indices=valid_indices,
+            temperature=getattr(cfg, 'downside_temperature', 0.75),
+        )
+    comp['downside'] = downside.detach()
+
+    w_lag1 = getattr(cfg, 'lag1_loss_weight', 0.0)
+    lag1 = torch.tensor(0.0, device=alpha_raw.device)
+    if w_lag1 > 0 and lag1_enabled and lag1_y_seq is not None:
+        lag1_target, _, _ = weighted_horizon_target(lag1_y_seq, cfg)
+        effective_mask = mask if lag1_mask is None else (mask & lag1_mask.to(mask.device))
+        lag1 = correlation_ic_loss(alpha_raw, lag1_target, effective_mask)
+    comp['lag1'] = lag1.detach()
+
+    w_lag1_top_focus = getattr(cfg, 'lag1_top_focus_loss_weight', 0.0)
+    lag1_top_focus = torch.tensor(0.0, device=alpha_raw.device)
+    if w_lag1_top_focus > 0 and lag1_top_focus_enabled and lag1_y_seq is not None:
+        effective_mask = mask if lag1_mask is None else (mask & lag1_mask.to(mask.device))
+        temp = getattr(cfg, 'lag1_top_focus_temperature', 0.75)
+        n_h = 0
+        for h_idx in valid_indices:
+            if h_idx < lag1_y_seq.shape[-1]:
+                lag1_top_focus = lag1_top_focus + top_focus_loss(
+                    alpha_raw,
+                    lag1_y_seq[..., h_idx],
+                    effective_mask,
+                    temperature=temp,
+                )
+                n_h += 1
+        if n_h > 0:
+            lag1_top_focus = lag1_top_focus / n_h
+    comp['lag1_top_focus'] = lag1_top_focus.detach()
+
     w_pairwise = getattr(cfg, 'pairwise_top_loss_weight', 0.0)
     pairwise = torch.tensor(0.0, device=alpha_raw.device)
     if w_pairwise > 0 and pairwise_enabled:
@@ -460,12 +561,17 @@ def total_loss_v7(
                 )
     comp['pairwise'] = pairwise.detach()
 
+    w_multi = getattr(cfg, 'multi_loss_weight', 0.3)
+    w_div = getattr(cfg, 'diversity_loss_weight', 0.05)
     total = (
         main
-        + 0.3 * multi
-        + 0.05 * div
+        + w_multi * multi
+        + w_div * div
         + w_spread * spread
         + w_top_focus * top_focus
+        + w_downside * downside
+        + w_lag1 * lag1
+        + w_lag1_top_focus * lag1_top_focus
         + w_pairwise * pairwise
     )
     return total, comp
@@ -503,6 +609,40 @@ def top_focus_loss(alpha_raw, ret, mask, min_stocks=40, temperature=0.75):
         long_w = torch.softmax(a / temperature, dim=0)
         long_reward = (long_w * r_z).sum()
         losses.append(-long_reward)
+    if not losses:
+        return torch.tensor(0.0, device=alpha_raw.device)
+    return torch.stack(losses).mean()
+
+
+def downside_top_loss(
+    alpha_raw,
+    return_path,
+    mask,
+    horizon_indices=None,
+    min_stocks=40,
+    temperature=0.75,
+):
+    """Penalize downside concentrated in the model's soft long-only top book."""
+    losses = []
+    if horizon_indices is None:
+        horizon_indices = range(return_path.shape[-1])
+    valid_horizons = [idx for idx in horizon_indices if idx < return_path.shape[-1]]
+    if not valid_horizons:
+        return torch.tensor(0.0, device=alpha_raw.device)
+
+    for b in range(alpha_raw.shape[0]):
+        valid_mask = mask[b]
+        if valid_mask.sum() < min_stocks:
+            continue
+        alpha = alpha_raw[b][valid_mask]
+        paths = return_path[b][valid_mask][:, valid_horizons]
+        paths = torch.nan_to_num(paths, nan=0.0, posinf=0.0, neginf=0.0)
+        worst_return = paths.min(dim=-1).values
+        downside = torch.relu(-worst_return)
+        downside_z = (downside - downside.mean()) / (downside.std() + 1e-8)
+        long_weights = torch.softmax(alpha / temperature, dim=0)
+        losses.append((long_weights * downside_z).sum())
+
     if not losses:
         return torch.tensor(0.0, device=alpha_raw.device)
     return torch.stack(losses).mean()
@@ -619,12 +759,16 @@ def evaluate(model, loader, cfg, device):
     top_returns = {}
     top_ics = {}
     top_stability = {}
+    raw_top_returns = {}
+    raw_top_stability = {}
     for frac in top_fracs:
         tag = _top_frac_tag(frac)
         for h_idx in h_indices:
             top_returns[f"topret_h{h_idx+1}_top{tag}"] = []
             top_ics[f"topic_h{h_idx+1}_top{tag}"] = []
             top_stability[f"topstable_h{h_idx+1}_top{tag}"] = []
+            raw_top_returns[f"rawtopret_h{h_idx+1}_top{tag}"] = []
+            raw_top_stability[f"rawtopstable_h{h_idx+1}_top{tag}"] = []
 
     regime_dim = get_regime_dim(cfg)
 
@@ -635,6 +779,7 @@ def evaluate(model, loader, cfg, device):
         risk = batch["risk"].to(device)
         industry_ids = batch["industry_ids"].to(device)
         mask = batch["mask"].to(device)
+        raw_y_seq_cpu = batch.get("raw_y_seq")
 
         try:
             alpha_raw, _, horizon_preds = model(X, risk[..., :regime_dim], mask, industry_ids)
@@ -718,6 +863,12 @@ def evaluate(model, loader, cfg, device):
                         top_ic = np.corrcoef(top_pred, top_y)[0, 1]
                         if np.isfinite(top_ic):
                             top_ics[f"topic_h{h_idx+1}_top{tag}"].append(top_ic)
+                    if raw_y_seq_cpu is not None and h_idx < raw_y_seq_cpu.shape[-1]:
+                        raw_ret_h = raw_y_seq_cpu[b, m, h_idx].numpy()
+                        raw_top_ret = raw_ret_h[top_idx_frac].mean()
+                        if np.isfinite(raw_top_ret):
+                            raw_top_returns[f"rawtopret_h{h_idx+1}_top{tag}"].append(raw_top_ret)
+                            raw_top_stability[f"rawtopstable_h{h_idx+1}_top{tag}"].append(raw_top_ret)
 
         del alpha_cpu, horizon_cpu, y_cpu, y_seq_cpu, target_cpu, mask_cpu, batch
         trim_interval = getattr(cfg, 'memmap_trim_interval', 0)
@@ -734,6 +885,10 @@ def evaluate(model, loader, cfg, device):
     for k, v in top_ics.items():
         results[k] = np.mean(v) if v else 0.0
     for k, v in top_stability.items():
+        results[k] = _mean_std_score(v)
+    for k, v in raw_top_returns.items():
+        results[k] = np.mean(v) if v else 0.0
+    for k, v in raw_top_stability.items():
         results[k] = _mean_std_score(v)
     return results
 
@@ -777,6 +932,14 @@ def train_model(train_loader, val_loader, input_dim, cfg,
     best_val_loss = float('inf')
     early_stop_counter = 0
     best_metric_name = getattr(cfg, 'best_val_metric', 'alpha')
+    save_every_epoch = bool(getattr(cfg, "save_every_epoch", False))
+    epoch_checkpoint_dir = getattr(cfg, "epoch_checkpoint_dir", None)
+    if save_every_epoch:
+        epoch_checkpoint_dir = epoch_checkpoint_dir or os.path.join(
+            os.path.dirname(best_model_path), "epochs"
+        )
+        os.makedirs(epoch_checkpoint_dir, exist_ok=True)
+        epoch_metrics_path = os.path.join(epoch_checkpoint_dir, "epoch_metrics.jsonl")
 
     current_arch = {
         'input_dim': input_dim, 'agg_groups': agg_groups,
@@ -812,9 +975,11 @@ def train_model(train_loader, val_loader, input_dim, cfg,
     amp_str = "AMP ON" if scaler else "AMP OFF"
     print(f"混合精度(AMP): {amp_str}")
 
-    if resume and os.path.exists(best_model_path):
-        print(f"loading existing checkpoint {best_model_path}, continuing training...")
-        checkpoint = torch.load(best_model_path, map_location=device, weights_only=False)
+    resume_path = getattr(cfg, "resume_from", None) or best_model_path
+    reset_optimizer = bool(getattr(cfg, "reset_optimizer", False))
+    if resume and os.path.exists(resume_path):
+        print(f"loading existing checkpoint {resume_path}, continuing training...")
+        checkpoint = torch.load(resume_path, map_location=device, weights_only=False)
         arch_config = checkpoint.get('arch_config', None)
 
         to_load = True
@@ -839,18 +1004,31 @@ def train_model(train_loader, val_loader, input_dim, cfg,
             else:
                 best_val_loss = float('inf')
             start_epoch = checkpoint.get('epoch', 0)
-            if 'optimizer_state_dict' in checkpoint:
+            if not reset_optimizer and 'optimizer_state_dict' in checkpoint:
                 optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
                 print(f"restored optimizer state")
             else:
                 print(f"  (检查点无optimizer状态，使用全新优化器)")
-            if 'scheduler_state_dict' in checkpoint:
+            if not reset_optimizer and 'scheduler_state_dict' in checkpoint:
                 try:
                     scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
                     print(f"restored scheduler state")
                 except (KeyError, RuntimeError) as e:
                     print(f"  scheduler 不兼容 ({e})，使用全新 scheduler")
             print(f"从epoch {start_epoch} 恢复, best val_loss={best_val_loss:.4f}")
+
+    if (
+        resume
+        and os.path.exists(resume_path)
+        and "checkpoint" in locals()
+        and to_load
+        and os.path.abspath(resume_path) != os.path.abspath(best_model_path)
+    ):
+        torch.save(checkpoint, best_model_path)
+        print(f"seeded continuation best checkpoint: {best_model_path}")
+
+    if save_every_epoch and start_epoch == 0:
+        open(epoch_metrics_path, "w", encoding="utf-8").close()
 
     print(f"\n{'='*60}")
     print(f"开始训练| epochs={epochs} | lr={lr} | accum={accum_steps}")
@@ -876,6 +1054,15 @@ def train_model(train_loader, val_loader, input_dim, cfg,
             X = batch["X"].to(device)
             y = batch["y"].to(device)
             y_seq = batch["y_seq"].to(device)
+            raw_y_seq = batch.get("raw_y_seq")
+            if raw_y_seq is not None:
+                raw_y_seq = raw_y_seq.to(device)
+            lag1_y_seq = batch.get("lag1_y_seq")
+            lag1_mask = batch.get("lag1_mask")
+            if lag1_y_seq is not None:
+                lag1_y_seq = lag1_y_seq.to(device)
+            if lag1_mask is not None:
+                lag1_mask = lag1_mask.to(device)
             risk = batch["risk"].to(device)
             industry_ids = batch["industry_ids"].to(device)
             mask = batch["mask"].to(device)
@@ -884,6 +1071,9 @@ def train_model(train_loader, val_loader, input_dim, cfg,
                 alpha_raw, alphas, horizon_preds = model(X, risk[..., :regime_dim], mask, industry_ids)
                 spread_on = epoch >= getattr(cfg, 'spread_delay_epochs', 5)
                 top_focus_on = epoch >= getattr(cfg, 'top_focus_delay_epochs', 5)
+                downside_on = epoch >= getattr(cfg, 'downside_delay_epochs', 2)
+                lag1_on = epoch >= getattr(cfg, 'lag1_delay_epochs', 2)
+                lag1_top_focus_on = epoch >= getattr(cfg, 'lag1_top_focus_delay_epochs', 2)
                 pairwise_on = epoch >= getattr(cfg, 'pairwise_delay_epochs', 5)
                 total, comp = total_loss_v7(
                     alpha_raw, alphas, horizon_preds, y, y_seq, mask, cfg,
@@ -891,6 +1081,12 @@ def train_model(train_loader, val_loader, input_dim, cfg,
                     spread_enabled=spread_on,
                     top_focus_enabled=top_focus_on,
                     pairwise_enabled=pairwise_on,
+                    raw_y_seq=raw_y_seq,
+                    downside_enabled=downside_on,
+                    lag1_y_seq=lag1_y_seq,
+                    lag1_mask=lag1_mask,
+                    lag1_enabled=lag1_on,
+                    lag1_top_focus_enabled=lag1_top_focus_on,
                 )
             loss = total / accum_steps
 
@@ -923,6 +1119,12 @@ def train_model(train_loader, val_loader, input_dim, cfg,
             # CPU collated tensors and GPU inputs are no longer needed after
             # backward/step. Releasing batch is important for memmap training.
             del X, y, y_seq, risk, industry_ids, mask, batch
+            if raw_y_seq is not None:
+                del raw_y_seq
+            if lag1_y_seq is not None:
+                del lag1_y_seq
+            if lag1_mask is not None:
+                del lag1_mask
 
             train_loss += loss_val
 
@@ -993,16 +1195,19 @@ def train_model(train_loader, val_loader, input_dim, cfg,
 
         # 构建loss分量字符串
         comp_strs = []
-        for k in ['global_ic', 'within_ic', 'spread', 'top_focus', 'pairwise']:
+        for k in ['global_ic', 'within_ic', 'multi', 'div', 'spread', 'top_focus', 'downside', 'lag1', 'lag1_top_focus', 'pairwise']:
             if k in train_comps:
                 comp_strs.append(f"{k}={train_comps[k]/len(train_loader):.4f}")
         comp_str = "  [" + " | ".join(comp_strs) + "]" if comp_strs else ""
 
         # 分开 IC 和 top-bottom spread
-        ic_items = {k: v for k, v in val_ics.items()
-                    if not k.startswith('topbot') and not k.startswith('topret') and not k.startswith('topic')}
+        top_prefixes = ('topret', 'topic', 'topstable', 'rawtopret', 'rawtopstable')
+        ic_items = {
+            k: v for k, v in val_ics.items()
+            if not k.startswith('topbot') and not k.startswith(top_prefixes)
+        }
         spread_items = {k: v for k, v in val_ics.items() if k.startswith('topbot')}
-        top_items = {k: v for k, v in val_ics.items() if k.startswith('topret') or k.startswith('topic')}
+        top_items = {k: v for k, v in val_ics.items() if k.startswith(top_prefixes)}
         ic_str = " | ".join([f"{k}: {v:.4f}" for k, v in ic_items.items()])
         spread_str = " | ".join([f"{k}: {v:.4f}" for k, v in spread_items.items()])
         top_str = " | ".join([f"{k}: {v:.4f}" for k, v in top_items.items()])
@@ -1015,20 +1220,40 @@ def train_model(train_loader, val_loader, input_dim, cfg,
             print(f"         Val TOP -> {top_str}")
         print(f"         Select  -> {best_metric_name}: {val_score:.4f}")
 
+        checkpoint_payload = {
+            'epoch': epoch + 1,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'scheduler_state_dict': scheduler.state_dict(),
+            'val_loss': val_loss,
+            'best_metric': best_metric_name,
+            'best_score': val_score,
+            'val_ics': val_ics,
+            'arch_config': current_arch,
+        }
+        if save_every_epoch:
+            epoch_path = os.path.join(epoch_checkpoint_dir, f"epoch_{epoch + 1:03d}.pt")
+            torch.save(checkpoint_payload, epoch_path)
+            with open(epoch_metrics_path, "a", encoding="utf-8") as metrics_file:
+                metrics_file.write(json.dumps({
+                    "epoch": epoch + 1,
+                    "train_loss": float(train_loss),
+                    "train_components": {
+                        k: float(v / len(train_loader))
+                        for k, v in train_comps.items()
+                    },
+                    "learning_rate": float(current_lr),
+                    "selection_metric": best_metric_name,
+                    "selection_score": float(val_score),
+                    "val_metrics": {k: float(v) for k, v in val_ics.items()},
+                    "checkpoint": epoch_path,
+                }, ensure_ascii=False) + "\n")
+            print(f"  >>> Saved epoch checkpoint: {epoch_path}")
+
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             early_stop_counter = 0
-            torch.save({
-                'epoch': epoch + 1,
-                'model_state_dict': model.state_dict(),
-                'optimizer_state_dict': optimizer.state_dict(),
-                'scheduler_state_dict': scheduler.state_dict(),
-                'val_loss': val_loss,
-                'best_metric': best_metric_name,
-                'best_score': val_score,
-                'val_ics': val_ics,
-                'arch_config': current_arch,
-            }, best_model_path)
+            torch.save(checkpoint_payload, best_model_path)
             print(f"  >>> 保存最优模型({best_metric_name}={val_score:.4f}, val_alpha_IC={val_ics['alpha']:.4f})")
         else:
             early_stop_counter += 1
