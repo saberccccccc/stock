@@ -57,6 +57,28 @@ Promotion remains based on executable open-price share-ledger results, not IC:
 
 Do not archive any open-reranker or market-overlay parent directory yet.
 
+## Source Reproducibility
+
+The open-reranker training and forward-application entrypoints are maintained:
+
+```text
+run/train_open_reranker_current_v9.py
+run/apply_open_reranker_forward.py
+tests/test_open_reranker.py
+```
+
+Safety guarantees:
+
+- training input is rejected after the 2023-12-31 OOF cutoff;
+- open-to-open labels may not cross the end of their OOF year;
+- price tails are bounds-checked before array access;
+- validation/test scoring may not use post-2026-05-18 forward rows;
+- the forward entrypoint rejects rows before 2026-05-19;
+- Alpha JSONL I/O uses the shared `alpha.io` module.
+
+These guarantees preserve the existing research branch; they do not promote
+an open-reranker candidate over `main_candidate`.
+
 The next cleanup movement in this family should wait for one of:
 
 1. a forward/live observation summary that freezes the attack/stability

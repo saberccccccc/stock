@@ -21,6 +21,7 @@ committed separately from the implementation they exercise.
 | `tests/test_execution_constraints.py` | Legacy constrained-execution rules. | Maintain. |
 | `tests/test_open_ledger_execution.py` | Cash/share/lot/cost/open-price ledger behavior. | Maintain. |
 | `tests/test_open_ledger_preset_cli.py` | Thin open-ledger CLI compatibility. | Maintain. |
+| `tests/test_open_reranker.py` | Open-reranker OOF label cutoff, tail safety, and forward boundary. | Maintain. |
 
 ## Data, Training, And Metrics Tests
 

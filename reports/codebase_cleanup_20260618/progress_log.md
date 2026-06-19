@@ -4262,3 +4262,40 @@ direct-script-only reranker imports remaining: 0
 Review the two current open-reranker scripts separately because they belong to
 the newer open-price execution research branch, not the historical V1-V4
 bundle.
+
+## Phase 29 Open-Reranker Source Review
+
+### Completed
+
+Reviewed and added the current V9 open-reranker source pair:
+
+```text
+run/train_open_reranker_current_v9.py
+run/apply_open_reranker_forward.py
+tests/test_open_reranker.py
+```
+
+The scripts now reuse shared Alpha JSONL I/O and enforce their research/forward
+date responsibilities.
+
+### Corrections Made During Review
+
+1. OOF training rows after 2023-12-31 are rejected.
+2. Open-price labels crossing the end of an OOF year are purged.
+3. Tail dates are checked before indexing price arrays.
+4. Historical validation/test rows cannot enter the forward period.
+5. Forward application rejects signal rows before 2026-05-19.
+
+### Validation
+
+```text
+open-reranker focused tests: 3 passed
+py_compile: passed
+module import smoke test: passed
+```
+
+### Next Step
+
+Classify the remaining untracked non-reranker run scripts into coherent source
+bundles, starting with training/candidate validation utilities already linked
+from the training ledger.
