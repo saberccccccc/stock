@@ -4344,3 +4344,25 @@ mixing; it does not rerank or promote candidates.
 ### Next Step
 
 Review the four remaining market-state and breadth overlay utilities.
+
+## Phase 32 Market Overlay Source Bundle
+
+### Completed
+
+Reviewed the four breadth, state-target, and market-switch Alpha transforms.
+They now use shared Alpha I/O, preserve the caller's working directory, and
+separate research inputs from explicitly enabled forward inputs.
+
+Added a shared aligned-Alpha iterator and moved the existing edge-rerank,
+negative-filter, and conditional-filter writers onto it, eliminating silent
+row truncation across the transform family.
+
+### Decision Boundary
+
+Breadth market-mult remains observation-only. Breadth/state target shrink
+remain rejected, and market switch remains a conservative watch candidate.
+
+### Next Step
+
+Audit and classify the remaining root plans, shell repro scripts, reports, and
+large experiment-output directories before any archive moves.

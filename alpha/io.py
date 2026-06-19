@@ -1,6 +1,7 @@
 """JSONL helpers for daily alpha ranking files."""
 
 import json
+from itertools import zip_longest
 from pathlib import Path
 
 import pandas as pd
@@ -53,3 +54,19 @@ def assert_same_date(left, right):
     if left_date != right_date:
         raise ValueError(f"date mismatch: {left_date} vs {right_date}")
     return left_date
+
+
+def iter_aligned_alpha_rows(left_path, right_path):
+    """Yield two Alpha files in lockstep and reject missing or shifted rows."""
+
+    missing = object()
+    pairs = zip_longest(
+        iter_alpha_rows(left_path),
+        iter_alpha_rows(right_path),
+        fillvalue=missing,
+    )
+    for left, right in pairs:
+        if left is missing or right is missing:
+            raise ValueError("alpha files have different row counts")
+        assert_same_date(left, right)
+        yield left, right

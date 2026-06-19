@@ -1,9 +1,16 @@
 """Summarize candidate-vs-base stability by month and market state."""
 
 import argparse
+import sys
 from pathlib import Path
 
 import pandas as pd
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from backtest.market_state import load_index_states
 
 
 def parse_args():
@@ -19,24 +26,7 @@ def parse_args():
 
 
 def load_state(index_file, ma_window, crash_ret):
-    idx = pd.read_csv(index_file)
-    if "date" not in idx.columns:
-        idx = idx.rename(columns={idx.columns[0]: "date"})
-    close_col = "close" if "close" in idx.columns else idx.columns[-1]
-    idx["date"] = pd.to_datetime(idx["date"])
-    idx = idx.sort_values("date").drop_duplicates("date")
-    close = pd.to_numeric(idx[close_col], errors="coerce")
-    ma = close.rolling(ma_window, min_periods=max(5, ma_window // 3)).mean()
-    ret = close.pct_change()
-    states = []
-    for date, c, m, r in zip(idx["date"], close, ma, ret):
-        state = "normal"
-        if pd.notna(c) and pd.notna(m) and c < m:
-            state = "bear"
-        if pd.notna(r) and float(r) <= float(crash_ret):
-            state = "crash"
-        states.append({"date": pd.Timestamp(date), "market_state": state, "index_ret": float(r) if pd.notna(r) else 0.0})
-    return pd.DataFrame(states)
+    return load_index_states(index_file, ma_window=ma_window, crash_ret=crash_ret)
 
 
 def summarize_group(df, group_cols):

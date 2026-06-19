@@ -31,7 +31,11 @@ def assert_research_end_date(value, context: str = "research") -> pd.Timestamp:
 
 
 def assert_alpha_rows_within_research(rows, context: str = "backtest") -> None:
-    dates = [pd.Timestamp(row["date"]) for row in rows]
+    assert_alpha_dates_within_research([row["date"] for row in rows], context=context)
+
+
+def assert_alpha_dates_within_research(dates, context: str = "backtest") -> None:
+    dates = [pd.Timestamp(date) for date in dates]
     if dates and max(dates) > RESEARCH_END_DATE:
         raise ValueError(
             f"{context} contains signal date {max(dates).date()} after frozen research "
@@ -40,7 +44,11 @@ def assert_alpha_rows_within_research(rows, context: str = "backtest") -> None:
 
 
 def assert_alpha_rows_within_forward(rows, context: str = "forward test") -> None:
-    dates = [pd.Timestamp(row["date"]) for row in rows]
+    assert_alpha_dates_within_forward([row["date"] for row in rows], context=context)
+
+
+def assert_alpha_dates_within_forward(dates, context: str = "forward test") -> None:
+    dates = [pd.Timestamp(date) for date in dates]
     if dates and min(dates) < FORWARD_START_DATE:
         raise ValueError(
             f"{context} contains signal date {min(dates).date()} before forward-test "

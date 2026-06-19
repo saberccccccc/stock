@@ -3,7 +3,13 @@ import json
 import pandas as pd
 import pytest
 
-from alpha.io import assert_same_date, iter_alpha_rows, load_alpha_dates, write_alpha_rows
+from alpha.io import (
+    assert_same_date,
+    iter_aligned_alpha_rows,
+    iter_alpha_rows,
+    load_alpha_dates,
+    write_alpha_rows,
+)
 
 
 def test_iter_alpha_rows_normalizes_dates(tmp_path):
@@ -56,3 +62,13 @@ def test_assert_same_date_accepts_timestamp_and_string():
 def test_assert_same_date_raises_on_mismatch():
     with pytest.raises(ValueError, match="date mismatch"):
         assert_same_date({"date": "2024-01-02"}, {"date": "2024-01-03"})
+
+
+def test_iter_aligned_alpha_rows_rejects_different_lengths(tmp_path):
+    left = tmp_path / "left.jsonl"
+    right = tmp_path / "right.jsonl"
+    write_alpha_rows(left, [{"date": "2024-01-02"}, {"date": "2024-01-03"}])
+    write_alpha_rows(right, [{"date": "2024-01-02"}])
+
+    with pytest.raises(ValueError, match="different row counts"):
+        list(iter_aligned_alpha_rows(left, right))

@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from alpha.io import assert_same_date, iter_alpha_rows, write_alpha_rows
+from alpha.io import assert_same_date, iter_aligned_alpha_rows, write_alpha_rows
 
 
 def make_rank_alpha(n):
@@ -272,7 +272,7 @@ def write_edge_rerank_alpha(base_alpha, full_rerank_alpha, output_alpha, start_r
     rows = 0
     changed = 0
     out_rows = []
-    for base, rerank in zip(iter_alpha_rows(base_alpha), iter_alpha_rows(full_rerank_alpha)):
+    for base, rerank in iter_aligned_alpha_rows(base_alpha, full_rerank_alpha):
         out_row, did_change = edge_rerank_row(
             base,
             rerank,
@@ -299,7 +299,7 @@ def write_negative_filter_alpha(
     changed = 0
     dropped_total = 0
     out_rows = []
-    for base, rerank in zip(iter_alpha_rows(base_alpha), iter_alpha_rows(full_rerank_alpha)):
+    for base, rerank in iter_aligned_alpha_rows(base_alpha, full_rerank_alpha):
         out_row, dropped = negative_filter_row(
             base,
             rerank,
@@ -335,7 +335,7 @@ def write_conditional_negative_filter_alpha(
     changed_dates = 0
     dropped_total = 0
     out_rows = []
-    for base, rerank in zip(iter_alpha_rows(base_alpha), iter_alpha_rows(full_rerank_alpha)):
+    for base, rerank in iter_aligned_alpha_rows(base_alpha, full_rerank_alpha):
         out_row, triggered, dropped = conditional_negative_filter_row(
             base,
             rerank,

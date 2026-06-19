@@ -26,12 +26,28 @@ def test_research_protocol():
         FORWARD_START_DATE,
         RESEARCH_END_DATE,
         SMALL_ACCOUNT_VALUES,
+        assert_alpha_dates_within_forward,
+        assert_alpha_dates_within_research,
         assert_research_end_date,
     )
     assert str(RESEARCH_END_DATE.date()) == "2026-05-18"
     assert str(FORWARD_START_DATE.date()) == "2026-05-19"
     assert SMALL_ACCOUNT_VALUES == (500_000.0, 1_000_000.0)
     assert assert_research_end_date(None) == RESEARCH_END_DATE
+    assert_alpha_dates_within_research(["2026-05-18"])
+    assert_alpha_dates_within_forward(["2026-05-19"])
+    try:
+        assert_alpha_dates_within_research(["2026-05-19"])
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("research Alpha boundary must reject forward dates")
+    try:
+        assert_alpha_dates_within_forward(["2026-05-18"])
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("forward Alpha boundary must reject research dates")
     try:
         assert_research_end_date("2026-05-19")
     except ValueError:

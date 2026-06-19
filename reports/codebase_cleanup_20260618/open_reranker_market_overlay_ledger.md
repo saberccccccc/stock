@@ -79,6 +79,21 @@ Safety guarantees:
 These guarantees preserve the existing research branch; they do not promote
 an open-reranker candidate over `main_candidate`.
 
+The market-overlay source utilities are also maintained:
+
+```text
+run/make_breadth_triggered_market_alpha.py
+run/make_breadth_triggered_target_alpha.py
+run/make_state_triggered_target_alpha.py
+run/switch_alpha_by_market_state.py
+```
+
+They use shared Alpha JSONL I/O, reject mismatched paired Alpha files, and
+require explicit `--allow-forward` for forward-only inputs. Research mode
+rejects signal dates after 2026-05-18; forward mode rejects dates before
+2026-05-19. This source preservation does not reverse the target-shrink
+rejections or promote a market overlay.
+
 The next cleanup movement in this family should wait for one of:
 
 1. a forward/live observation summary that freezes the attack/stability
