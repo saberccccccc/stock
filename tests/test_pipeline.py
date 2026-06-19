@@ -2,6 +2,7 @@
 import os
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -47,6 +48,28 @@ def test_compute_base_features():
     for col in base_features:
         assert col in df.columns, f"missing column: {col}"
     print(f"  _compute_base_features: {len(base_features)} features computed")
+
+
+def test_inference_cache_path_includes_stock_universe(tmp_path):
+    from data.pipeline import _inference_cache_path_for
+
+    data_dir = tmp_path / "raw"
+    data_dir.mkdir()
+    config = SimpleNamespace(data_dir=str(data_dir))
+
+    all_stocks = _inference_cache_path_for(config, max_lookback=120)
+    universe_ab = _inference_cache_path_for(
+        config, max_lookback=120, stock_universe=["A", "B"]
+    )
+    universe_ba = _inference_cache_path_for(
+        config, max_lookback=120, stock_universe=["B", "A"]
+    )
+    universe_ac = _inference_cache_path_for(
+        config, max_lookback=120, stock_universe=["A", "C"]
+    )
+
+    assert universe_ab == universe_ba
+    assert len({all_stocks, universe_ab, universe_ac}) == 3
 
 
 if __name__ == "__main__":

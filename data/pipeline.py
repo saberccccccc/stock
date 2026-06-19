@@ -898,7 +898,7 @@ def add_technical_features(df: "pd.DataFrame", config) -> "pd.DataFrame":
     return df
 
 
-def _inference_cache_path_for(config, max_lookback=None):
+def _inference_cache_path_for(config, max_lookback=None, stock_universe=None):
     data_dir = Path(config.data_dir).resolve()
     dependencies = list(data_dir.rglob("*.csv"))
     dependencies.extend(
@@ -921,7 +921,12 @@ def _inference_cache_path_for(config, max_lookback=None):
         f"{data_dir}|{dependency_signature}".encode("utf-8")
     ).hexdigest()[:10]
     lookback_tag = "all" if max_lookback is None else str(int(max_lookback))
-    return os.path.join("cache", f"inference_matrices_{data_tag}_lb{lookback_tag}.pkl")
+    if stock_universe:
+        universe_text = "|".join(sorted(str(code) for code in stock_universe))
+        universe_tag = hashlib.sha1(universe_text.encode("utf-8")).hexdigest()[:8]
+    else:
+        universe_tag = "all"
+    return os.path.join("cache", f"inference_matrices_{data_tag}_lb{lookback_tag}_u{universe_tag}.pkl")
 
 
 def _save_inference_cache(matrices, cache_path):
@@ -951,7 +956,7 @@ def _build_inference_matrices(config, stock_universe=None, max_lookback=None):
     Returns a dict with all shared data used to produce cross-section samples.
     If max_lookback is provided, only keep the most recent N dates to save memory.
     """
-    cache_path = _inference_cache_path_for(config, max_lookback)
+    cache_path = _inference_cache_path_for(config, max_lookback, stock_universe)
     cached = _load_inference_cache(cache_path)
     if cached is not None:
         print(f"加载推理矩阵缓存: {cache_path}")
