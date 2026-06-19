@@ -143,3 +143,23 @@ forward observation as non-tuning evidence
 ```
 
 Alpha IC is only a minimum sanity gate, not the model selection objective.
+
+## Reviewed Open-Ledger Tooling
+
+The diagnostic and sweep source bundle is now tracked and tested:
+
+```text
+run/compare_open_ledger_diagnostics.py
+run/diagnose_negative_filter.py
+run/summarize_candidate_stability.py
+run/summarize_open_ledger_candidates.py
+run/sweep_open_ledger_params.py
+run/sweep_open_price_ledger_params.py
+```
+
+Research sweeps call the shared `backtest.open_ledger` implementation and
+reject Alpha or market-data cutoffs after 2026-05-18. Negative-filter future
+return diagnostics truncate price data at that boundary. Candidate summaries
+prefer the explicit `split` column emitted by val/test sweeps instead of
+guessing the split from sample count. These corrections do not change the
+official baseline or promote a shadow candidate.

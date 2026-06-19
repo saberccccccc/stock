@@ -4321,3 +4321,26 @@ loss or candidate is promoted by tracking its runner or validation source.
 
 Review the open-ledger diagnostics and parameter-sweep utilities as the next
 coherent source bundle.
+
+## Phase 31 Open-Ledger Diagnostic And Sweep Bundle
+
+### Completed
+
+Reviewed the six open-ledger comparison, stability, candidate-summary, and
+parameter-sweep utilities. Both sweep entrypoints now use the shared
+`backtest.open_ledger` implementation and enforce the frozen research cutoff.
+
+Corrected candidate split provenance, rejected mismatched Alpha row counts,
+and prevented negative-filter future-return diagnostics from reading forward
+prices. The stability tail window is now explicit rather than encoded in a
+hard-coded column name.
+
+### Decision Boundary
+
+The official V9 avgw3 + maxret095 open-price share-ledger baseline remains
+unchanged. This phase improves reproducibility and prevents research/forward
+mixing; it does not rerank or promote candidates.
+
+### Next Step
+
+Review the four remaining market-state and breadth overlay utilities.
