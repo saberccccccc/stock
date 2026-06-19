@@ -19,6 +19,45 @@ specific research branch.
 | `run/generate_review_docs_index.py` | Review-doc index generator. | Yes |
 | `run/generate_checkpoint_reference_audit.py` | Checkpoint/model reference audit generator. | Yes |
 
+## Shared Support And Baseline Utilities
+
+| Script | Purpose | Cleanup handling |
+|---|---|---|
+| `run/__init__.py` | Marks `run` as an importable package. | Keep. |
+| `run/v9_cache_utils.py` | Shared V9 alpha and universe cache helpers. | Keep as reusable support code. |
+| `run/v9_long_only_optimization.py` | Defines `V9RankPredictor` and the original long-only sweep. | Keep; many current and historical scripts import `V9RankPredictor`. |
+| `run/baseline_eval.py` | Lightweight cross-sectional baseline sanity checks. | Keep as a diagnostic entrypoint. |
+| `run/hyper_search.py` | Original backtest hyperparameter grid search. | Keep as legacy methodology evidence. |
+| `run/backtest_layered_holdings.py` | Rolling sleeve holdings backtest. | Keep until layered-runner coverage is audited. |
+| `run/track_backtest_holdings.py` | Tracks close-to-close PnL from saved holdings. | Keep as an operational diagnostic. |
+
+## Saved Alpha And Execution Utilities
+
+| Script | Purpose | Cleanup handling |
+|---|---|---|
+| `run/blend_alpha_jsonl.py` | Blend two saved alpha rankings by percentile score. | Keep as a low-memory alpha utility. |
+| `run/combine_alpha_jsonl.py` | Combine multiple saved alpha files into an ensemble. | Keep as a low-memory alpha utility. |
+| `run/transform_alpha_for_execution.py` | Apply signal-day executable transforms, including the 9.5% chase filter. | Keep as a frozen execution entrypoint. |
+| `run/make_negative_filter_from_full.py` | Derive negative-filter alpha from a full rerank. | Keep while open-reranker evidence remains active. |
+| `run/make_edge_rerank_from_full.py` | Derive an edge-only rerank alpha file. | Keep while open-reranker evidence remains active. |
+| `run/make_conditional_negfilter_alpha.py` | Apply the negative filter only when a metadata trigger is active. | Keep with conditional-breadth evidence. |
+| `run/analyze_retention_capacity.py` | Diagnose ADV participation and retention capacity. | Keep as a capacity diagnostic. |
+| `run/sweep_execution_constraints.py` | Sweep strict execution assumptions over saved alpha. | Keep as historical robustness evidence. |
+| `run/forward_frozen_strategy.py` | Generate frozen V9 average-w3 alpha on forward-only observations. | Keep for cutoff-safe forward reproducibility. |
+
+## Historical V9 Long-Only Research
+
+| Script | Purpose | Cleanup handling |
+|---|---|---|
+| `run/test_long_only_plan.py` | Focused long-only plan runner from the initial V9 search. | Keep with the V9 strategy snapshots. |
+| `run/v9_long_only_topfrac_sweep.py` | Sweep V9 long-only top fractions. | Keep with the V9 strategy snapshots. |
+| `run/v9_top5_refine.py` | Refine the best historical V9 top-5% result. | Keep with the V9 strategy snapshots. |
+| `run/v9_portfolio_micro_sweep.py` | Micro-sweep V9 portfolio parameters. | Keep with the V9 strategy snapshots. |
+| `run/v9_layer_diagnostics.py` | Diagnose return layers for a V9 checkpoint. | Keep as historical diagnostic evidence. |
+| `run/v9_checkpoint_ensemble.py` | Backtest rank ensembles across V9 checkpoints. | Keep with checkpoint-selection evidence. |
+| `run/v9_persistent_sweep.py` | Sweep persistent-signal settings. | Keep with the V9 retention lineage. |
+| `run/v9_persistent_refine.py` | Refine the historical 3-day persistent signal. | Keep with the V9 retention lineage. |
+
 ## Training And Candidate Validation
 
 | Script | Purpose | Cleanup handling |
@@ -106,6 +145,7 @@ run_forward_observation_candidates_20260617.ps1
 | `run/build_trade_policy_dataset.py` | Build trade-policy dataset. | Legacy; keep until trade-policy artifacts are archived. |
 | `run/train_trade_policy.py` | Train trade-policy model. | Legacy; keep until trade-policy artifacts are archived. |
 | `run/build_temporal_dataset.py` | Build temporal dataset. | Keep while temporal branch remains indexed. |
+| `run/build_temporal_switch_dataset.py` | Build switch-value samples from temporal alpha states. | Keep with temporal/switch-value methodology evidence. |
 | `run/train_temporal.py` | Train temporal model. | Keep while temporal branch remains indexed. |
 | `run/eval_temporal_full.py` | Evaluate temporal model. | Keep while temporal branch remains indexed. |
 
@@ -129,3 +169,8 @@ run_forward_observation_candidates_20260617.ps1
    are archived.
 4. Keep durable CLI entrypoints in `run/`; consolidate one-off scripts only
    after their outputs are indexed.
+5. `tests/test_run_script_index.py` enforces that every Python file directly
+   under `run/` appears in this index. A new script must be classified when it
+   is added.
+
+Current coverage: 93 of 93 `run/*.py` files indexed.

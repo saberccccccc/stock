@@ -4082,3 +4082,34 @@ archive/experiments_202606/backtest_results_exp_legacy_bear40_test exists=True
 ### Next Step
 
 Dry-run and review the next `backtest_results_exp_*` batch before executing.
+
+## Phase 25 Run Script Classification Completion
+
+### Completed
+
+Expanded `run_script_index.md` to cover all 93 Python files directly under
+`run/`. The 25 previously missing files are now classified into shared support,
+saved-alpha/execution utilities, historical V9 research, or temporal research.
+
+Added:
+
+```text
+tests/test_run_script_index.py
+```
+
+The coverage test fails when a `run/*.py` file is added without being listed in
+the script index.
+
+### Archive Decision
+
+No run scripts were moved in this phase. The remaining historical scripts
+either provide imported support code, reproduce retained evidence, or remain
+paired with experiment artifacts that have not yet been archived. Moving them
+now would reduce reproducibility without materially simplifying the active
+entrypoints.
+
+### Next Step
+
+Review the three currently untracked tests and decide whether each should join
+the maintained test suite. Then record that decision before returning to the
+remaining artifact directories.
