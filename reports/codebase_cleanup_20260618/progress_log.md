@@ -4438,3 +4438,14 @@ evidence.
 No additional large artifact directory is moved in this pass. Current
 checkpoint families have `hold`/`keep` audit decisions, and rejected overlay
 directories are still referenced by protected result configurations.
+
+## Phase 37 Execution Engine Extraction
+
+### Completed
+
+Moved open-price order execution into `backtest/execution.py`: open-limit
+masks, cash/share accounting, board lots, ADV caps, minimum commission, stamp
+tax, and slippage now have a dedicated ownership boundary.
+
+`backtest.open_ledger` re-exports the functions for compatibility, so existing
+CLI wrappers and imports keep working without behavior changes.

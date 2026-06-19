@@ -4,16 +4,22 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from backtest.execution import apply_open_ledger_constraints, open_limit_trade_mask
 from backtest.open_ledger import (
-    apply_open_ledger_constraints,
     compute_market_multiplier,
     load_index_returns,
     load_ohlc_money,
-    open_limit_trade_mask,
     recompute_adv,
     save_stage_breakdown,
     summarize_open_ledger_result,
 )
+
+
+def test_open_ledger_keeps_execution_import_compatibility():
+    from backtest import open_ledger
+
+    assert open_ledger.apply_open_ledger_constraints is apply_open_ledger_constraints
+    assert open_ledger.open_limit_trade_mask is open_limit_trade_mask
 
 
 def make_args(**overrides):
