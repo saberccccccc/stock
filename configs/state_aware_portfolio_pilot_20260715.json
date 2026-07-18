@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "experiment_id": "state_aware_portfolio_pilot_20260715",
+  "purpose": "Phase 5 state-aware portfolio-construction pilot on the fixed chronological OOF blend.",
+  "research_end": "2026-05-18",
+  "selection_splits": [
+    {
+      "name": "val_2024",
+      "signal_start": "2024-01-01",
+      "signal_end": "2024-12-31",
+      "backtest_start": "2024-01-01",
+      "backtest_end": "2024-12-31",
+      "max_data_date": "2024-12-31"
+    },
+    {
+      "name": "test_2025",
+      "signal_start": "2025-01-01",
+      "signal_end": "2025-12-31",
+      "backtest_start": "2025-01-01",
+      "backtest_end": "2025-12-31",
+      "max_data_date": "2025-12-31"
+    }
+  ],
+  "alpha": {
+    "name": "compact_v14_eq_rank",
+    "path": "reports/experiments/oof_baseline_components_20260715/blends/compact_v14_eq_rank.jsonl",
+    "mode": "rank_mean",
+    "components": ["compact", "v14_full"],
+    "weights": [0.5, 0.5]
+  },
+  "execution": {
+    "mode": "realistic",
+    "target_frac": 0.006,
+    "hold_frac": 0.10,
+    "rebalance_band": 0.20,
+    "max_new_names": 5,
+    "portfolio_values": [500000, 1000000],
+    "adv_participation_cap": 0.05,
+    "min_adv_cny": 3000000,
+    "limit_threshold": 0.095,
+    "block_intraday_limit_touch": false,
+    "min_buy_listing_days": 60,
+    "no_limit_first_trading_days": 5,
+    "stresses": ["normal", "lag1", "cost2x", "capacity_3pct"]
+  },
+  "global_state": {
+    "path": "data/global/global_overnight_features.parquet",
+    "pressure_col": "global_defensive_pressure",
+    "timing": "execution_date"
+  },
+  "proposals": [
+    {
+      "name": "baseline",
+      "family": "none",
+      "state_aware_selection_mode": "none"
+    },
+    {
+      "name": "risk_rank_t035_p010",
+      "family": "exposure_aware_reweighting",
+      "state_aware_selection_mode": "risk_rank",
+      "state_aware_selection_pressure_threshold": 0.035,
+      "state_aware_selection_pressure_width": 0.055,
+      "state_aware_selection_min_stress": 0.0,
+      "state_aware_selection_rank_penalty": 0.10,
+      "state_aware_selection_top_frac": 0.006,
+      "state_aware_selection_crowd_scale": 0.10,
+      "state_aware_selection_momentum_weight": 0.40,
+      "state_aware_selection_beta_weight": 0.20,
+      "state_aware_selection_vol_weight": 0.20,
+      "state_aware_selection_industry_weight": 0.20
+    },
+    {
+      "name": "risk_suppress_d015",
+      "family": "replacement_suppression",
+      "state_aware_selection_mode": "risk_suppress",
+      "state_aware_selection_pressure_threshold": 0.035,
+      "state_aware_selection_pressure_width": 0.055,
+      "state_aware_selection_min_stress": 0.0,
+      "state_aware_selection_risk_delta_threshold": 0.15,
+      "state_aware_selection_top_frac": 0.006,
+      "state_aware_selection_crowd_scale": 0.10,
+      "state_aware_selection_momentum_weight": 0.40,
+      "state_aware_selection_beta_weight": 0.20,
+      "state_aware_selection_vol_weight": 0.20,
+      "state_aware_selection_industry_weight": 0.20
+    }
+  ],
+  "selection_rule": {
+    "allowed_for_selection": ["val_2024", "test_2025"],
+    "forward_2026": "observation_only",
+    "priority": ["sharpe", "annualized_return", "stress_sharpe", "max_drawdown", "turnover", "cost", "capacity"],
+    "alpha_ic": "diagnostic_only"
+  }
+}

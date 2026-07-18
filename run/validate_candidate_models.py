@@ -61,6 +61,11 @@ def parse_args():
     parser.add_argument("--device", default="cuda")
     parser.add_argument("--progress-every", type=int, default=80)
     parser.add_argument(
+        "--alpha-only",
+        action="store_true",
+        help="Generate raw and maxret095 Alpha without running the legacy close backtest.",
+    )
+    parser.add_argument(
         "--only",
         choices=sorted(CANDIDATES),
         default=None,
@@ -203,6 +208,10 @@ def main():
         apply_chase_filter(raw_path, filtered_path, args.data_dir)
         alpha_paths[(name, "raw")] = raw_path
         alpha_paths[(name, "maxret095")] = filtered_path
+
+    if args.alpha_only:
+        print(f"Saved candidate Alpha to {output_dir}", flush=True)
+        return
 
     frozen_path = ROOT / args.frozen_alpha
     if not args.only and frozen_path.exists():

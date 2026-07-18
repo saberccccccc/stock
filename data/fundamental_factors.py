@@ -207,7 +207,7 @@ def merge_to_daily(funda_df, code_list, all_dates):
     return result
 
 
-def merge_to_daily_akshare(funda_df, codes, all_dates):
+def merge_to_daily_akshare(funda_df, codes, all_dates, include_quality=False):
     """
     PIT 对齐：akshare 下载的基本面数据合并到日频。
     funda_df columns: ts_code, effective_date, end_date, roe, revenue_yoy
@@ -216,24 +216,33 @@ def merge_to_daily_akshare(funda_df, codes, all_dates):
     Returns: DataFrame index=all_dates, columns=[{code}_roe, {code}_revenue_yoy]
     """
     df = funda_df.copy()
+    if 'notice_is_estimated' not in df.columns:
+        df['notice_is_estimated'] = False
     df = df.dropna(subset=['effective_date']).sort_values('effective_date')
     all_dates = pd.DatetimeIndex(all_dates)
     result = pd.DataFrame(index=all_dates, dtype=np.float32)
 
     cols = ['roe', 'revenue_yoy']
+    quality_cols = [
+        'has_value',
+        'days_since_effective',
+        'is_fresh_quarter',
+        'notice_is_estimated',
+    ]
 
     for code in codes:
         pure = code.replace('.SH', '').replace('.SZ', '')
         code_data = df[df['ts_code'] == code].copy()
 
         if code_data.empty:
-            for col in cols:
+            for col in cols + (quality_cols if include_quality else []):
                 result[f'{code}_{col}'] = 0.0
             continue
 
         code_data = code_data.sort_values(['effective_date', 'end_date'])
         code_data = code_data.drop_duplicates(subset=['effective_date'], keep='last')
         code_data = code_data.set_index('effective_date').sort_index()
+        code_data['notice_is_estimated'] = code_data['notice_is_estimated'].fillna(False).astype(bool)
 
         for col in cols:
             if col not in code_data.columns:
@@ -245,6 +254,36 @@ def merge_to_daily_akshare(funda_df, codes, all_dates):
                 continue
             daily = series.reindex(all_dates, method='ffill').fillna(0.0)
             result[f'{code}_{col}'] = daily.values
+
+        if include_quality:
+            value_cols = [col for col in cols if col in code_data.columns]
+            if value_cols:
+                valid_reports = code_data[code_data[value_cols].notna().any(axis=1)]
+            else:
+                valid_reports = code_data.iloc[0:0]
+
+            if valid_reports.empty:
+                for col in quality_cols:
+                    result[f'{code}_{col}'] = 0.0
+                continue
+
+            effective_index = pd.DatetimeIndex(valid_reports.index)
+            has_value = pd.Series(1.0, index=effective_index).reindex(all_dates, method='ffill').fillna(0.0)
+            last_effective = pd.Series(effective_index, index=effective_index).reindex(all_dates, method='ffill')
+            days_since = (pd.Series(all_dates, index=all_dates) - last_effective).dt.days
+            days_since = days_since.where(has_value > 0, 0).fillna(0).clip(lower=0, upper=2000)
+            is_fresh = ((days_since <= 30) & (has_value > 0)).astype(float)
+            notice_est = (
+                valid_reports['notice_is_estimated']
+                .astype(float)
+                .reindex(all_dates, method='ffill')
+                .fillna(0.0)
+            )
+
+            result[f'{code}_has_value'] = has_value.astype(np.float32).values
+            result[f'{code}_days_since_effective'] = days_since.astype(np.float32).values
+            result[f'{code}_is_fresh_quarter'] = is_fresh.astype(np.float32).values
+            result[f'{code}_notice_is_estimated'] = notice_est.astype(np.float32).values
 
     return result
 

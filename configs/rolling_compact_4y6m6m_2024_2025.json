@@ -1,0 +1,114 @@
+{
+  "data": {
+    "data_dir": "data/raw",
+    "factor_baseline": "alpha158_compact_price_volume_v1",
+    "feature_flags": {
+      "fundamental": true,
+      "fundamental_quality": true,
+      "macro": true,
+      "market": true,
+      "restricted": true,
+      "shareholder": true,
+      "technical": true
+    },
+    "horizon_index": 4,
+    "label_family": "oo_lag1",
+    "research_end": "2025-12-31"
+  },
+  "model": {
+    "bagging_fraction": 0.8,
+    "bagging_freq": 1,
+    "early_stopping_rounds": 50,
+    "feature_fraction": 0.8,
+    "lambda_l2": 5.0,
+    "learning_rate": 0.03,
+    "max_train_rows": 100000,
+    "max_valid_rows": 30000,
+    "min_data_in_leaf": 80,
+    "num_boost_round": 500,
+    "num_leaves": 31,
+    "num_threads": 4,
+    "objective": "regression",
+    "seed": 20260716
+  },
+  "monthly_schedule": {
+    "base_config_sha256": "43660924997e43eac2bbc4c292e136c68f972d8df772d37b0f93a8a6f5035d6e",
+    "config_sha256_before_self_field": "ab79f31eed8e7dbeb1d9b2090a90b93c43f509e6222f5ec4dd02b8c51a3972a2",
+    "label_end_offset": 7,
+    "oos_end": "2025-12-31",
+    "oos_months": 6,
+    "oos_start": "2024-01-01",
+    "train_years": 4,
+    "unique_oos_dates": 485,
+    "v14_meta_sha256": "8813cdaad89e511c678eb5240b9f34110e2cc239efdddc811b842d0e1c493c8b",
+    "valid_months": 6,
+    "window_count": 4,
+    "window_counts": [
+      {
+        "name": "oos_2024_01_2024_06",
+        "predict": 117,
+        "train": 965,
+        "valid": 117
+      },
+      {
+        "name": "oos_2024_07_2024_12",
+        "predict": 125,
+        "train": 963,
+        "valid": 110
+      },
+      {
+        "name": "oos_2025_01_2025_06",
+        "predict": 117,
+        "train": 963,
+        "valid": 118
+      },
+      {
+        "name": "oos_2025_07_2025_12",
+        "predict": 126,
+        "train": 962,
+        "valid": 110
+      }
+    ]
+  },
+  "name": "rolling_compact_lgbm_oo_lag1_workflow_v1_rolling_4y_6m_6m",
+  "purpose": "Predeclared walk-forward research arm: fixed history, label-tail purge, and one unique model owner per OOS date.",
+  "version": 1,
+  "windows": [
+    {
+      "name": "oos_2024_01_2024_06",
+      "predict_end": "2024-06-28",
+      "predict_start": "2024-01-02",
+      "train_end": "2023-06-30",
+      "train_start": "2019-07-01",
+      "valid_end": "2023-12-29",
+      "valid_start": "2023-07-03"
+    },
+    {
+      "name": "oos_2024_07_2024_12",
+      "predict_end": "2024-12-31",
+      "predict_start": "2024-07-01",
+      "train_end": "2023-12-29",
+      "train_start": "2020-01-02",
+      "valid_end": "2024-06-28",
+      "valid_start": "2024-01-02"
+    },
+    {
+      "name": "oos_2025_01_2025_06",
+      "predict_end": "2025-06-30",
+      "predict_start": "2025-01-02",
+      "train_end": "2024-06-28",
+      "train_start": "2020-07-01",
+      "valid_end": "2024-12-31",
+      "valid_start": "2024-07-01"
+    },
+    {
+      "name": "oos_2025_07_2025_12",
+      "predict_end": "2025-12-31",
+      "predict_start": "2025-07-01",
+      "train_end": "2024-12-31",
+      "train_start": "2021-01-04",
+      "valid_end": "2025-06-30",
+      "valid_start": "2025-01-02"
+    }
+  ]
+}

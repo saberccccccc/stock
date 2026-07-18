@@ -1,0 +1,108 @@
+{
+  "schema_version": 2,
+  "experiment_id": "frozen_baseline_formal_acceptance_v2b",
+  "governance": {
+    "formal": true,
+    "selection_splits": ["val_2024", "test_2025"],
+    "observation_splits": [],
+    "forward_selection_allowed": false
+  },
+  "data": {
+    "sources": [
+      {
+        "role": "research_labels",
+        "provider": "v14_memmap_v1",
+        "root": "cache/cross_section_v14_multilabel_open_tech_market_funda_shareh_restr_macro_all_s40_t5_h10_min30_mad_rawlab_end20260518_meta.pkl",
+        "pit": true
+      },
+      {
+        "role": "research_market",
+        "provider": "ohlcv_matrix_v1",
+        "root": "data/raw",
+        "pit": true
+      }
+    ],
+    "max_data_date": "2025-12-31",
+    "universe": "project_a_share_pit_universe",
+    "physical_cache_reuse": true
+  },
+  "ranges": {
+    "feature_warmup": {"start": "2010-01-04", "end": "2025-12-31"},
+    "train": {"start": "2010-01-04", "end": "2023-12-31"},
+    "valid": {"start": "2024-01-01", "end": "2024-12-31"},
+    "signal": {"start": "2024-01-01", "end": "2025-12-31"},
+    "backtest": {"start": "2024-01-01", "end": "2025-12-31"}
+  },
+  "dataset": {
+    "adapter": "frozen_prediction",
+    "feature_set": "frozen_registered_policy_signal",
+    "label": {"family": "oo", "horizon_index": 4, "tail_purge_days": 7},
+    "segments": {
+      "valid": {"start": "2024-01-01", "end": "2024-12-31"},
+      "test": {"start": "2025-01-01", "end": "2025-12-31"}
+    },
+    "data_keys": ["raw", "infer"]
+  },
+  "processors": {
+    "shared": [],
+    "infer": [],
+    "learn": [],
+    "state_policy": "frozen_parent_no_refit"
+  },
+  "model": {
+    "adapter": "frozen_artifact",
+    "config": {"candidate_ids": ["ledger_path_v3_t0001_nolookahead"]},
+    "seed": 42,
+    "resource_limits": {"ram_gb": 16, "gpu_vram_gb": 8, "threads": 4}
+  },
+  "checkpoint": {
+    "rule": "frozen_registered_artifact",
+    "selection_segment": "valid",
+    "oos_selection_allowed": false
+  },
+  "signal": {
+    "schema": "prediction_frame_v1",
+    "candidate_id": "ledger_path_v3_t0001_nolookahead",
+    "comparison_candidate_ids": [],
+    "score_time": "a_share_close_t",
+    "order_time": "a_share_open_t_plus_1",
+    "transform": "registered_policy_rank"
+  },
+  "strategy": {
+    "adapter": "retention",
+    "params": {
+      "target_frac": 0.006,
+      "hold_frac": 0.10,
+      "rebalance_band": 0.20,
+      "max_new_names": 5
+    }
+  },
+  "ledger": {
+    "adapter": "official_open_ledger",
+    "execution_mode": "realistic",
+    "fill_price": "open",
+    "capitals": [500000, 1000000],
+    "stresses": ["normal", "lag1", "cost2x", "capacity_3pct"]
+  },
+  "records": [
+    "signal",
+    "signal_analysis",
+    "portfolio",
+    "risk_attribution",
+    "stress",
+    "decision"
+  ],
+  "evaluation": {
+    "selection_splits": ["val_2024", "test_2025"],
+    "observation_splits": [],
+    "primary_metrics": [
+      "annualized_return",
+      "sharpe",
+      "max_drawdown",
+      "turnover",
+      "cost",
+      "capacity"
+    ],
+    "ic_role": "diagnostic_only"
+  }
+}

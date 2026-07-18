@@ -41,6 +41,11 @@ def _parse_args():
     parser.add_argument("--no-market", action="store_true")
     parser.add_argument("--macro", action="store_true")
     parser.add_argument("--fundamental", action="store_true")
+    parser.add_argument(
+        "--fundamental-quality-features",
+        action="store_true",
+        help="Add PIT fundamental quality/staleness flags when --fundamental is enabled.",
+    )
     parser.add_argument("--shareholder", action="store_true")
     parser.add_argument("--restricted", action="store_true")
     parser.add_argument("--report-path", default="reports/temporal_dataset_plan.json")
@@ -62,6 +67,7 @@ def main():
     cfg.use_market_features = not args.no_market
     cfg.use_macro_features = args.macro
     cfg.use_fundamental_features = args.fundamental
+    cfg.use_fundamental_quality_features = args.fundamental_quality_features
     cfg.use_shareholder_features = args.shareholder
     cfg.use_restricted_features = args.restricted
 

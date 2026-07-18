@@ -33,7 +33,7 @@ M0_ALPHA = ROOT / "reranker_validation_20260615/m0w100/alpha_maxret095.jsonl"
 OUTPUT = ROOT / "reranker_validation_20260615/gated_v4"
 
 
-def build_rows(dataset, payload, m0_rows):
+def build_rows(dataset, payload, m0_rows, target_frac=0.006, hold_frac=0.10):
     regression = payload["regression"]
     classifier = payload["classifier"]
     features = payload["feature_columns"]
@@ -56,8 +56,8 @@ def build_rows(dataset, payload, m0_rows):
         date = pd.Timestamp(row["date"])
         original = [str(code) for code in row["codes"]]
         n = len(original)
-        target_n = max(1, int(n * 0.006))
-        hold_n = max(target_n, int(n * 0.10))
+        target_n = max(1, int(n * float(target_frac)))
+        hold_n = max(target_n, int(n * float(hold_frac)))
         rank_map = {code: index for index, code in enumerate(original)}
         kept = [
             code

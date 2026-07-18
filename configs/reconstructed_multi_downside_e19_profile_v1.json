@@ -1,0 +1,149 @@
+{
+  "confirmed": {
+    "architecture": {
+      "agg_groups": [
+        [
+          23,
+          5,
+          0.1
+        ],
+        [
+          7,
+          2,
+          0.0
+        ]
+      ],
+      "dropout": 0.35,
+      "hidden_dim": 256,
+      "input_dim": 250,
+      "low_feat_dim": 14,
+      "n_alpha": 4,
+      "n_heads": 8,
+      "n_horizons": 4,
+      "n_layers": 2,
+      "num_industries": 83,
+      "regime_dim": 59,
+      "use_gat": false
+    },
+    "loss_weights_from_exact_component_equation": {
+      "lag1_loss_weight": 0.25,
+      "max_abs_residual": 6.938893903907228e-18,
+      "weights": {
+        "diversity_loss_weight": 0.05,
+        "downside_loss_weight": 0.2,
+        "industry_loss_weight": 0.1,
+        "multi_loss_weight": 0.1,
+        "spread_loss_weight": 0.001
+      }
+    },
+    "observed_epochs": [
+      16,
+      17,
+      18,
+      19,
+      20
+    ],
+    "observed_learning_rates": [
+      5e-06
+    ]
+  },
+  "evidence": [
+    {
+      "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\checkpoints_v14_m0_oo_lag1_multi_downside\\epochs\\epoch_metrics.jsonl",
+      "sha256": "66a0388a3edbcf503a4c4933c7f22a569c4935feb2717997d8e7164aa51f2aab"
+    },
+    {
+      "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\checkpoints_v14_m0_oo_lag1_multi_downside\\epochs\\epoch_019.pt",
+      "sha256": "b9b8523c0b49101eba897e87e434b3e8faad62d06afb557998bae3d9bca53318"
+    },
+    {
+      "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\checkpoints_v14_m0_oo_lag1_w025_low_lr_e15\\command.txt",
+      "sha256": "f7029e170cf6696dc53ca4ef81e239c6fcea712bf391f9e9a5c2b9b31f54d454"
+    },
+    {
+      "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\checkpoints_v14_m0_oo_lag1_w025_low_lr_e15\\epochs\\epoch_015.pt",
+      "sha256": "0121939ea4ab9c6ed6f268115ed78836f32869b4fac023676016fa5147f0e721"
+    }
+  ],
+  "historical_identity": {
+    "checkpoint": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\checkpoints_v14_m0_oo_lag1_multi_downside\\epochs\\epoch_019.pt",
+    "checkpoint_sha256": "b9b8523c0b49101eba897e87e434b3e8faad62d06afb557998bae3d9bca53318",
+    "epoch": 19,
+    "selection_metric": "rawtopstable_h5_top0p6",
+    "selection_score": 0.20838412402750126,
+    "status": "reconstructed_not_original_command"
+  },
+  "inferred": {
+    "accum_steps": 4,
+    "batch_size": 4,
+    "horizon_indices": [
+      0,
+      2,
+      4,
+      6
+    ],
+    "horizon_weights": [
+      0.15,
+      0.25,
+      0.35,
+      0.25
+    ],
+    "label_family": "oo",
+    "lag1_label_family": "oo_lag1",
+    "model": "v9",
+    "reason": "inherited from the adjacent parent command and historical continuation layout",
+    "seed": 42,
+    "stage_3_reset_optimizer": true,
+    "stage_3_resume_parent": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\checkpoints_v14_m0_oo_lag1_w025_low_lr_e15\\epochs\\epoch_015.pt",
+    "val_batch_size": 2
+  },
+  "profile_id": "multi_downside_e19_reconstructed_v1",
+  "profile_sha256": "6f6ff02705f1ea1184f32d8082e9137223c7386490d0c974966aac3df8f18c73",
+  "rolling_reconstruction": {
+    "full": {
+      "epochs": 19,
+      "requires_pilot_gate": true,
+      "windows": 24
+    },
+    "pilot": {
+      "epochs": 19,
+      "promotion_allowed": false,
+      "windows": 3
+    },
+    "predictor_mode": "none",
+    "raw_signal_only": true,
+    "smoke": {
+      "epochs": 1,
+      "purpose": "interface/runtime validation only",
+      "windows": 1
+    },
+    "training_stages": [
+      {
+        "learning_rate": 0.0001,
+        "name": "base_1_to_6",
+        "status": "inferred_from_parent_chain",
+        "target_epoch": 6
+      },
+      {
+        "learning_rate": 1e-05,
+        "name": "base_7_to_15",
+        "reset_optimizer": true,
+        "status": "inferred_from_parent_chain",
+        "target_epoch": 15
+      },
+      {
+        "learning_rate": 5e-06,
+        "name": "multi_downside_16_to_19",
+        "reset_optimizer": true,
+        "status": "reconstructed_from_exact_epoch_16_20_equation",
+        "target_epoch": 19
+      }
+    ],
+    "window_policy": {
+      "oos_months": 1,
+      "train_years": 4,
+      "valid_months": 6
+    }
+  },
+  "schema": "reconstructed_strong_model_profile_v1"
+}

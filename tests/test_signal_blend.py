@@ -20,7 +20,7 @@ class FixedPredictor:
         return self.values
 
 
-def main():
+def test_raw_average_and_saved_alpha_blends():
     raw = FixedPredictor([3.0, 1.0, 2.0])
     average = FixedPredictor([1.0, 3.0, 2.0])
     blend = RawAverageBlendPredictor(raw, average, raw_weight=0.75)
@@ -47,4 +47,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    test_raw_average_and_saved_alpha_blends()

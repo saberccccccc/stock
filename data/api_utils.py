@@ -15,12 +15,16 @@ class SafeAPICaller:
         retry_base_delay=4.0,
         jitter=(0.2, 0.5),
         data_source="api",
+        non_retryable_markers=None,
     ):
         self.min_interval = float(min_interval)
         self.max_retries = int(max_retries)
         self.retry_base_delay = float(retry_base_delay)
         self.jitter = jitter
         self.data_source = data_source
+        self.non_retryable_markers = tuple(
+            marker.lower() for marker in (non_retryable_markers or ()) if marker
+        )
         self._lock = threading.Lock()
         self._last_request_time = 0.0
 
@@ -45,6 +49,9 @@ class SafeAPICaller:
             except Exception as exc:
                 wait = self.retry_base_delay * (attempt + 1)
                 print(f"  {self.data_source} 调用失败 ({attempt + 1}/{self.max_retries}): {exc}, 等待 {wait}s")
+                message = str(exc).lower()
+                if any(marker in message for marker in self.non_retryable_markers):
+                    raise
                 time.sleep(wait)
         return None
 

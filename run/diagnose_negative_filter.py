@@ -34,7 +34,7 @@ def parse_args():
     parser.add_argument("--end-rank", type=int, default=100)
     parser.add_argument("--drop-n", type=int, default=3)
     parser.add_argument("--cache-size", type=int, default=512)
-    parser.add_argument("--max-data-date", default="2026-05-18")
+    parser.add_argument("--max-data-date", default=str(RESEARCH_END_DATE.date()))
     return parser.parse_args()
 
 

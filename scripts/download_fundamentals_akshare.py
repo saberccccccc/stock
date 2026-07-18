@@ -203,9 +203,10 @@ def fetch_one_stock(code, max_retries=2):
 
     fallback_dates = merged['end_date'].map(_fallback_effective_date)
     notice_dates = merged[['notice_date', 'balance_notice_date']].max(axis=1)
+    merged['notice_is_estimated'] = notice_dates.isna()
     merged['effective_date'] = notice_dates.fillna(fallback_dates)
 
-    result = merged[['ts_code', 'effective_date', 'end_date', 'roe', 'revenue_yoy']].copy()
+    result = merged[['ts_code', 'effective_date', 'end_date', 'roe', 'revenue_yoy', 'notice_is_estimated']].copy()
     result = result.dropna(subset=['effective_date'])
 
     # 数据清洗：过滤早于1990年的无效日期
@@ -283,6 +284,9 @@ def main():
         if CACHE_FILE.exists():
             old_data = pd.read_parquet(CACHE_FILE)
             new_data = pd.concat([old_data, new_data], ignore_index=True)
+        if 'notice_is_estimated' not in new_data.columns:
+            new_data['notice_is_estimated'] = False
+        new_data['notice_is_estimated'] = new_data['notice_is_estimated'].fillna(False).astype(bool)
         new_data = new_data.sort_values(['ts_code', 'end_date', 'effective_date'])
         new_data = new_data.drop_duplicates(subset=['ts_code', 'end_date'], keep='last')
         new_data.to_parquet(CACHE_FILE, index=False)

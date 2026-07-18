@@ -1,5 +1,6 @@
 """Train a confidence-gated V4 marginal-fill reranker."""
 
+import argparse
 import json
 import pickle
 from pathlib import Path
@@ -26,6 +27,16 @@ NON_FEATURES = {
     "year",
 }
 GATE_QUANTILES = (0.20, 0.35, 0.50, 0.65, 0.80)
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--data-root", default=str(DATA_ROOT))
+    parser.add_argument("--output-dir", default=str(OUTPUT))
+    parser.add_argument("--validation-year", type=int, default=2023)
+    parser.add_argument("--candidate-end", type=int, default=80)
+    parser.add_argument("--max-reranked-fills", type=int, default=3)
+    return parser.parse_args()
 
 
 def feature_columns(frame):
@@ -146,9 +157,12 @@ def evaluate_gate(scored, gate):
 
 
 def main():
-    OUTPUT.mkdir(parents=True, exist_ok=True)
+    args = parse_args()
+    data_root = Path(args.data_root)
+    output = Path(args.output_dir)
+    output.mkdir(parents=True, exist_ok=True)
     frames = []
-    for path in sorted(DATA_ROOT.glob("oof_F[1-6]_*/reranker_v3_dataset.parquet")):
+    for path in sorted(data_root.glob("oof_F[1-6]_*/reranker_v3_dataset.parquet")):
         frame = pd.read_parquet(path)
         frame["date"] = pd.to_datetime(frame["date"])
         frame = frame[
@@ -160,7 +174,8 @@ def main():
     features = feature_columns(data)
 
     oof = []
-    for year in range(2019, 2024):
+    first_year = int(data["year"].min()) + 1
+    for year in range(first_year, args.validation_year + 1):
         train = data[data["year"] < year]
         validation = data[data["year"] == year]
         regression, classifier = fit_models(train, features)
@@ -169,7 +184,7 @@ def main():
         print(f"OOF year {year}: train={len(train):,} validation={len(validation):,}")
     oof_frame = pd.concat(oof, ignore_index=True)
 
-    calibration = oof_frame[oof_frame["year"] <= 2022]
+    calibration = oof_frame[oof_frame["year"] < args.validation_year]
     _, calibration_all = evaluate_gate(calibration, -np.inf)
     gate_grid = sorted(
         {
@@ -191,13 +206,18 @@ def main():
             ascending=False,
         ).iloc[0]["gate"]
     )
-    gate_report.to_csv(OUTPUT / "gate_calibration_2019_2022.csv", index=False)
-
-    validation_2023 = oof_frame[oof_frame["year"] == 2023]
-    validation_result, validation_daily = evaluate_gate(
-        validation_2023, selected_gate
+    gate_report.to_csv(
+        output / f"gate_calibration_{first_year}_{args.validation_year - 1}.csv",
+        index=False,
     )
-    validation_daily.to_csv(OUTPUT / "validation_2023_daily.csv", index=False)
+
+    validation_frame = oof_frame[oof_frame["year"] == args.validation_year]
+    validation_result, validation_daily = evaluate_gate(
+        validation_frame, selected_gate
+    )
+    validation_daily.to_csv(
+        output / f"validation_{args.validation_year}_daily.csv", index=False
+    )
     oof_frame[
         [
             "date",
@@ -209,10 +229,10 @@ def main():
             "pred_win",
             "v4_score",
         ]
-    ].to_parquet(OUTPUT / "rolling_oof_scores.parquet", index=False)
+    ].to_parquet(output / "rolling_oof_scores.parquet", index=False)
 
     final_regression, final_classifier = fit_models(data, features)
-    with (OUTPUT / "reranker_model.pkl").open("wb") as handle:
+    with (output / "reranker_model.pkl").open("wb") as handle:
         pickle.dump(
             {
                 "regression": final_regression,
@@ -220,8 +240,8 @@ def main():
                 "feature_columns": features,
                 "gate": selected_gate,
                 "score_weights": (0.60, 0.40),
-                "candidate_end": 80,
-                "max_reranked_fills": 3,
+                "candidate_end": args.candidate_end,
+                "max_reranked_fills": args.max_reranked_fills,
             },
             handle,
         )
@@ -230,10 +250,13 @@ def main():
         "dates": int(data["date"].nunique()),
         "features": len(features),
         "gate": selected_gate,
+        "data_root": str(data_root),
+        "validation_year": args.validation_year,
+        "label_mode": "open_to_open",
         "calibration": gate_report.to_dict(orient="records"),
         "validation_2023": validation_result,
     }
-    (OUTPUT / "training_summary.json").write_text(
+    (output / "training_summary.json").write_text(
         json.dumps(summary, indent=2), encoding="utf-8"
     )
     print(json.dumps(summary, indent=2), flush=True)

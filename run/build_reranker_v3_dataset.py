@@ -20,7 +20,14 @@ MAX_CANDIDATE_RANK = 80
 MAX_RERANKED_FILLS = 3
 
 
-def add_state_features(frame, audit):
+def add_state_features(
+    frame,
+    audit,
+    target_frac=0.006,
+    hold_frac=0.10,
+    max_candidate_rank=MAX_CANDIDATE_RANK,
+    max_reranked_fills=MAX_RERANKED_FILLS,
+):
     audit = audit.copy()
     audit["date"] = pd.to_datetime(audit["date"])
     universe_by_date = audit.set_index("date")["universe_size"].astype(int).to_dict()
@@ -30,8 +37,8 @@ def add_state_features(frame, audit):
     for date, group in frame.groupby("date", sort=True):
         group = group.sort_values("candidate_position", kind="mergesort").copy()
         universe = universe_by_date[date]
-        target_n = max(1, int(universe * 0.006))
-        hold_n = max(target_n, int(universe * 0.10))
+        target_n = max(1, int(universe * float(target_frac)))
+        hold_n = max(target_n, int(universe * float(hold_frac)))
         rank_map = dict(zip(group["code"], group["candidate_position"]))
         kept = [
             code
@@ -47,12 +54,12 @@ def add_state_features(frame, audit):
             if code not in set(kept)
         ]
         baseline_fills = fill_candidates[:vacancies]
-        protected_fill_count = max(vacancies - MAX_RERANKED_FILLS, 0)
+        protected_fill_count = max(vacancies - int(max_reranked_fills), 0)
         protected_fills = set(baseline_fills[:protected_fill_count])
         eligible = {
             code
             for code in fill_candidates[protected_fill_count:]
-            if rank_map[code] < MAX_CANDIDATE_RANK
+            if rank_map[code] < int(max_candidate_rank)
         }
         current_set = set(current_selected)
         kept_set = set(kept)
@@ -62,7 +69,7 @@ def add_state_features(frame, audit):
         group["v3_is_kept"] = group["code"].isin(kept_set).astype(np.int8)
         group["v3_holding_age"] = group["code"].map(holding_ages).fillna(0).astype(np.int16)
         group["v3_vacancies"] = vacancies
-        group["v3_rerank_slots"] = min(vacancies, MAX_RERANKED_FILLS)
+        group["v3_rerank_slots"] = min(vacancies, int(max_reranked_fills))
         group["v3_protected_fill"] = group["code"].isin(protected_fills).astype(np.int8)
         group["v3_eligible"] = group["code"].isin(eligible).astype(np.int8)
         group["v3_baseline_fill"] = group["code"].isin(baseline_fill_set).astype(np.int8)

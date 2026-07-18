@@ -35,7 +35,7 @@ def parse_args():
         "--checkpoint",
         default="checkpoints_loss_ablation_M0_nomulti/epochs/epoch_006.pt",
     )
-    parser.add_argument("--start-date", default="2026-05-19")
+    parser.add_argument("--start-date", default=str(FORWARD_START_DATE.date()))
     parser.add_argument("--end-date", required=True)
     parser.add_argument("--output-dir", default="forward_results/m0_v3_20260615")
     parser.add_argument("--device", default="auto")

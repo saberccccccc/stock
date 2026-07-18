@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 
 from experiments.leaderboard import (
     build_leaderboard,
@@ -18,6 +19,10 @@ def _write_summary(path, rows):
 def _row(portfolio_value=500_000, n_return_days=243, ann=10.0, sharpe=1.2):
     return {
         "portfolio_value": portfolio_value,
+        "signal_start": "2026-01-05",
+        "signal_end": "2026-06-30",
+        "backtest_start": "2026-01-06",
+        "backtest_end": "2026-06-30",
         "n_return_days": n_return_days,
         "target_frac": 0.006,
         "hold_frac": 0.1,
@@ -51,14 +56,29 @@ def test_rows_from_summary_uses_explicit_split_and_stress(tmp_path):
             "candidate": "demo",
             "split": "forward",
             "stress": "lag1",
+            "signal_start": "2026-01-05",
+            "signal_end": "2026-06-30",
+            "backtest_start": "2026-01-06",
+            "backtest_end": "2026-06-30",
             "capital": "50w",
             "ann": 10.0,
             "sharpe": 1.2,
             "mdd": 0.12,
             "exec_to": 0.34,
             "blocked_buy": 2,
+            "evidence_class": "legacy_registered",
+            "formal_eligible": False,
         }
     ]
+
+
+def test_rows_from_summary_prefers_file_split_over_day_count(tmp_path):
+    summary = tmp_path / "summary.csv"
+    _write_summary(summary, [{**_row(n_return_days=20), "split": "forward"}])
+
+    rows = rows_from_summary(summary, "demo")
+
+    assert rows[0]["split"] == "forward"
 
 
 def test_rows_from_summary_filters_grid_rows(tmp_path):
@@ -81,6 +101,14 @@ def test_rows_from_summary_filters_grid_rows(tmp_path):
 
     assert len(rows) == 1
     assert rows[0]["ann"] == 10.0
+
+
+def test_rows_from_summary_rejects_missing_coverage_columns(tmp_path):
+    summary = tmp_path / "summary.csv"
+    _write_summary(summary, [{"portfolio_value": 500_000, "n_return_days": 10}])
+
+    with pytest.raises(ValueError, match="missing required coverage columns"):
+        rows_from_summary(summary, "demo")
 
 
 def test_build_leaderboard_records_missing_sources(tmp_path):

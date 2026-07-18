@@ -184,13 +184,31 @@ class PrecomputedMemmapDataset(Dataset):
     def __init__(self, x_norm_mm, risk_full_mm, y_norm_mm, y_seq_norm_mm,
                  industry_array, all_codes, all_dates, time_indices,
                  n_industries, max_horizon, min_stocks=30, raw_ret_mm=None,
-                 include_lag1_labels=False):
+                 include_lag1_labels=False, horizon_indices=None,
+                 target_horizon_index=None, label_date_shift=0,
+                 lag1_y_seq_norm_mm=None, lag1_label_date_shift=None):
         self.X_mm = x_norm_mm
         self.R_mm = risk_full_mm
         self.Y_mm = y_norm_mm
         self.YS_mm = y_seq_norm_mm
         self.raw_ret_mm = raw_ret_mm
         self.include_lag1_labels = bool(include_lag1_labels)
+        self.lag1_uses_separate_family = lag1_y_seq_norm_mm is not None
+        self.lag1_YS_mm = (
+            lag1_y_seq_norm_mm if lag1_y_seq_norm_mm is not None else y_seq_norm_mm
+        )
+        self.horizon_indices = tuple(horizon_indices) if horizon_indices is not None else None
+        self.target_horizon_index = target_horizon_index
+        self.label_date_shift = int(label_date_shift)
+        self.lag1_label_date_shift = (
+            int(lag1_label_date_shift)
+            if lag1_label_date_shift is not None
+            else self.label_date_shift + 1
+        )
+        required_horizons = set(self.horizon_indices or ())
+        if self.target_horizon_index is not None:
+            required_horizons.add(self.target_horizon_index)
+        self.required_horizons = tuple(sorted(required_horizons))
         self.industry_array = industry_array
         self.all_codes = np.array(all_codes)
         self.all_dates = list(all_dates)
@@ -202,7 +220,17 @@ class PrecomputedMemmapDataset(Dataset):
         for t in time_indices:
             # All precomputed arrays share valid_idx. The label memmap is
             # compact, while scanning X here pages through a multi-GB file.
-            n_valid = (self.Y_mm[:, t] != SENTINEL).sum()
+            label_t = t + self.label_date_shift
+            if label_t >= len(self.all_dates):
+                continue
+            if not self.required_horizons:
+                label_valid = self.Y_mm[:, label_t] != SENTINEL
+            else:
+                label_valid = np.all(
+                    self.YS_mm[:, label_t, :][:, self.required_horizons] != SENTINEL,
+                    axis=1,
+                )
+            n_valid = label_valid.sum()
             if n_valid >= min_stocks:
                 valid_times.append(t)
         self.time_indices = valid_times
@@ -212,28 +240,49 @@ class PrecomputedMemmapDataset(Dataset):
 
     def __getitem__(self, idx):
         t = self.time_indices[idx]
-        valid = (self.Y_mm[:, t] != SENTINEL)
+        label_t = t + self.label_date_shift
+        if not self.required_horizons:
+            valid = self.Y_mm[:, label_t] != SENTINEL
+        else:
+            valid = np.all(
+                self.YS_mm[:, label_t, :][:, self.required_horizons] != SENTINEL,
+                axis=1,
+            )
         valid_idx = np.where(valid)[0]
+
+        if self.target_horizon_index is None:
+            y_values = self.Y_mm[valid_idx, label_t]
+        else:
+            y_values = self.YS_mm[valid_idx, label_t, self.target_horizon_index]
 
         item = {
             "X": torch.from_numpy(self.X_mm[valid_idx, t, :].astype(np.float32) / SCALE).float(),
-            "y": torch.from_numpy(self.Y_mm[valid_idx, t].astype(np.float32) / SCALE).float(),
-            "y_seq": torch.from_numpy(self.YS_mm[valid_idx, t, :].astype(np.float32) / SCALE).float(),
+            "y": torch.from_numpy(y_values.astype(np.float32) / SCALE).float(),
+            "y_seq": torch.from_numpy(self.YS_mm[valid_idx, label_t, :].astype(np.float32) / SCALE).float(),
             "risk": torch.from_numpy(self.R_mm[valid_idx, t, :].astype(np.float32) / SCALE).float(),
             "industry_ids": torch.from_numpy(self.industry_array[valid_idx, t]).long(),
         }
         if self.raw_ret_mm is not None:
             item["raw_y_seq"] = torch.from_numpy(
-                self.raw_ret_mm[valid_idx, t, :].astype(np.float32)
+                self.raw_ret_mm[valid_idx, label_t, :].astype(np.float32)
             ).float()
         if self.include_lag1_labels:
             lag1_y_seq = np.zeros((len(valid_idx), self.max_horizon), dtype=np.float32)
             lag1_valid = np.zeros(len(valid_idx), dtype=bool)
-            if t + 1 < len(self.all_dates):
-                lag1_valid = self.Y_mm[valid_idx, t + 1] != SENTINEL
+            lag1_t = t + self.lag1_label_date_shift
+            if lag1_t < len(self.all_dates):
+                if not self.lag1_uses_separate_family:
+                    lag1_valid = self.Y_mm[valid_idx, lag1_t] != SENTINEL
+                elif not self.required_horizons:
+                    lag1_valid = self.lag1_YS_mm[valid_idx, lag1_t, 0] != SENTINEL
+                else:
+                    lag1_valid = np.all(
+                        self.lag1_YS_mm[valid_idx, lag1_t, :][:, self.required_horizons] != SENTINEL,
+                        axis=1,
+                    )
                 if lag1_valid.any():
                     lag1_y_seq[lag1_valid] = (
-                        self.YS_mm[valid_idx[lag1_valid], t + 1, :].astype(np.float32) / SCALE
+                        self.lag1_YS_mm[valid_idx[lag1_valid], lag1_t, :].astype(np.float32) / SCALE
                     )
             item["lag1_y_seq"] = torch.from_numpy(lag1_y_seq).float()
             item["lag1_mask"] = torch.from_numpy(lag1_valid).bool()
@@ -772,13 +821,14 @@ def evaluate(model, loader, cfg, device):
 
     regime_dim = get_regime_dim(cfg)
 
+    non_blocking = device.type == "cuda"
     for bi, batch in enumerate(loader):
-        X = batch["X"].to(device)
-        y = batch["y"].to(device)
-        y_seq = batch["y_seq"].to(device)
-        risk = batch["risk"].to(device)
-        industry_ids = batch["industry_ids"].to(device)
-        mask = batch["mask"].to(device)
+        X = batch["X"].to(device, non_blocking=non_blocking)
+        y = batch["y"].to(device, non_blocking=non_blocking)
+        y_seq = batch["y_seq"].to(device, non_blocking=non_blocking)
+        risk = batch["risk"].to(device, non_blocking=non_blocking)
+        industry_ids = batch["industry_ids"].to(device, non_blocking=non_blocking)
+        mask = batch["mask"].to(device, non_blocking=non_blocking)
         raw_y_seq_cpu = batch.get("raw_y_seq")
 
         try:
@@ -894,6 +944,21 @@ def evaluate(model, loader, cfg, device):
 
 
 # ============================ 训练主函数============================
+def resolve_resume_start_epoch(checkpoint_epoch, override, reset_optimizer):
+    """Resolve the loop epoch while keeping checkpoint weights unchanged."""
+    checkpoint_epoch = int(checkpoint_epoch)
+    if override is None:
+        return checkpoint_epoch
+    override = int(override)
+    if not reset_optimizer:
+        raise ValueError("resume_start_epoch requires reset_optimizer=True")
+    if override < checkpoint_epoch:
+        raise ValueError(
+            f"resume_start_epoch ({override}) cannot precede checkpoint epoch ({checkpoint_epoch})"
+        )
+    return override
+
+
 def train_model(train_loader, val_loader, input_dim, cfg,
                 n_alpha=4, n_horizons=4, epochs=30,
                 lr=3e-4, weight_decay=2e-3, accum_steps=1, grad_clip=0.3,
@@ -1003,7 +1068,11 @@ def train_model(train_loader, val_loader, input_dim, cfg,
                 best_val_loss = checkpoint.get('val_loss', float('inf'))
             else:
                 best_val_loss = float('inf')
-            start_epoch = checkpoint.get('epoch', 0)
+            start_epoch = resolve_resume_start_epoch(
+                checkpoint.get('epoch', 0),
+                getattr(cfg, "resume_start_epoch", None),
+                reset_optimizer,
+            )
             if not reset_optimizer and 'optimizer_state_dict' in checkpoint:
                 optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
                 print(f"restored optimizer state")
@@ -1048,24 +1117,25 @@ def train_model(train_loader, val_loader, input_dim, cfg,
 
         n_batches = len(train_loader)
         report_every = max(1, n_batches // 4)  # report 4 times per epoch
+        non_blocking = device.type == "cuda"
         for i, batch in enumerate(train_loader):
             if i % report_every == 0:
                 print(f"  Epoch {epoch+1}/{epochs} | batch {i}/{n_batches} | loss so far: {train_loss/max(i,1):.4f}")
-            X = batch["X"].to(device)
-            y = batch["y"].to(device)
-            y_seq = batch["y_seq"].to(device)
+            X = batch["X"].to(device, non_blocking=non_blocking)
+            y = batch["y"].to(device, non_blocking=non_blocking)
+            y_seq = batch["y_seq"].to(device, non_blocking=non_blocking)
             raw_y_seq = batch.get("raw_y_seq")
             if raw_y_seq is not None:
-                raw_y_seq = raw_y_seq.to(device)
+                raw_y_seq = raw_y_seq.to(device, non_blocking=non_blocking)
             lag1_y_seq = batch.get("lag1_y_seq")
             lag1_mask = batch.get("lag1_mask")
             if lag1_y_seq is not None:
-                lag1_y_seq = lag1_y_seq.to(device)
+                lag1_y_seq = lag1_y_seq.to(device, non_blocking=non_blocking)
             if lag1_mask is not None:
-                lag1_mask = lag1_mask.to(device)
-            risk = batch["risk"].to(device)
-            industry_ids = batch["industry_ids"].to(device)
-            mask = batch["mask"].to(device)
+                lag1_mask = lag1_mask.to(device, non_blocking=non_blocking)
+            risk = batch["risk"].to(device, non_blocking=non_blocking)
+            industry_ids = batch["industry_ids"].to(device, non_blocking=non_blocking)
+            mask = batch["mask"].to(device, non_blocking=non_blocking)
 
             with torch.cuda.amp.autocast(enabled=scaler is not None):
                 alpha_raw, alphas, horizon_preds = model(X, risk[..., :regime_dim], mask, industry_ids)

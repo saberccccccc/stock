@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://stock-prediction.local/schemas/record_bundle_spec_v1.schema.json",
+  "title": "Standard dependent record bundle materialization spec",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "workflow", "records"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "workflow": {"type": "object"},
+    "records": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signal", "signal_analysis", "portfolio", "risk_attribution", "stress", "decision"],
+      "properties": {
+        "signal": {"$ref": "#/$defs/record"},
+        "signal_analysis": {"$ref": "#/$defs/record"},
+        "portfolio": {"$ref": "#/$defs/record"},
+        "risk_attribution": {"$ref": "#/$defs/record"},
+        "stress": {"$ref": "#/$defs/record"},
+        "decision": {"$ref": "#/$defs/record"}
+      }
+    }
+  },
+  "$defs": {
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["payload", "artifacts"],
+      "properties": {
+        "payload": {"type": "object"},
+        "artifacts": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {"type": "string", "minLength": 1}
+        }
+      }
+    }
+  }
+}

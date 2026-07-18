@@ -1,0 +1,31 @@
+formal_baseline: ledger_path_v3_t0001_nolookahead
+formal_baseline_view: nolookahead_stateobs
+legacy_baseline: alpha_sa_p05
+
+selection_splits:
+  - val_2024
+  - test_2025
+
+observation_splits:
+  - forward_2026
+
+required_stresses:
+  - normal
+  - lag1
+  - cost2x
+  - capacity_3pct
+
+required_capitals:
+  - 500000
+  - 1000000
+
+execution_mode: realistic
+
+paths:
+  ledger_path_v3_t0001_nolookahead:
+    normal: reports/state_aware_policy_training_20260704/ledger_path_v3_t0001_nolookahead_open_ledger
+    stress: reports/state_aware_policy_training_20260704/stress_ledger_path_v3_t0001_nolookahead
+  nolookahead_stateobs:
+    backtest: reports/state_aware_policy_training_20260705/nolookahead_stateobs_open_ledger
+  alpha_sa_p05:
+    note: legacy historical baseline only

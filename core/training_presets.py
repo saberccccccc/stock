@@ -130,9 +130,14 @@ def load_training_suite(path: str | Path) -> TrainingSuite:
 
 def load_training_suites(config_dir: str | Path) -> tuple[TrainingSuite, ...]:
     config_dir = Path(config_dir)
+    paths = []
+    for path in sorted(config_dir.glob("*.json")):
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if "common" in payload or "experiments" in payload:
+            paths.append(path)
     return tuple(
         load_training_suite(path)
-        for path in sorted(config_dir.glob("*.json"))
+        for path in paths
     )
 
 

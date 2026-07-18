@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "name": "oof_baseline_blends_20260715",
+  "purpose": "Predeclared simple rank blends for chronological OOF lineage research.",
+  "research_end": "2026-05-18",
+  "selection_splits": ["val_2024", "test_2025"],
+  "forward_is_observation_only": true,
+  "ledger_contract": {
+    "execution_constraint_mode": "realistic",
+    "execution": "open_price_share_ledger",
+    "target_frac": 0.006,
+    "hold_frac": 0.10,
+    "rebalance_band": 0.20,
+    "max_new_names": 5,
+    "stresses": ["normal", "lag1", "cost2x", "capacity_3pct"],
+    "portfolio_values": [500000, 1000000]
+  },
+  "blends": [
+    {
+      "name": "compact_broad_eq_rank",
+      "mode": "rank_mean",
+      "components": ["compact", "broad"],
+      "weights": [0.5, 0.5]
+    },
+    {
+      "name": "compact_v14_eq_rank",
+      "mode": "rank_mean",
+      "components": ["compact", "v14_full"],
+      "weights": [0.5, 0.5]
+    },
+    {
+      "name": "compact_broad_v14_eq_rank",
+      "mode": "rank_mean",
+      "components": ["compact", "broad", "v14_full"],
+      "weights": [0.3333333333, 0.3333333333, 0.3333333334]
+    }
+  ]
+}

@@ -18,6 +18,7 @@ if str(ROOT) not in sys.path:
 os.chdir(ROOT)
 
 from backtest.engine import detect_regime
+from alpha.persistence import rank_alpha_rows
 from core.research_protocol import RESEARCH_END_DATE, assert_research_end_date
 from backtest.predictors import PersistentPredictor
 from backtest.reports import calc_extended_metrics, calc_metrics
@@ -130,7 +131,8 @@ def load_v9_samples_and_predictor(args):
     return cfg, samples, predictor
 
 
-def compute_v9_alpha_rows(samples, predictor, progress_every=80):
+def compute_v9_alpha_scores(samples, predictor, progress_every=80):
+    """Run the predictor once per date and preserve its original code order."""
     rows = []
     t0 = time.time()
     for i, sample in enumerate(samples):
@@ -142,17 +144,22 @@ def compute_v9_alpha_rows(samples, predictor, progress_every=80):
         alpha = predictor.predict_alpha(sample, valid, regime)
         if alpha.shape[0] != n:
             raise RuntimeError(f"alpha length mismatch: alpha={alpha.shape[0]} n={n}")
-        order = np.argsort(alpha)[::-1]
-        codes = np.asarray(sample["codes"], dtype=object)
         rows.append({
             "date": pd.Timestamp(sample["date"]),
-            "codes": codes[order].tolist(),
-            "alpha": alpha[order].astype(float).tolist(),
+            "codes": list(sample["codes"]),
+            "alpha": alpha.astype(float).tolist(),
             "n_stocks": n,
         })
         if progress_every > 0 and (i + 1) % progress_every == 0:
             print(f"alpha {i + 1}/{len(samples)} | n={n} | time={(time.time() - t0) / 60:.1f}m", flush=True)
     return rows
+
+
+def compute_v9_alpha_rows(samples, predictor, progress_every=80):
+    """Backwards-compatible ranked alpha rows for existing callers."""
+    return rank_alpha_rows(
+        compute_v9_alpha_scores(samples, predictor, progress_every)
+    )
 
 
 def ablate_fundamental_features(samples, cfg):

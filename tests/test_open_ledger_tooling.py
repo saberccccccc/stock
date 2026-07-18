@@ -5,6 +5,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from core.research_protocol import RESEARCH_END_DATE
+
 from run.diagnose_negative_filter import PriceCache, iter_aligned_rows
 from run.summarize_open_ledger_candidates import load_rows
 
@@ -59,9 +61,10 @@ def test_aligned_rows_reject_different_file_lengths(tmp_path):
 
 
 def test_price_cache_hides_forward_rows(tmp_path):
+    forward_date = RESEARCH_END_DATE + pd.Timedelta(days=1)
     pd.DataFrame(
         {
-            "trade_date": ["2026-05-18", "2026-05-19"],
+            "trade_date": [str(RESEARCH_END_DATE.date()), str(forward_date.date())],
             "open": [10.0, 11.0],
             "high": [10.0, 11.0],
             "low": [10.0, 11.0],
@@ -73,4 +76,4 @@ def test_price_cache_hides_forward_rows(tmp_path):
 
     cached = PriceCache(tmp_path, maxsize=1).get("000001.SZ")
 
-    assert cached["trade_date"].max() == pd.Timestamp("2026-05-18")
+    assert cached["trade_date"].max() == RESEARCH_END_DATE

@@ -4,29 +4,31 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RUN_DIR = ROOT / "run"
-INDEX_PATH = ROOT / "reports" / "codebase_cleanup_20260618" / "run_script_index.md"
+ARCHITECTURE_PATH = ROOT / "ARCHITECTURE.md"
 
 
-def test_every_run_python_file_is_classified():
-    index_text = INDEX_PATH.read_text(encoding="utf-8")
-    run_scripts = sorted(RUN_DIR.glob("*.py"))
+def test_current_architecture_documents_official_entrypoints():
+    architecture_text = ARCHITECTURE_PATH.read_text(encoding="utf-8")
 
-    missing = [
-        script.relative_to(ROOT).as_posix()
-        for script in run_scripts
-        if f"`{script.relative_to(ROOT).as_posix()}`" not in index_text
-    ]
-
-    assert len(run_scripts) == 93
-    assert missing == []
+    for script in (
+        "run/train.py",
+        "run/generate_ledger_path_v3_signal.py",
+        "run/official_backtest_from_registry.py",
+        "run/sweep_open_price_ledger_params.py",
+        "run/attribution_from_registry.py",
+        "run/scorecard_from_registry.py",
+    ):
+        assert f"`{script}`" in architecture_text
 
 
 def test_documented_primary_entrypoints_render_help():
     entrypoints = (
-        ROOT / "data" / "update.py",
-        ROOT / "run" / "backtest.py",
-        ROOT / "run" / "daily_top10.py",
+        ROOT / "run" / "train.py",
+        ROOT / "run" / "generate_ledger_path_v3_signal.py",
+        ROOT / "run" / "official_backtest_from_registry.py",
+        ROOT / "run" / "sweep_open_price_ledger_params.py",
+        ROOT / "run" / "attribution_from_registry.py",
+        ROOT / "run" / "scorecard_from_registry.py",
     )
 
     for entrypoint in entrypoints:

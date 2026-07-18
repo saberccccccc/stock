@@ -60,6 +60,7 @@ class DataConfig:
     # ==================== 新增：扩展因子 ====================
     use_macro_features: bool = False            # 宏观/资金流因子（北向、融资融券、PMI）
     use_fundamental_features: bool = False      # 季报基本面因子（ROE、营收增速、PE分位数）
+    use_fundamental_quality_features: bool = False  # 财报可用性/时效/披露日估计标记
     use_shareholder_features: bool = False     # 股东户数筹码集中度因子
     use_restricted_features: bool = False      # 限售解禁未来压力因子
     tushare_token: Optional[str] = None         # 基本面数据Token，为空时尝试读取环境变量TUSHARE_TOKEN
@@ -74,6 +75,7 @@ class DataConfig:
     test_mode: bool = False                     # 测试模式（仅加载前N只股票）
     test_stocks: int = 1000                     # 测试模式股票数
     use_multi_horizon: bool = True              # 多周期联合训练
+    label_family: str = "cc"                    # cc/oc/oo/oo_lag1
     horizon_indices: Tuple[int, ...] = (0, 2, 4, 6)   # y_seq中的列索引 h1,h3,h5,h7
     horizon_weights: Tuple[float, ...] = (0.15, 0.25, 0.35, 0.25)  # exp: h1↓ h5↑
 
@@ -95,6 +97,7 @@ class DataConfig:
     downside_temperature: float = 0.75
     downside_delay_epochs: int = 2
     lag1_loss_weight: float = 0.0
+    lag1_label_family: str | None = None
     lag1_delay_epochs: int = 2
     lag1_top_focus_loss_weight: float = 0.0
     lag1_top_focus_temperature: float = 0.75

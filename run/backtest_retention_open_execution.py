@@ -1,7 +1,6 @@
 """Open-price execution stress test for saved retention alpha ranks."""
 
 import argparse
-import json
 import os
 import sys
 from pathlib import Path
@@ -16,6 +15,12 @@ if str(ROOT) not in sys.path:
 os.chdir(ROOT)
 
 from backtest.reports import calc_extended_metrics, calc_metrics
+from alpha.io import load_alpha_rows as load_shared_alpha_rows
+from core.research_protocol import (
+    assert_alpha_rows_within_forward,
+    assert_alpha_rows_within_research,
+    resolve_market_data_end_date,
+)
 from run.backtest_temporal_daily_top import explicit_cost
 from run.backtest_temporal_retention import compute_market_multiplier, load_index_returns
 from run.backtest_retention_execution_constraints import (
@@ -50,20 +55,13 @@ def parse_args():
     parser.add_argument("--limit-threshold", type=float, default=0.095)
     parser.add_argument("--execution-lag", type=int, default=0)
     parser.add_argument("--progress-every", type=int, default=1000)
+    parser.add_argument("--max-data-date", default=None)
+    parser.add_argument("--allow-forward", action="store_true")
     return parser.parse_args()
 
 
 def load_alpha_rows(path):
-    rows = []
-    with Path(path).open("r", encoding="utf-8") as f:
-        for line in f:
-            if not line.strip():
-                continue
-            row = json.loads(line)
-            row["date"] = pd.Timestamp(row["date"])
-            rows.append(row)
-    rows.sort(key=lambda r: r["date"])
-    return rows
+    return load_shared_alpha_rows(path, timestamp_dates=True)
 
 
 def load_ohlc_money(data_dir, codes, money_scale, progress_every):
@@ -319,9 +317,21 @@ def main():
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     alpha_rows = load_alpha_rows(args.alpha_jsonl)
+    if args.allow_forward:
+        assert_alpha_rows_within_forward(alpha_rows, context="open-execution forward test")
+    else:
+        assert_alpha_rows_within_research(alpha_rows, context="open-execution research test")
     all_codes = sorted({code for row in alpha_rows for code in row["codes"]})
     print(f"alpha_days={len(alpha_rows)} codes={len(all_codes)} return_mode={args.return_mode}", flush=True)
     open_df, close_df, money_df = load_ohlc_money(args.data_dir, all_codes, args.money_scale, args.progress_every)
+    max_data_date = resolve_market_data_end_date(
+        args.max_data_date,
+        allow_forward=args.allow_forward,
+    )
+    if max_data_date is not None:
+        open_df = open_df.loc[open_df.index <= max_data_date]
+        close_df = close_df.loc[close_df.index <= max_data_date]
+        money_df = money_df.loc[money_df.index <= max_data_date]
     adv_df = recompute_adv(money_df, args.adv_window)
     idx_close, idx_daily = load_index_returns(args.data_dir, args.index_file, close_df.index)
     target_fracs = [float(x.strip()) for x in args.target_fracs.split(",") if x.strip()]

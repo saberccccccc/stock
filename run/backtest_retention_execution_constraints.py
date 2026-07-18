@@ -5,7 +5,6 @@ execution assumptions can be tested without recomputing model scores.
 """
 
 import argparse
-import json
 import os
 import sys
 from pathlib import Path
@@ -20,9 +19,11 @@ if str(ROOT) not in sys.path:
 os.chdir(ROOT)
 
 from backtest.reports import calc_extended_metrics, calc_metrics
+from alpha.io import load_alpha_rows as load_shared_alpha_rows
 from core.research_protocol import (
     assert_alpha_rows_within_forward,
     assert_alpha_rows_within_research,
+    resolve_market_data_end_date,
 )
 from run.backtest_temporal_retention import compute_market_multiplier, load_index_returns
 
@@ -61,21 +62,13 @@ def parse_args():
     )
     parser.add_argument("--execution-lag", type=int, default=0, help="Extra trading-day delay after the next tradable day")
     parser.add_argument("--progress-every", type=int, default=1000)
+    parser.add_argument("--max-data-date", default=None)
     parser.add_argument("--allow-forward", action="store_true")
     return parser.parse_args()
 
 
 def load_alpha_rows(path):
-    rows = []
-    with Path(path).open("r", encoding="utf-8") as f:
-        for line in f:
-            if not line.strip():
-                continue
-            row = json.loads(line)
-            row["date"] = pd.Timestamp(row["date"])
-            rows.append(row)
-    rows.sort(key=lambda r: r["date"])
-    return rows
+    return load_shared_alpha_rows(path, timestamp_dates=True)
 
 
 def load_close_money(data_dir, codes, money_scale, progress_every):
@@ -132,16 +125,16 @@ def build_desired_target(row, current_codes, target_frac, hold_frac):
 
 def weights_from_selected(selected, code2idx, n_codes, gross_weight, max_weight):
     w = np.zeros(n_codes, dtype=np.float64)
-    if not selected:
+    valid_indices = list(dict.fromkeys(
+        code2idx[code] for code in selected if code in code2idx
+    ))
+    if not valid_indices:
         return w
-    ew = min(max_weight, 1.0 / len(selected))
-    for code in selected:
-        idx = code2idx.get(code)
-        if idx is not None:
-            w[idx] = ew
-    gross = np.sum(np.abs(w))
-    if gross > 1e-12:
-        w = w / gross * float(gross_weight)
+    ew = min(
+        max(float(max_weight), 0.0),
+        max(float(gross_weight), 0.0) / len(valid_indices),
+    )
+    w[valid_indices] = ew
     return w
 
 
@@ -535,6 +528,13 @@ def main():
     all_codes = sorted({code for row in alpha_rows for code in row["codes"]})
     print(f"alpha_days={len(alpha_rows)} codes={len(all_codes)}", flush=True)
     close, money = load_close_money(args.data_dir, all_codes, args.money_scale, args.progress_every)
+    max_data_date = resolve_market_data_end_date(
+        args.max_data_date,
+        allow_forward=args.allow_forward,
+    )
+    if max_data_date is not None:
+        close = close.loc[close.index <= max_data_date]
+        money = money.loc[money.index <= max_data_date]
     adv = recompute_adv(money, args.adv_window)
     idx_close, idx_daily = load_index_returns(args.data_dir, args.index_file, close.index)
 

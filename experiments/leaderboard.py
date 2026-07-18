@@ -1,4 +1,9 @@
-"""Build unified candidate leaderboards from registered result files."""
+"""Build the legacy diagnostic leaderboard from historical result files.
+
+This module predates formal experiment manifests. Its output is never eligible
+for registry promotion; use ``run/scorecard_from_registry.py`` for governed
+comparisons.
+"""
 
 import argparse
 from pathlib import Path
@@ -12,12 +17,25 @@ LEADERBOARD_COLUMNS = [
     "candidate",
     "split",
     "stress",
+    "signal_start",
+    "signal_end",
+    "backtest_start",
+    "backtest_end",
     "capital",
     "ann",
     "sharpe",
     "mdd",
     "exec_to",
     "blocked_buy",
+    "evidence_class",
+    "formal_eligible",
+]
+
+REQUIRED_COVERAGE_COLUMNS = [
+    "signal_start",
+    "signal_end",
+    "backtest_start",
+    "backtest_end",
 ]
 
 
@@ -56,6 +74,14 @@ def _filter_frame(frame, target_frac=None, hold_frac=None, portfolio_value=None)
     return frame
 
 
+def require_coverage_columns(frame, path):
+    missing = [column for column in REQUIRED_COVERAGE_COLUMNS if column not in frame.columns]
+    if missing:
+        raise ValueError(
+            f"{path} is missing required coverage columns: {', '.join(missing)}"
+        )
+
+
 def rows_from_summary(
     path,
     candidate,
@@ -66,6 +92,7 @@ def rows_from_summary(
     portfolio_value=None,
 ):
     frame = pd.read_csv(path)
+    require_coverage_columns(frame, path)
     frame = _filter_frame(
         frame,
         target_frac=target_frac,
@@ -74,18 +101,25 @@ def rows_from_summary(
     )
     records = []
     for _, row in frame.iterrows():
-        row_split = split or infer_split(row)
+        file_split = row.get("split")
+        row_split = split or (file_split if isinstance(file_split, str) and file_split else None) or infer_split(row)
         records.append(
             {
                 "candidate": candidate,
                 "split": row_split,
                 "stress": stress,
+                "signal_start": str(row["signal_start"]),
+                "signal_end": str(row["signal_end"]),
+                "backtest_start": str(row["backtest_start"]),
+                "backtest_end": str(row["backtest_end"]),
                 "capital": capital_label(row["portfolio_value"]),
                 "ann": _num(row, "ann"),
                 "sharpe": _num(row, "sharpe"),
                 "mdd": _num(row, "mdd"),
                 "exec_to": _num(row, "avg_executed_turnover", _num(row, "avg_turnover")),
                 "blocked_buy": int(_num(row, "blocked_buy")),
+                "evidence_class": "legacy_registered",
+                "formal_eligible": False,
             }
         )
     return records

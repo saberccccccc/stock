@@ -72,6 +72,20 @@ def test_inference_cache_path_includes_stock_universe(tmp_path):
     assert len({all_stocks, universe_ab, universe_ac}) == 3
 
 
+def test_inference_cache_path_includes_as_of_cutoff(tmp_path):
+    from data.pipeline import _inference_cache_path_for
+
+    data_dir = tmp_path / "raw"
+    data_dir.mkdir()
+    config = SimpleNamespace(data_dir=str(data_dir))
+
+    early = _inference_cache_path_for(config, data_end_date="2024-12-31")
+    late = _inference_cache_path_for(config, data_end_date="2026-05-18")
+
+    assert early != late
+    assert "end20241231" in early
+
+
 if __name__ == "__main__":
     test_normalize_ts_code()
     test_load_industry_map()

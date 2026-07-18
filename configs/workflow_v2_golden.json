@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "experiment_id": "golden_qlib_aligned_workflow_v2",
+  "governance": {
+    "formal": true,
+    "selection_splits": ["val_2024", "test_2025"],
+    "observation_splits": ["forward_2026"],
+    "forward_selection_allowed": false,
+    "parent_fit_end": "2023-12-31",
+    "parent_selection_end": "2025-12-31"
+  },
+  "data": {
+    "sources": [
+      {"role": "research_features", "provider": "v14_memmap_v1", "root": "cache/v14", "pit": true},
+      {"role": "research_market", "provider": "ohlcv_matrix_v1", "root": "data/raw", "pit": true},
+      {"role": "forward_market", "provider": "ohlcv_matrix_v1", "root": "data/forward_raw", "pit": true}
+    ],
+    "max_data_date": "2026-06-30",
+    "universe": "project_a_share_pit_universe",
+    "physical_cache_reuse": true
+  },
+  "ranges": {
+    "feature_warmup": {"start": "2010-01-04", "end": "2026-06-30"},
+    "train": {"start": "2010-01-04", "end": "2023-12-31"},
+    "valid": {"start": "2024-01-01", "end": "2024-12-31"},
+    "signal": {"start": "2024-01-01", "end": "2026-06-30"},
+    "backtest": {"start": "2024-01-01", "end": "2026-06-30"}
+  },
+  "dataset": {
+    "adapter": "project_v14_memmap",
+    "feature_set": "v14_full",
+    "label": {"family": "oo_lag1", "horizon_index": 4, "tail_purge_days": 7},
+    "segments": {
+      "train": {"start": "2010-01-04", "end": "2023-12-31"},
+      "valid": {"start": "2024-01-01", "end": "2024-12-31"},
+      "test": {"start": "2025-01-01", "end": "2025-12-31"},
+      "forward": {"start": "2026-01-01", "end": "2026-06-30"}
+    },
+    "data_keys": ["raw", "infer", "learn"]
+  },
+  "processors": {
+    "shared": [
+      {"name": "pit_availability", "kind": "pit_alignment", "config": {"effective_date_required": true}},
+      {"name": "daily_cross_section_rank", "kind": "daily_cross_section", "config": {"date_local": true}}
+    ],
+    "infer": [],
+    "learn": [
+      {"name": "drop_invalid_label", "kind": "learning_only", "config": {"mask_source": "label_family"}}
+    ],
+    "state_policy": "fit_train_freeze_elsewhere"
+  },
+  "model": {
+    "adapter": "rolling_lgbm_alpha",
+    "config": {"path": "configs/monthly_rolling_compact_4y6m1m_2024_2025.json"},
+    "seed": 42,
+    "resource_limits": {"ram_gb": 16, "gpu_vram_gb": 8, "threads": 4}
+  },
+  "checkpoint": {
+    "rule": "valid_only_predeclared_metric",
+    "selection_segment": "valid",
+    "oos_selection_allowed": false
+  },
+  "signal": {
+    "schema": "prediction_frame_v1",
+    "candidate_id": "golden_qlib_aligned_workflow_v2",
+    "comparison_candidate_ids": ["ledger_path_v3_t0001_nolookahead"],
+    "score_time": "a_share_close_t",
+    "order_time": "a_share_open_t_plus_1",
+    "transform": "raw_cross_sectional_rank"
+  },
+  "strategy": {
+    "adapter": "retention",
+    "params": {"target_frac": 0.006, "hold_frac": 0.10, "rebalance_band": 0.20, "max_new_names": 5}
+  },
+  "ledger": {
+    "adapter": "official_open_ledger",
+    "execution_mode": "realistic",
+    "fill_price": "open",
+    "capitals": [500000, 1000000],
+    "stresses": ["normal", "lag1", "cost2x", "capacity_3pct"]
+  },
+  "records": ["signal", "signal_analysis", "portfolio", "risk_attribution", "stress", "decision"],
+  "evaluation": {
+    "selection_splits": ["val_2024", "test_2025"],
+    "observation_splits": ["forward_2026"],
+    "primary_metrics": ["annualized_return", "sharpe", "max_drawdown", "turnover", "cost", "capacity"],
+    "ic_role": "diagnostic_only"
+  }
+}

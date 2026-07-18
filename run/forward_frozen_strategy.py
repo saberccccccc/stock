@@ -65,14 +65,14 @@ def parse_args():
         "--checkpoint",
         default="checkpoints_exp_topfocus_w005_topic/ultimate_v7_best.pt",
     )
-    parser.add_argument("--start-date", default="2026-05-19")
+    parser.add_argument("--start-date", default=str(FORWARD_START_DATE.date()))
     parser.add_argument("--end-date", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--device", default="auto", choices=["auto", "cpu", "cuda"])
     parser.add_argument(
         "--signal-mode",
         default="avgw3",
-        choices=["avgw3", "raw75_avg25"],
+        choices=["raw", "avgw3", "raw75_avg25"],
     )
     return parser.parse_args()
 
@@ -143,6 +143,8 @@ def load_frozen_predictor(checkpoint, device, signal_mode):
         schema_samples = samples_from_precomputed_metadata(schema_meta, "train")
     base = load_dl_predictor(checkpoint, schema_samples, cfg, device)
     raw = V9RankPredictor(base, "v9_raw", cache={})
+    if signal_mode == "raw":
+        return raw
     average = PersistentPredictor(raw, window=3, mode="average")
     if signal_mode == "avgw3":
         return average

@@ -1,0 +1,23 @@
+{
+  "version": "2026-07-10",
+  "formal_baseline": "ledger_path_v3_t0001_nolookahead",
+  "selection_splits": ["val_2024", "test_2025"],
+  "required_stresses": ["normal", "lag1", "cost2x", "capacity_3pct"],
+  "required_capitals": [500000, 1000000],
+  "execution_mode": "realistic",
+  "require_selection_attribution": true,
+  "rules": {
+    "min_mean_sharpe_gain": 0.0,
+    "max_min_sharpe_drop": 0.05,
+    "max_mean_ann_drop": 2.0,
+    "max_worst_mdd_increase": 0.02,
+    "max_mean_turnover_ratio": 1.25,
+    "max_mean_cost_ratio": 1.25
+  },
+  "decision_labels": {
+    "pass": "selection_pass_pending_governance",
+    "fail": "shadow_or_research",
+    "incomplete": "incomplete_evidence"
+  },
+  "forward_policy": "forward_2026 is observation-only and must not affect the decision."
+}

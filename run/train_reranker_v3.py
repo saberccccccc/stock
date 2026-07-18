@@ -1,5 +1,6 @@
 """Train the state-aware marginal fill reranker."""
 
+import argparse
 import json
 import pickle
 from pathlib import Path
@@ -23,6 +24,16 @@ NON_FEATURES = {
     "v3_eligible",
     "v3_baseline_fill",
 }
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--data-root", default=str(DATA_ROOT))
+    parser.add_argument("--output-dir", default=str(OUTPUT))
+    parser.add_argument("--validation-year", type=int, default=2023)
+    parser.add_argument("--candidate-end", type=int, default=80)
+    parser.add_argument("--max-reranked-fills", type=int, default=3)
+    return parser.parse_args()
 
 
 def feature_columns(frame):
@@ -75,9 +86,12 @@ def params():
 
 
 def main():
-    OUTPUT.mkdir(parents=True, exist_ok=True)
+    args = parse_args()
+    data_root = Path(args.data_root)
+    output = Path(args.output_dir)
+    output.mkdir(parents=True, exist_ok=True)
     frames = []
-    for path in sorted(DATA_ROOT.glob("oof_F[1-6]_*/reranker_v3_dataset.parquet")):
+    for path in sorted(data_root.glob("oof_F[1-6]_*/reranker_v3_dataset.parquet")):
         frame = pd.read_parquet(path)
         frame["date"] = pd.to_datetime(frame["date"])
         frame = frame[
@@ -89,8 +103,12 @@ def main():
         ["date", "candidate_position"], kind="mergesort"
     )
     features = feature_columns(data)
-    train = data[data["date"].dt.year < 2023]
-    validation = data[data["date"].dt.year == 2023]
+    train = data[data["date"].dt.year < args.validation_year]
+    validation = data[data["date"].dt.year == args.validation_year]
+    if train.empty or validation.empty:
+        raise ValueError(
+            f"Empty temporal split: train={len(train)} validation={len(validation)}"
+        )
     model = lgb.train(
         params(),
         lgb.Dataset(train[features], label=train["exec_target"]),
@@ -114,7 +132,7 @@ def main():
         if best is None or key > best[0]:
             best = (key, iteration)
     report = pd.DataFrame(rows)
-    report.to_csv(OUTPUT / "validation_2023_iterations.csv", index=False)
+    report.to_csv(output / f"validation_{args.validation_year}_iterations.csv", index=False)
     best_iteration = int(best[1])
     print(report.sort_values("replacement_delta", ascending=False).head(10).to_string(index=False))
     print(f"Selected iteration={best_iteration}", flush=True)
@@ -124,14 +142,14 @@ def main():
         lgb.Dataset(data[features], label=data["exec_target"]),
         num_boost_round=best_iteration,
     )
-    with (OUTPUT / "reranker_model.pkl").open("wb") as handle:
+    with (output / "reranker_model.pkl").open("wb") as handle:
         pickle.dump(
             {
                 "model": final_model,
                 "feature_columns": features,
                 "best_iteration": best_iteration,
-                "candidate_end": 80,
-                "max_reranked_fills": 3,
+                "candidate_end": args.candidate_end,
+                "max_reranked_fills": args.max_reranked_fills,
             },
             handle,
         )
@@ -141,17 +159,20 @@ def main():
             "gain": final_model.feature_importance(importance_type="gain"),
         }
     ).sort_values("gain", ascending=False).to_csv(
-        OUTPUT / "feature_importance.csv", index=False
+        output / "feature_importance.csv", index=False
     )
     summary = {
         "rows": int(len(data)),
         "dates": int(data["date"].nunique()),
         "features": len(features),
         "best_iteration": best_iteration,
+        "data_root": str(data_root),
+        "validation_year": args.validation_year,
+        "label_mode": "open_to_open",
         "validation_replacement_delta": float(best[0][0]),
         "validation_positive_days": float(best[0][1]),
     }
-    (OUTPUT / "training_summary.json").write_text(
+    (output / "training_summary.json").write_text(
         json.dumps(summary, indent=2), encoding="utf-8"
     )
 

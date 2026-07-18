@@ -24,6 +24,7 @@ from run.backtest_retention_execution_constraints import (
 from core.research_protocol import (
     assert_alpha_rows_within_forward,
     assert_alpha_rows_within_research,
+    resolve_market_data_end_date,
 )
 from run.backtest_temporal_retention import load_index_returns
 
@@ -60,6 +61,7 @@ def parse_args():
     parser.add_argument("--max-weight", type=float, default=0.05)
     parser.add_argument("--index-file", default="hs300_index.csv")
     parser.add_argument("--progress-every", type=int, default=1000)
+    parser.add_argument("--max-data-date", default=None)
     parser.add_argument("--allow-forward", action="store_true")
     return parser.parse_args()
 
@@ -77,6 +79,13 @@ def main():
     all_codes = sorted({code for row in alpha_rows for code in row["codes"]})
     print(f"alpha_days={len(alpha_rows)} codes={len(all_codes)}", flush=True)
     close, money = load_close_money(args.data_dir, all_codes, args.money_scale, args.progress_every)
+    max_data_date = resolve_market_data_end_date(
+        args.max_data_date,
+        allow_forward=args.allow_forward,
+    )
+    if max_data_date is not None:
+        close = close.loc[close.index <= max_data_date]
+        money = money.loc[money.index <= max_data_date]
     adv = recompute_adv(money, args.adv_window)
     idx_close, idx_daily = load_index_returns(args.data_dir, args.index_file, close.index)
 

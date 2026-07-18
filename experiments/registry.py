@@ -64,6 +64,8 @@ DEFAULT_CANDIDATES = (
             _source("v9_avgw3_open_ledger_20260617/main_candidate_single_diag/test/open_ledger_summary.csv", "test"),
             _source("v9_avgw3_open_ledger_20260617/sweep_main_candidate_lag1/sweep_summary.csv", None, "lag1", "sweep_summary"),
             _source("v9_avgw3_open_ledger_20260617/sweep_main_candidate_cost2x/sweep_summary.csv", None, "cost2x", "sweep_summary"),
+            _source("v9_avgw3_open_ledger_20260616/val_maxret095_maxreplace5_capacity3pct/open_ledger_summary.csv", "val", "capacity_3pct"),
+            _source("v9_avgw3_open_ledger_20260616/test_maxret095_to_20260518_maxreplace5_capacity3pct/open_ledger_summary.csv", "test", "capacity_3pct"),
             _source("forward_results/frozen_v9_avgw3/primary_ledger_20260519_20260616_maxret095_mn5/open_ledger_summary.csv", "forward"),
             _source("forward_results/frozen_v9_avgw3/primary_ledger_20260519_20260616_maxret095_mn5_lag1/open_ledger_summary.csv", "forward", "lag1"),
             _source("forward_results/frozen_v9_avgw3/primary_ledger_20260519_20260616_maxret095_mn5_cost2x/open_ledger_summary.csv", "forward", "cost2x"),

@@ -11,6 +11,7 @@ TOOL_MODULES = (
     "run.analyze_alpha_execution_quality",
     "run.confirm_locked_candidate",
     "run.generate_v9_inference_alpha",
+    "run.generate_forward_model_group",
     "run.run_loss_ablation",
     "run.screen_stall_execution",
     "run.summarize_loss_ablation",

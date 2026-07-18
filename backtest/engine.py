@@ -19,6 +19,7 @@ if str(PROJECT_ROOT) not in sys.path:
 warnings.filterwarnings('ignore')
 
 from core.config import ADV_LIMIT_RATIO, DataConfig, EPS, IMPACT_COEFF, MAX_WEIGHT, TARGET_VOL, TRADING_DAYS
+from core.research_protocol import assert_research_end_date
 
 
 def _sanitize(x, fill=0.0):
@@ -195,29 +196,63 @@ class DLPredictor:
         self.model = model
         self.device = device
         self.regime_dim = regime_dim
+        self.score_source = "alpha"  # alpha, raw_alpha, horizon0..3
 
-    def predict_alpha(self, sample, valid, regime):
-        X_np = sample["X"][valid].astype(np.float32)
-        risk_np = sample["risk"][valid].astype(np.float32)
-        industry_np = sample["industry_ids"][valid].astype(np.int64)
+    def _prepare_inputs(self, sample, valid):
+        """Build one-device batch for any DLPredictor output head."""
+        X_np = sample["X"][valid].astype(np.float32, copy=False)
+        risk_np = sample["risk"][valid].astype(np.float32, copy=False)
+        industry_np = sample["industry_ids"][valid].astype(np.int64, copy=False)
         if X_np.shape[0] == 0:
-            return np.array([], dtype=np.float32)
-
+            return None
         X = torch.from_numpy(X_np).unsqueeze(0).to(self.device)
         risk = torch.from_numpy(risk_np).unsqueeze(0).to(self.device)
         industry_ids = torch.from_numpy(industry_np).unsqueeze(0).to(self.device)
         mask = torch.ones(1, X_np.shape[0], dtype=torch.bool, device=self.device)
+        return X, risk[..., :self.regime_dim], mask, industry_ids
 
-        with torch.no_grad():
-            alpha_raw, _, _ = self.model(
-                X, risk[..., :self.regime_dim], mask, industry_ids
-            )
+    def predict_alpha(self, sample, valid, regime):
+        if self.score_source != "alpha":
+            src = self.score_source
+            if src == "raw_alpha":
+                return self.predict_raw_alpha(sample, valid, regime)
+            elif src.startswith("horizon"):
+                hidx = int(src.replace("horizon", ""))
+                return self.predict_horizon_alpha(sample, valid, regime, hidx)
+        inputs = self._prepare_inputs(sample, valid)
+        if inputs is None:
+            return np.array([], dtype=np.float32)
+        with torch.inference_mode():
+            alpha_raw, _, _ = self.model(*inputs)
         pred = alpha_raw[0].detach().cpu().numpy()
         pred = _sanitize(pred)
         if pred.size > 1:
             pred = (pred - np.mean(pred)) / (np.std(pred) + 1e-8)
         return np.tanh(pred)
 
+    def predict_raw_alpha(self, sample, valid, regime):
+        """Return raw alpha scores without z-score and tanh compression.
+        These preserve magnitude differences between stocks."""
+        inputs = self._prepare_inputs(sample, valid)
+        if inputs is None:
+            return np.array([], dtype=np.float32)
+        with torch.inference_mode():
+            alpha_raw, _, _ = self.model(*inputs)
+        pred = alpha_raw[0].detach().cpu().numpy()
+        pred = _sanitize(pred)
+        return pred
+
+    def predict_horizon_alpha(self, sample, valid, regime, horizon_idx=0):
+        """Return horizon head predictions for a given horizon index.
+        horizon_idx: 0, 1, 2, 3 for different forward periods."""
+        inputs = self._prepare_inputs(sample, valid)
+        if inputs is None:
+            return np.array([], dtype=np.float32)
+        with torch.inference_mode():
+            _, horizon_preds, _ = self.model(*inputs)
+        pred = horizon_preds[0, :, horizon_idx].detach().cpu().numpy()
+        pred = _sanitize(pred)
+        return pred
 
 class LGBPredictor:
     name = "lgb"
@@ -918,6 +953,10 @@ def execute_order_with_impact(w_target, prev_w, price, volume,
 # ==================== 价格与成交量数据加载 ====================
 def load_price_volume(config):
     data_dir = config.data_dir
+    research_end = assert_research_end_date(
+        getattr(config, 'research_end_date', None),
+        context="backtest price data",
+    )
     excluded = {'all_data_jq.csv', 'stable_stocks.csv', 'stable_stocks_industry.csv'}
     files = [f for f in os.listdir(data_dir)
              if f.endswith('.csv') and f not in excluded and f[0].isdigit()]
@@ -933,6 +972,7 @@ def load_price_volume(config):
             df.columns = df.columns.str.strip().str.lower()
             df['trade_date'] = pd.to_datetime(df['trade_date'])
             df.set_index('trade_date', inplace=True)
+            df = df[df.index <= research_end]
             price_dict[code] = df['close']
             vol_dict[code] = df['volume']
         except Exception:

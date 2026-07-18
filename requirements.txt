@@ -10,3 +10,4 @@ tushare>=1.4
 torch-geometric>=2.5
 tqdm>=4.65
 pytest>=8.0
+jsonschema>=4.26

@@ -1,1 +1,1 @@
-"""Experiment registries and leaderboard utilities."""
+"""Experiment contracts, provenance, registries, and leaderboard utilities."""

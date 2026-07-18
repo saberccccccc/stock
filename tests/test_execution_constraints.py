@@ -27,7 +27,7 @@ def make_args():
     )
 
 
-def main():
+def test_legacy_execution_constraints():
     dates = pd.to_datetime(["2026-05-15", "2026-05-18"])
     close = pd.DataFrame(
         {"000001.SZ": [10.0, 10.0], "000002.SZ": [20.0, 20.0]},
@@ -103,4 +103,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    test_legacy_execution_constraints()

@@ -21,8 +21,10 @@ from core.train_utils import (CrossSectionDataset, MemmapDataset,
                                PrecomputedMemmapDataset, collate_fn,
                                collate_fn_eval, get_regime_dim, train_model)
 from data.market_features import N_MARKET
+from data.labels import LABEL_FAMILIES, label_end_offset
 from data.pipeline import (INDUSTRY_REL_FEATURES, N_AGGS, build_cross_section_dataset,
                            _open_memmap)
+from data.cache_metadata import load_explicit_cross_section_meta
 
 # ── Logging utilities ─────────────────────────────────────
 class Tee:
@@ -115,6 +117,17 @@ def parse_args():
     parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
     parser.add_argument("--output-dir", default=None, help="Override checkpoint directory")
     parser.add_argument("--data-dir", default=None, help="Override data directory (e.g. ../deepseek_optimized/data/raw)")
+    parser.add_argument(
+        "--cache-meta",
+        default=None,
+        help="Use this existing memmap metadata file and never rebuild from raw data.",
+    )
+    parser.add_argument("--expected-input-dim", type=int, default=None)
+    parser.add_argument(
+        "--fundamental-quality-features",
+        action="store_true",
+        help="Add PIT fundamental quality/staleness flags. Changes input dimension; train a new model.",
+    )
     parser.add_argument("--batch-size", type=int, default=None, help="Override training batch size.")
     parser.add_argument("--val-batch-size", type=int, default=None, help="Override validation batch size.")
     parser.add_argument("--accum-steps", type=int, default=None, help="Override gradient accumulation steps.")
@@ -126,6 +139,12 @@ def parse_args():
     parser.add_argument("--downside-temperature", type=float, default=None, help="Softmax temperature for downside loss.")
     parser.add_argument("--downside-delay-epochs", type=int, default=None, help="Epoch delay before enabling downside loss.")
     parser.add_argument("--lag1-loss-weight", type=float, default=None, help="Auxiliary IC loss against labels shifted one trading day forward.")
+    parser.add_argument(
+        "--lag1-label-family",
+        choices=LABEL_FAMILIES,
+        default=None,
+        help="Optional label family for lag1 loss; use oo_lag1 for delayed open-to-open execution labels.",
+    )
     parser.add_argument("--lag1-delay-epochs", type=int, default=None, help="Epoch delay before enabling lag1 auxiliary loss.")
     parser.add_argument("--lag1-top-focus-loss-weight", type=float, default=None, help="Long-only top-focus loss against labels shifted one trading day forward.")
     parser.add_argument("--lag1-top-focus-temperature", type=float, default=None, help="Softmax temperature for lag1 top-focus loss.")
@@ -138,6 +157,8 @@ def parse_args():
     parser.add_argument("--best-val-metric", default=None, help="Validation metric used for checkpoint selection.")
     parser.add_argument("--eval-top-fracs", default=None, help="Comma-separated top fractions for validation metrics, e.g. 0.05,0.10.")
     parser.add_argument("--horizon-weights", default=None, help="Comma-separated weights matching horizon_indices.")
+    parser.add_argument("--horizon-indices", default=None, help="Zero-based comma-separated label horizons, e.g. 0,2,4,6.")
+    parser.add_argument("--label-family", choices=LABEL_FAMILIES, default="cc")
     parser.add_argument("--save-every-epoch", action="store_true", help="Save epoch_XXX.pt and epoch metrics JSONL.")
     parser.add_argument("--early-stop-patience", type=int, default=None)
     parser.add_argument("--seed", type=int, default=42)
@@ -149,9 +170,25 @@ def parse_args():
     parser.add_argument("--resume-from", default=None)
     parser.add_argument("--reset-optimizer", action="store_true")
     parser.add_argument(
+        "--resume-start-epoch",
+        type=int,
+        default=None,
+        help="Logical epoch boundary for a cross-stage resume; requires --reset-optimizer.",
+    )
+    parser.add_argument(
+        "--train-start",
+        default=None,
+        help="First feature date admitted to the training window (YYYY-MM-DD).",
+    )
+    parser.add_argument(
         "--train-label-end",
         default=None,
         help="Last date that training labels may use (YYYY-MM-DD).",
+    )
+    parser.add_argument(
+        "--val-start",
+        default=None,
+        help="First feature date admitted to the validation window (YYYY-MM-DD).",
     )
     parser.add_argument(
         "--val-label-end",
@@ -178,6 +215,17 @@ def build_config(mc, data_dir=None, args=None):
     cfg.use_restricted_features = True
     cfg.test_mode = False
     if args is not None:
+        cfg.label_family = getattr(args, "label_family", "cc")
+        cfg.use_fundamental_quality_features = bool(getattr(args, "fundamental_quality_features", False))
+        cfg.lag1_label_family = getattr(args, "lag1_label_family", None)
+        requested_horizons = getattr(args, "horizon_indices", None)
+        if requested_horizons is not None:
+            indices = tuple(int(x.strip()) for x in requested_horizons.split(",") if x.strip())
+            if not indices or any(i < 0 or i >= cfg.max_horizon for i in indices):
+                raise ValueError("horizon_indices must be within [0, max_horizon)")
+            cfg.horizon_indices = indices
+            if getattr(args, "horizon_weights", None) is None:
+                cfg.horizon_weights = tuple(1.0 / len(indices) for _ in indices)
         if args.top_focus_loss_weight is not None:
             cfg.top_focus_loss_weight = args.top_focus_loss_weight
         if args.top_focus_temperature is not None:
@@ -262,6 +310,7 @@ def build_config(mc, data_dir=None, args=None):
             cfg.spread_delay_epochs = args.spread_delay_epochs
         cfg.resume_from = getattr(args, "resume_from", None)
         cfg.reset_optimizer = bool(getattr(args, "reset_optimizer", False))
+        cfg.resume_start_epoch = getattr(args, "resume_start_epoch", None)
         if args.memmap_trim_interval is not None:
             if args.memmap_trim_interval < 0:
                 raise ValueError("memmap_trim_interval must be >= 0")
@@ -298,11 +347,16 @@ def resolve_batch(model, device, batch_size=None, val_batch_size=None, accum_ste
     return train_bs, accum, val_bs, gpu_mem
 
 
-def resolve_time_split(meta, train_label_end=None, val_label_end=None, label_shift=0):
+def resolve_time_split(meta, train_label_end=None, val_label_end=None, label_shift=0,
+                       label_family="cc", horizon_indices=None,
+                       auxiliary_label_family=None, train_start=None, val_start=None):
     """Build purged train/validation indices from label-availability boundaries."""
     if not isinstance(label_shift, int) or label_shift < 0:
         raise ValueError("label_shift must be a non-negative integer")
+    starts_declared = train_start is not None or val_start is not None
     if train_label_end is None and val_label_end is None:
+        if starts_declared:
+            raise ValueError("train_start and val_start require explicit label-end boundaries")
         if label_shift:
             raise ValueError(
                 "label_shift requires explicit train_label_end and val_label_end"
@@ -310,20 +364,38 @@ def resolve_time_split(meta, train_label_end=None, val_label_end=None, label_shi
         return list(meta["train_indices"]), list(meta["val_indices"]), []
     if train_label_end is None or val_label_end is None:
         raise ValueError("train_label_end and val_label_end must be provided together")
+    if starts_declared and (train_start is None or val_start is None):
+        raise ValueError("train_start and val_start must be provided together")
 
     train_end = pd.Timestamp(train_label_end)
     val_end = pd.Timestamp(val_label_end)
     if train_end >= val_end:
         raise ValueError("train_label_end must be earlier than val_label_end")
+    train_begin = pd.Timestamp(train_start) if train_start is not None else None
+    val_begin = pd.Timestamp(val_start) if val_start is not None else None
+    if train_begin is not None:
+        if train_begin > train_end:
+            raise ValueError("train_start must not be later than train_label_end")
+        if val_begin <= train_end or val_begin > val_end:
+            raise ValueError("val_start must be after train_label_end and not later than val_label_end")
 
     all_dates = pd.DatetimeIndex(meta["all_dates"])
     max_horizon = int(meta["max_horizon"])
+    selected_horizons = tuple(horizon_indices) if horizon_indices is not None else (max_horizon - 1,)
+    if not selected_horizons:
+        raise ValueError("horizon_indices must not be empty")
+    required_offset = max(label_end_offset(label_family, h) for h in selected_horizons) + label_shift
+    if auxiliary_label_family is not None:
+        required_offset = max(
+            required_offset,
+            max(label_end_offset(auxiliary_label_family, h) for h in selected_horizons),
+        )
     candidate_indices = sorted(
         set(meta["train_indices"]).union(meta["val_indices"])
     )
 
     def label_is_available(t, boundary):
-        label_end_idx = int(t) + max_horizon + label_shift
+        label_end_idx = int(t) + required_offset
         return (
             label_end_idx < len(all_dates)
             and all_dates[label_end_idx] <= boundary
@@ -331,11 +403,15 @@ def resolve_time_split(meta, train_label_end=None, val_label_end=None, label_shi
 
     train_indices = [
         t for t in candidate_indices
-        if all_dates[t] <= train_end and label_is_available(t, train_end)
+        if (train_begin is None or all_dates[t] >= train_begin)
+        and all_dates[t] <= train_end
+        and label_is_available(t, train_end)
     ]
     val_indices = [
         t for t in candidate_indices
-        if train_end < all_dates[t] <= val_end and label_is_available(t, val_end)
+        if (val_begin is None and all_dates[t] > train_end or val_begin is not None and all_dates[t] >= val_begin)
+        and all_dates[t] <= val_end
+        and label_is_available(t, val_end)
     ]
     heldout_indices = [
         t for t in candidate_indices
@@ -449,7 +525,7 @@ def train(args):
             cfg.min_stocks_per_time = max(10, min(cfg.min_stocks_per_time, args.test_stocks // 2))
 
         print(f"数据: target_horizon={cfg.target_horizon}, seq_len={cfg.seq_len}, "
-              f"horizons={cfg.horizon_indices}, weights={cfg.horizon_weights}, "
+              f"label_family={cfg.label_family}, horizons={cfg.horizon_indices}, weights={cfg.horizon_weights}, "
               f"market={cfg.use_market_features}, macro={cfg.use_macro_features}"
               + (f", use_gat={cfg.use_gat}" if mc["use_gat"] else ""))
         print(f"模型: Transformer {cfg.n_transformer_layers}层, dropout={cfg.transformer_dropout}, "
@@ -462,7 +538,8 @@ def train(args):
               f"@T{cfg.top_focus_temperature},d{cfg.top_focus_delay_epochs}, "
               f"downside={cfg.downside_loss_weight}"
               f"@T{cfg.downside_temperature},d{cfg.downside_delay_epochs}, "
-              f"lag1={cfg.lag1_loss_weight}@d{cfg.lag1_delay_epochs}, "
+              f"lag1={cfg.lag1_loss_weight}@d{cfg.lag1_delay_epochs}"
+              f"[{cfg.lag1_label_family or 'shifted-primary'}], "
               f"lag1_top={cfg.lag1_top_focus_loss_weight}"
               f"@T{cfg.lag1_top_focus_temperature},d{cfg.lag1_top_focus_delay_epochs}, "
               f"multi={cfg.multi_loss_weight}, diversity={cfg.diversity_loss_weight}, "
@@ -471,7 +548,25 @@ def train(args):
         print(f"验证: best_val_metric={cfg.best_val_metric}, eval_top_fracs={cfg.eval_top_fracs}")
 
         print("\n构建数据集...")
-        result = build_cross_section_dataset(cfg, use_cache=True)
+        if args.cache_meta:
+            required_families = [cfg.label_family]
+            if cfg.lag1_label_family:
+                required_families.append(cfg.lag1_label_family)
+            result = load_explicit_cross_section_meta(
+                args.cache_meta,
+                project_root=PROJECT_ROOT,
+                expected_input_dim=args.expected_input_dim,
+                required_label_families=required_families,
+                logical_end=args.val_label_end,
+            )
+            print(
+                f"Using explicit cache: {result['meta_path']} "
+                f"physical={result['physical_data_start']}..{result['physical_data_end']} "
+                f"logical_end={result['effective_data_end']}",
+                flush=True,
+            )
+        else:
+            result = build_cross_section_dataset(cfg, use_cache=True)
 
         # 判断返回类型：dict=memmap元数据（含预计算截面），tuple=样本列表（旧式）
         if isinstance(result, dict):
@@ -483,7 +578,14 @@ def train(args):
                 meta,
                 train_label_end=args.train_label_end,
                 val_label_end=args.val_label_end,
-                label_shift=1 if use_lag1_labels else 0,
+                label_shift=1 if use_lag1_labels and cfg.lag1_label_family is None else 0,
+                label_family=cfg.label_family,
+                horizon_indices=tuple(sorted(set(cfg.horizon_indices) | {cfg.target_horizon - 1})),
+                auxiliary_label_family=(
+                    cfg.lag1_label_family if use_lag1_labels else None
+                ),
+                train_start=args.train_start,
+                val_start=args.val_start,
             )
 
             # 打开预计算截面 memmap（int16 scale=1000 → 训练时自动转 float32/1000）
@@ -495,8 +597,44 @@ def train(args):
                                         (n_stocks, n_dates, meta['risk_full_dim']))
             y_norm_mm = _open_memmap(meta['y_norm_path'], np.int16,
                                      (n_stocks, n_dates))
-            y_seq_norm_mm = _open_memmap(meta['y_seq_norm_path'], np.int16,
+            family_meta = meta.get('label_families', {}).get(cfg.label_family)
+            if family_meta is None:
+                if cfg.label_family != 'cc':
+                    raise ValueError(f"cache does not contain label family {cfg.label_family!r}")
+                family_meta = {
+                    'norm_path': meta['y_seq_norm_path'],
+                    'raw_path': meta['ret_path'],
+                    'date_shift': 0,
+                }
+            label_date_shift = int(family_meta.get('date_shift', 0))
+            if family_meta.get('alias_of'):
+                base_meta = meta['label_families'][family_meta['alias_of']]
+                norm_path = base_meta['norm_path']
+                raw_path = base_meta['raw_path']
+            else:
+                norm_path = family_meta['norm_path']
+                raw_path = family_meta['raw_path']
+            y_seq_norm_mm = _open_memmap(norm_path, np.int16,
                                          (n_stocks, n_dates, meta['max_horizon']))
+            lag1_y_seq_norm_mm = None
+            lag1_label_date_shift = None
+            if use_lag1_labels and cfg.lag1_label_family is not None:
+                lag1_meta = meta.get('label_families', {}).get(cfg.lag1_label_family)
+                if lag1_meta is None:
+                    raise ValueError(
+                        f"cache does not contain lag1 label family {cfg.lag1_label_family!r}"
+                    )
+                lag1_base_meta = (
+                    meta['label_families'][lag1_meta['alias_of']]
+                    if lag1_meta.get('alias_of')
+                    else lag1_meta
+                )
+                lag1_y_seq_norm_mm = _open_memmap(
+                    lag1_base_meta['norm_path'],
+                    np.int16,
+                    (n_stocks, n_dates, meta['max_horizon']),
+                )
+                lag1_label_date_shift = int(lag1_meta.get('date_shift', 0))
             need_train_raw_returns = cfg.downside_loss_weight > 0
             need_val_raw_returns = (
                 cfg.save_every_epoch or str(cfg.best_val_metric).startswith("raw")
@@ -504,7 +642,7 @@ def train(args):
             raw_ret_mm = None
             if need_train_raw_returns or need_val_raw_returns:
                 raw_ret_mm = _open_memmap(
-                    meta['ret_path'],
+                    raw_path,
                     np.float32,
                     (n_stocks, n_dates, meta['max_horizon']),
                 )
@@ -515,12 +653,20 @@ def train(args):
                 train_indices, meta['n_industries'], meta['max_horizon'],
                 raw_ret_mm=raw_ret_mm if need_train_raw_returns else None,
                 include_lag1_labels=use_lag1_labels,
+                horizon_indices=cfg.horizon_indices,
+                target_horizon_index=cfg.target_horizon - 1,
+                label_date_shift=label_date_shift,
             )
             val_ds = PrecomputedMemmapDataset(
                 x_norm_mm, risk_full_mm, y_norm_mm, y_seq_norm_mm,
                 meta['industry_array'], meta['all_codes'], meta['all_dates'],
                 val_indices, meta['n_industries'], meta['max_horizon'],
                 raw_ret_mm=raw_ret_mm if need_val_raw_returns else None,
+                horizon_indices=cfg.horizon_indices,
+                target_horizon_index=cfg.target_horizon - 1,
+                label_date_shift=label_date_shift,
+                lag1_y_seq_norm_mm=lag1_y_seq_norm_mm,
+                lag1_label_date_shift=lag1_label_date_shift,
             )
 
             # 从元数据推算维度
@@ -622,13 +768,14 @@ def train(args):
 
         # num_workers>0 会导致 memmap 文件描述符跨进程失败，暂时用单进程
         n_workers = 0
+        pin_memory = device.type == "cuda"
         train_loader = DataLoader(
             train_ds, batch_size=batch_size, shuffle=True,
-            collate_fn=train_collate, num_workers=n_workers, pin_memory=False,
+            collate_fn=train_collate, num_workers=n_workers, pin_memory=pin_memory,
         )
         val_loader = DataLoader(
             val_ds, batch_size=val_bs, shuffle=False,
-            collate_fn=collate_fn_eval, num_workers=n_workers, pin_memory=False,
+            collate_fn=collate_fn_eval, num_workers=n_workers, pin_memory=pin_memory,
         )
 
         cfg.low_feat_dim = low_feat_dim
@@ -663,6 +810,7 @@ def train(args):
             handle_error(model, e)
             with open(PROJECT_ROOT / "errors.log", "a", encoding="utf-8") as ef:
                 ef.write(f"[{__import__('datetime').datetime.now():%Y-%m-%d %H:%M:%S}] train.py/{model} | {type(e).__name__}: {e}\n")
+            raise
 
     finally:
         sys.stdout = original_stdout

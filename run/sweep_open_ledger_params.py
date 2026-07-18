@@ -1,4 +1,8 @@
-"""Sweep open-price share-ledger execution parameters on val/test Alpha files."""
+"""Legacy val/test sweep retained for historical reproducibility.
+
+For formal realistic evidence, use ``run/official_backtest_from_registry.py``
+or its shared-OHLC runner, ``run/sweep_open_price_ledger_params.py``.
+"""
 
 import argparse
 import json
@@ -18,10 +22,15 @@ from backtest.open_ledger import (
     load_index_returns,
     load_ohlc_money,
     parse_float_list,
+    prepare_open_ledger_context,
     recompute_adv,
     run_open_ledger,
 )
-from core.research_protocol import assert_alpha_rows_within_research, assert_research_end_date
+from core.research_protocol import (
+    assert_alpha_rows_within_research,
+    assert_research_end_date,
+    research_end_date_str,
+)
 
 
 def parse_int_list(raw):
@@ -56,7 +65,7 @@ def parse_args():
     parser.add_argument("--lot-size", type=int, default=100)
     parser.add_argument("--min-commission-cny", type=float, default=5.0)
     parser.add_argument("--execution-lag", type=int, default=0)
-    parser.add_argument("--max-data-date", default="2026-05-18")
+    parser.add_argument("--max-data-date", default=research_end_date_str())
     parser.add_argument("--progress-every", type=int, default=2500)
     return parser.parse_args()
 
@@ -74,7 +83,7 @@ def load_market_bundle(alpha_path, args):
         money_df = money_df.loc[money_df.index <= max_data_date]
     adv_df = recompute_adv(money_df, args.adv_window)
     idx_close, idx_daily = load_index_returns(args.data_dir, args.index_file, close_df.index)
-    return rows, open_df, close_df, adv_df, idx_close, idx_daily
+    return rows, open_df, close_df, adv_df, idx_close, idx_daily, prepare_open_ledger_context(open_df, close_df)
 
 
 def make_run_args(
@@ -161,6 +170,12 @@ def summarize_scores(frame):
 
 def main():
     args = parse_args()
+    print(
+        "LEGACY SWEEP: this entrypoint is retained for historical research only; "
+        "use official_backtest_from_registry.py for formal realistic evidence.",
+        file=sys.stderr,
+        flush=True,
+    )
     out_dir = Path(args.output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     config = vars(args).copy()
@@ -200,7 +215,7 @@ def main():
     )
     done = 0
     for split, bundle in bundles.items():
-        rows, open_df, close_df, adv_df, idx_close, idx_daily = bundle
+        rows, open_df, close_df, adv_df, idx_close, idx_daily, prepared_context = bundle
         for target_frac in target_fracs:
             for hold_frac in hold_fracs:
                 if hold_frac < target_frac:
@@ -234,6 +249,7 @@ def main():
                                                 run_args,
                                                 idx_close,
                                                 idx_daily,
+                                                prepared_context=prepared_context,
                                             )
                                             if result:
                                                 result.update({

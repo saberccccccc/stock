@@ -21,6 +21,8 @@ def parse_args():
     parser.add_argument("--weights", default=None, help="Comma-separated non-negative weights")
     parser.add_argument("--mode", default="rank_mean", choices=["rank_mean", "alpha_mean"])
     parser.add_argument("--output", required=True)
+    parser.add_argument("--require-start-date", default=None)
+    parser.add_argument("--require-end-date", default=None)
     return parser.parse_args()
 
 
@@ -34,6 +36,37 @@ def load_rows(path):
             row["date"] = pd.Timestamp(row["date"])
             rows[row["date"]] = row
     return rows
+
+
+def coverage_info(rows):
+    dates = sorted(rows)
+    return {
+        "row_count": len(dates),
+        "signal_start": dates[0].strftime("%Y-%m-%d") if dates else "",
+        "signal_end": dates[-1].strftime("%Y-%m-%d") if dates else "",
+    }
+
+
+def require_common_coverage(common_dates, start_date=None, end_date=None):
+    if not common_dates:
+        raise ValueError("No common signal dates across inputs")
+    common_set = set(common_dates)
+    actual_start = common_dates[0].strftime("%Y-%m-%d")
+    actual_end = common_dates[-1].strftime("%Y-%m-%d")
+    if start_date is not None:
+        start = pd.Timestamp(start_date)
+        if start not in common_set:
+            raise ValueError(
+                f"common signal dates do not include required start {start.date()} "
+                f"(actual {actual_start}~{actual_end})"
+            )
+    if end_date is not None:
+        end = pd.Timestamp(end_date)
+        if end not in common_set:
+            raise ValueError(
+                f"common signal dates do not include required end {end.date()} "
+                f"(actual {actual_start}~{actual_end})"
+            )
 
 
 def parse_weights(raw, n):
@@ -91,18 +124,32 @@ def main():
     weights = parse_weights(args.weights, len(input_paths))
     maps = [load_rows(path) for path in input_paths]
     common_dates = sorted(set.intersection(*[set(m.keys()) for m in maps]))
+    require_common_coverage(
+        common_dates,
+        start_date=args.require_start_date,
+        end_date=args.require_end_date,
+    )
     out_path = Path(args.output)
     out_path.parent.mkdir(parents=True, exist_ok=True)
     with out_path.open("w", encoding="utf-8") as f:
         for date in common_dates:
             combined = combine_for_date([m[date] for m in maps], weights, args.mode)
-            row = {"date": str(date), **combined}
+            row = {"date": date.strftime("%Y-%m-%d"), **combined}
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    output_coverage = coverage_info({date: True for date in common_dates})
     meta = {
         "inputs": input_paths,
+        "input_coverage": {
+            path: coverage_info(rows)
+            for path, rows in zip(input_paths, maps)
+        },
         "weights": weights.tolist(),
         "mode": args.mode,
         "common_dates": len(common_dates),
+        "signal_start": output_coverage["signal_start"],
+        "signal_end": output_coverage["signal_end"],
+        "required_signal_start": args.require_start_date,
+        "required_signal_end": args.require_end_date,
         "output": str(out_path),
     }
     (out_path.parent / f"{out_path.stem}_meta.json").write_text(

@@ -1,0 +1,414 @@
+{
+  "data": {
+    "data_dir": "data/raw",
+    "factor_baseline": "alpha158_compact_price_volume_v1",
+    "feature_flags": {
+      "fundamental": true,
+      "fundamental_quality": true,
+      "macro": true,
+      "market": true,
+      "restricted": true,
+      "shareholder": true,
+      "technical": true
+    },
+    "horizon_index": 4,
+    "label_family": "oo_lag1",
+    "research_end": "2025-12-31"
+  },
+  "model": {
+    "bagging_fraction": 0.8,
+    "bagging_freq": 1,
+    "early_stopping_rounds": 50,
+    "feature_fraction": 0.8,
+    "lambda_l2": 5.0,
+    "learning_rate": 0.03,
+    "max_train_rows": 100000,
+    "max_valid_rows": 30000,
+    "min_data_in_leaf": 80,
+    "num_boost_round": 500,
+    "num_leaves": 31,
+    "num_threads": 4,
+    "objective": "regression",
+    "seed": 20260716
+  },
+  "monthly_schedule": {
+    "base_config_sha256": "43660924997e43eac2bbc4c292e136c68f972d8df772d37b0f93a8a6f5035d6e",
+    "config_sha256_before_self_field": "5096d0812eaf6980d95761422b3042eccb04228ce48720c3b0613b963e358f56",
+    "label_end_offset": 7,
+    "oos_end": "2025-12-31",
+    "oos_months": 1,
+    "oos_start": "2024-01-01",
+    "train_years": 4,
+    "unique_oos_dates": 485,
+    "v14_meta_sha256": "2e79feb97f1654839a3c50b5601cb9cc04f392bc248e7684550b4fa8467d6d16",
+    "valid_months": 6,
+    "window_count": 24,
+    "window_counts": [
+      {
+        "name": "oos_2024_01",
+        "predict": 22,
+        "train": 965,
+        "valid": 117
+      },
+      {
+        "name": "oos_2024_02",
+        "predict": 15,
+        "train": 963,
+        "valid": 118
+      },
+      {
+        "name": "oos_2024_03",
+        "predict": 21,
+        "train": 964,
+        "valid": 110
+      },
+      {
+        "name": "oos_2024_04",
+        "predict": 20,
+        "train": 964,
+        "valid": 111
+      },
+      {
+        "name": "oos_2024_05",
+        "predict": 20,
+        "train": 963,
+        "valid": 114
+      },
+      {
+        "name": "oos_2024_06",
+        "predict": 19,
+        "train": 964,
+        "valid": 112
+      },
+      {
+        "name": "oos_2024_07",
+        "predict": 23,
+        "train": 963,
+        "valid": 110
+      },
+      {
+        "name": "oos_2024_08",
+        "predict": 22,
+        "train": 969,
+        "valid": 111
+      },
+      {
+        "name": "oos_2024_09",
+        "predict": 19,
+        "train": 964,
+        "valid": 118
+      },
+      {
+        "name": "oos_2024_10",
+        "predict": 18,
+        "train": 963,
+        "valid": 116
+      },
+      {
+        "name": "oos_2024_11",
+        "predict": 21,
+        "train": 962,
+        "valid": 114
+      },
+      {
+        "name": "oos_2024_12",
+        "predict": 22,
+        "train": 964,
+        "valid": 115
+      },
+      {
+        "name": "oos_2025_01",
+        "predict": 18,
+        "train": 963,
+        "valid": 118
+      },
+      {
+        "name": "oos_2025_02",
+        "predict": 18,
+        "train": 963,
+        "valid": 113
+      },
+      {
+        "name": "oos_2025_03",
+        "predict": 21,
+        "train": 964,
+        "valid": 109
+      },
+      {
+        "name": "oos_2025_04",
+        "predict": 21,
+        "train": 961,
+        "valid": 111
+      },
+      {
+        "name": "oos_2025_05",
+        "predict": 19,
+        "train": 963,
+        "valid": 114
+      },
+      {
+        "name": "oos_2025_06",
+        "predict": 20,
+        "train": 963,
+        "valid": 112
+      },
+      {
+        "name": "oos_2025_07",
+        "predict": 23,
+        "train": 962,
+        "valid": 110
+      },
+      {
+        "name": "oos_2025_08",
+        "predict": 21,
+        "train": 960,
+        "valid": 115
+      },
+      {
+        "name": "oos_2025_09",
+        "predict": 22,
+        "train": 963,
+        "valid": 118
+      },
+      {
+        "name": "oos_2025_10",
+        "predict": 17,
+        "train": 961,
+        "valid": 119
+      },
+      {
+        "name": "oos_2025_11",
+        "predict": 20,
+        "train": 961,
+        "valid": 115
+      },
+      {
+        "name": "oos_2025_12",
+        "predict": 23,
+        "train": 962,
+        "valid": 116
+      }
+    ]
+  },
+  "name": "rolling_compact_lgbm_oo_lag1_workflow_v1_monthly_4y_6m_1m",
+  "purpose": "Predeclared monthly walk-forward research arm: fixed history, label-tail purge, and one unique model owner per OOS date.",
+  "version": 1,
+  "windows": [
+    {
+      "name": "oos_2024_01",
+      "predict_end": "2024-01-31",
+      "predict_start": "2024-01-02",
+      "train_end": "2023-06-30",
+      "train_start": "2019-07-01",
+      "valid_end": "2023-12-29",
+      "valid_start": "2023-07-03"
+    },
+    {
+      "name": "oos_2024_02",
+      "predict_end": "2024-02-29",
+      "predict_start": "2024-02-01",
+      "train_end": "2023-07-31",
+      "train_start": "2019-08-01",
+      "valid_end": "2024-01-31",
+      "valid_start": "2023-08-01"
+    },
+    {
+      "name": "oos_2024_03",
+      "predict_end": "2024-03-29",
+      "predict_start": "2024-03-01",
+      "train_end": "2023-08-31",
+      "train_start": "2019-09-02",
+      "valid_end": "2024-02-29",
+      "valid_start": "2023-09-01"
+    },
+    {
+      "name": "oos_2024_04",
+      "predict_end": "2024-04-30",
+      "predict_start": "2024-04-01",
+      "train_end": "2023-09-28",
+      "train_start": "2019-10-08",
+      "valid_end": "2024-03-29",
+      "valid_start": "2023-10-09"
+    },
+    {
+      "name": "oos_2024_05",
+      "predict_end": "2024-05-31",
+      "predict_start": "2024-05-06",
+      "train_end": "2023-10-31",
+      "train_start": "2019-11-01",
+      "valid_end": "2024-04-30",
+      "valid_start": "2023-11-01"
+    },
+    {
+      "name": "oos_2024_06",
+      "predict_end": "2024-06-28",
+      "predict_start": "2024-06-03",
+      "train_end": "2023-11-30",
+      "train_start": "2019-12-02",
+      "valid_end": "2024-05-31",
+      "valid_start": "2023-12-01"
+    },
+    {
+      "name": "oos_2024_07",
+      "predict_end": "2024-07-31",
+      "predict_start": "2024-07-01",
+      "train_end": "2023-12-29",
+      "train_start": "2020-01-02",
+      "valid_end": "2024-06-28",
+      "valid_start": "2024-01-02"
+    },
+    {
+      "name": "oos_2024_08",
+      "predict_end": "2024-08-30",
+      "predict_start": "2024-08-01",
+      "train_end": "2024-01-31",
+      "train_start": "2020-02-03",
+      "valid_end": "2024-07-31",
+      "valid_start": "2024-02-01"
+    },
+    {
+      "name": "oos_2024_09",
+      "predict_end": "2024-09-30",
+      "predict_start": "2024-09-02",
+      "train_end": "2024-02-29",
+      "train_start": "2020-03-02",
+      "valid_end": "2024-08-30",
+      "valid_start": "2024-03-01"
+    },
+    {
+      "name": "oos_2024_10",
+      "predict_end": "2024-10-31",
+      "predict_start": "2024-10-08",
+      "train_end": "2024-03-29",
+      "train_start": "2020-04-01",
+      "valid_end": "2024-09-30",
+      "valid_start": "2024-04-01"
+    },
+    {
+      "name": "oos_2024_11",
+      "predict_end": "2024-11-29",
+      "predict_start": "2024-11-01",
+      "train_end": "2024-04-30",
+      "train_start": "2020-05-06",
+      "valid_end": "2024-10-31",
+      "valid_start": "2024-05-06"
+    },
+    {
+      "name": "oos_2024_12",
+      "predict_end": "2024-12-31",
+      "predict_start": "2024-12-02",
+      "train_end": "2024-05-31",
+      "train_start": "2020-06-01",
+      "valid_end": "2024-11-29",
+      "valid_start": "2024-06-03"
+    },
+    {
+      "name": "oos_2025_01",
+      "predict_end": "2025-01-27",
+      "predict_start": "2025-01-02",
+      "train_end": "2024-06-28",
+      "train_start": "2020-07-01",
+      "valid_end": "2024-12-31",
+      "valid_start": "2024-07-01"
+    },
+    {
+      "name": "oos_2025_02",
+      "predict_end": "2025-02-28",
+      "predict_start": "2025-02-05",
+      "train_end": "2024-07-31",
+      "train_start": "2020-08-03",
+      "valid_end": "2025-01-27",
+      "valid_start": "2024-08-01"
+    },
+    {
+      "name": "oos_2025_03",
+      "predict_end": "2025-03-31",
+      "predict_start": "2025-03-03",
+      "train_end": "2024-08-30",
+      "train_start": "2020-09-01",
+      "valid_end": "2025-02-28",
+      "valid_start": "2024-09-02"
+    },
+    {
+      "name": "oos_2025_04",
+      "predict_end": "2025-04-30",
+      "predict_start": "2025-04-01",
+      "train_end": "2024-09-30",
+      "train_start": "2020-10-09",
+      "valid_end": "2025-03-31",
+      "valid_start": "2024-10-08"
+    },
+    {
+      "name": "oos_2025_05",
+      "predict_end": "2025-05-30",
+      "predict_start": "2025-05-06",
+      "train_end": "2024-10-31",
+      "train_start": "2020-11-02",
+      "valid_end": "2025-04-30",
+      "valid_start": "2024-11-01"
+    },
+    {
+      "name": "oos_2025_06",
+      "predict_end": "2025-06-30",
+      "predict_start": "2025-06-03",
+      "train_end": "2024-11-29",
+      "train_start": "2020-12-01",
+      "valid_end": "2025-05-30",
+      "valid_start": "2024-12-02"
+    },
+    {
+      "name": "oos_2025_07",
+      "predict_end": "2025-07-31",
+      "predict_start": "2025-07-01",
+      "train_end": "2024-12-31",
+      "train_start": "2021-01-04",
+      "valid_end": "2025-06-30",
+      "valid_start": "2025-01-02"
+    },
+    {
+      "name": "oos_2025_08",
+      "predict_end": "2025-08-29",
+      "predict_start": "2025-08-01",
+      "train_end": "2025-01-27",
+      "train_start": "2021-02-01",
+      "valid_end": "2025-07-31",
+      "valid_start": "2025-02-05"
+    },
+    {
+      "name": "oos_2025_09",
+      "predict_end": "2025-09-30",
+      "predict_start": "2025-09-01",
+      "train_end": "2025-02-28",
+      "train_start": "2021-03-01",
+      "valid_end": "2025-08-29",
+      "valid_start": "2025-03-03"
+    },
+    {
+      "name": "oos_2025_10",
+      "predict_end": "2025-10-31",
+      "predict_start": "2025-10-09",
+      "train_end": "2025-03-31",
+      "train_start": "2021-04-01",
+      "valid_end": "2025-09-30",
+      "valid_start": "2025-04-01"
+    },
+    {
+      "name": "oos_2025_11",
+      "predict_end": "2025-11-28",
+      "predict_start": "2025-11-03",
+      "train_end": "2025-04-30",
+      "train_start": "2021-05-06",
+      "valid_end": "2025-10-31",
+      "valid_start": "2025-05-06"
+    },
+    {
+      "name": "oos_2025_12",
+      "predict_end": "2025-12-31",
+      "predict_start": "2025-12-01",
+      "train_end": "2025-05-30",
+      "train_start": "2021-06-01",
+      "valid_end": "2025-11-28",
+      "valid_start": "2025-06-03"
+    }
+  ]
+}

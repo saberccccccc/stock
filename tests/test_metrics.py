@@ -3,6 +3,8 @@ import os
 import sys
 from pathlib import Path
 
+import numpy as np
+
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 os.chdir(PROJECT_ROOT)
@@ -32,6 +34,41 @@ def test_calc_metrics_empty():
     a, s, m = calc_metrics([])
     assert a == 0 and s == 0 and m == 0, f"empty should return zeros, got {(a,s,m)}"
     print("  empty returns -> (0,0,0): OK")
+
+
+def test_max_drawdown_includes_loss_from_initial_capital():
+    from backtest.reports import calc_metrics
+
+    _, _, mdd = calc_metrics([-0.10, 0.0])
+
+    assert np.isclose(mdd, 0.10)
+
+
+def test_sortino_uses_downside_deviation_over_all_days():
+    from backtest.reports import calc_extended_metrics
+
+    returns = np.array([0.02, -0.01, 0.01, 0.0])
+    expected_downside = np.sqrt(np.mean(np.minimum(returns, 0.0) ** 2))
+    expected = returns.mean() / (expected_downside + 1e-8) * np.sqrt(252)
+
+    assert np.isclose(calc_extended_metrics(returns)["sortino"], expected)
+
+
+def test_active_management_metrics_against_benchmark():
+    from backtest.reports import calc_active_management_metrics
+
+    strategy = np.array([0.02, -0.01, 0.01, 0.0])
+    benchmark = np.array([0.01, -0.005, 0.0, 0.002])
+    metrics = calc_active_management_metrics(strategy, benchmark)
+
+    active = strategy - benchmark
+    expected_te = np.std(active) * np.sqrt(252)
+    expected_ir = active.mean() / (active.std() + 1e-8) * np.sqrt(252)
+
+    assert metrics["tracking_error"] == np.float64(expected_te)
+    assert metrics["information_ratio"] == np.float64(expected_ir)
+    assert metrics["active_ann"] != metrics["benchmark_ann"]
+    assert "beta_to_benchmark" in metrics
 
 
 def test_training_selection_metrics():

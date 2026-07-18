@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "experiment_id": "workflow_monthly_rolling_compact_4y6m1m_v1",
+  "data": {
+    "sources": [
+      {"role": "research_market", "root": "data/raw"}
+    ],
+    "max_data_date": "2025-12-31"
+  },
+  "ranges": {
+    "feature_warmup": {"start": "2010-01-04", "end": "2025-11-28"},
+    "train": {"start": "2019-07-01", "end": "2025-05-30"},
+    "valid": {"start": "2023-07-03", "end": "2025-11-28"},
+    "signal": {"start": "2024-01-02", "end": "2025-12-31"},
+    "backtest": {"start": "2024-01-02", "end": "2025-12-31"}
+  },
+  "features": {
+    "set": "alpha158_compact_price_volume_v1",
+    "transform_contract": {
+      "type": "project_pit_daily_cross_section",
+      "train_fitted_state": false,
+      "feature_baseline": "alpha158_compact_price_volume_v1"
+    }
+  },
+  "labels": {
+    "family": "oo_lag1",
+    "horizon_index": 4,
+    "tail_purge_days": 7
+  },
+  "windows": {
+    "type": "rolling_fixed_4y_train_6m_valid_1m_oos",
+    "step": "1_month",
+    "window_count": 24,
+    "selection_splits": ["val_2024", "test_2025"]
+  },
+  "model": {
+    "adapter": "rolling_lgbm_alpha",
+    "config": "configs/monthly_rolling_compact_4y6m1m_2024_2025.json"
+  },
+  "checkpoint": {
+    "rule": "per_window_valid_l2_early_stopping",
+    "forward_selection_allowed": false
+  },
+  "alpha": {
+    "candidate_id": "monthly_rolling_compact_4y6m1m_v1",
+    "comparison_candidate_ids": ["ledger_path_v3_t0001_nolookahead"],
+    "transform": "raw_cross_sectional_rank"
+  },
+  "strategy": {
+    "adapter": "retention",
+    "target_fracs": [0.006],
+    "hold_fracs": [0.10],
+    "rebalance_bands": [0.20],
+    "max_new_names": [5],
+    "exit_hold_fracs": [0],
+    "switch_gap_fracs": [0]
+  },
+  "ledger": {
+    "adapter": "official_open_ledger",
+    "execution_mode": "realistic",
+    "stresses": ["normal", "lag1", "cost2x", "capacity_3pct"],
+    "capitals": [500000, 1000000]
+  },
+  "evaluation": {
+    "splits": ["val_2024", "test_2025"]
+  },
+  "reports": {
+    "scorecard": "registry_apm_scorecard",
+    "attribution_required": true,
+    "append_registry": false
+  }
+}

@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-from core.research_protocol import RESEARCH_DATA_DIR, assert_research_end_date
+from core.research_protocol import RESEARCH_DATA_DIR, assert_research_end_date, research_end_date_str
 from data.api_utils import SafeAPICaller, resolve_tushare_token
 
 
@@ -97,6 +97,13 @@ class TushareProLite:
                 local = pd.DataFrame()
         else:
             local = pd.DataFrame()
+
+        if not local.empty:
+            end_ts = pd.Timestamp(end_date)
+            trimmed = local[local.index <= end_ts]
+            if len(trimmed) != len(local):
+                local = trimmed
+                local.to_csv(csv_path)
 
         if not local.empty:
             local_last = local.index.max().strftime('%Y%m%d')
@@ -286,7 +293,7 @@ def main():
     parser.add_argument('--start-date', type=str, default='20100101',
                         help='起始日期 YYYYMMDD (默认20100101)')
     parser.add_argument('--end-date', type=str, default=None,
-                        help='End date YYYYMMDD or YYYY-MM-DD; data/raw is capped at 2026-05-18')
+                        help=f'End date YYYYMMDD or YYYY-MM-DD; selection data is capped at {research_end_date_str()}')
     parser.add_argument('--init', action='store_true',
                         help='Initialize index and industry files, then exit')
     parser.add_argument('--extend', type=str, nargs='?', const='20100101',

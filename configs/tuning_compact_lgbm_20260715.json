@@ -1,0 +1,36 @@
+{
+  "name": "compact_lgbm_bounded_model_tuning_20260715",
+  "version": 1,
+  "purpose": "Bounded single-component LightGBM tuning after the common compact/v14/broad baseline comparison.",
+  "base_config": "configs/factor_baseline_compact_lgbm_oo_lag1.json",
+  "reference_experiment": "reports/experiments/factor_compact_lgbm_20260715_r2",
+  "max_trials": 5,
+  "fixed_contract": {
+    "research_end": "2026-05-18",
+    "label_family": "oo_lag1",
+    "selection_splits": ["val_2024", "test_2025"],
+    "forward_is_observation_only": true,
+    "ledger": "realistic_open_price_share_ledger",
+    "stresses": ["normal", "lag1", "cost2x", "capacity_3pct"],
+    "portfolio_values": [500000, 1000000],
+    "target_frac": 0.006,
+    "hold_frac": 0.1,
+    "rebalance_band": 0.2,
+    "max_new_names": 5,
+    "sample_cap": {"max_train_rows": 100000, "max_valid_rows": 30000, "num_threads": 4}
+  },
+  "selection_rule": {
+    "primary": ["minimum_sharpe_across_stresses_and_capitals", "normal_sharpe_at_1000000"],
+    "secondary": ["annualized_return", "maximum_drawdown", "turnover", "total_cost"],
+    "alpha_ic_role": "diagnostic_only",
+    "forward_role": "observation_only",
+    "no_single_metric_selection": true
+  },
+  "trials": [
+    {"trial_id": "t01_leaves15", "overrides": {"num_leaves": 15}},
+    {"trial_id": "t02_leaves63", "overrides": {"num_leaves": 63}},
+    {"trial_id": "t03_minleaf160", "overrides": {"min_data_in_leaf": 160}},
+    {"trial_id": "t04_l2_20", "overrides": {"lambda_l2": 20.0}},
+    {"trial_id": "t05_featurefrac060", "overrides": {"feature_fraction": 0.6}}
+  ]
+}

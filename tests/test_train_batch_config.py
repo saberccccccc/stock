@@ -1,4 +1,5 @@
 import pandas as pd
+import pytest
 import torch
 
 from run.train import MODEL_CONFIGS, build_config, resolve_batch, resolve_time_split
@@ -161,6 +162,27 @@ def test_resolve_time_split_purges_labels_at_boundaries():
     assert len(shifted_train) < len(train)
     assert len(shifted_val) < len(val)
 
+    oo_train, oo_val, _ = resolve_time_split(
+        meta,
+        train_label_end="2023-12-31",
+        val_label_end="2024-12-31",
+        label_family="oo",
+        horizon_indices=(6,),
+    )
+    assert dates[oo_train[-1] + 8] <= pd.Timestamp("2023-12-31")
+    assert dates[oo_val[-1] + 8] <= pd.Timestamp("2024-12-31")
+
+    cc_oo_lag1_train, cc_oo_lag1_val, _ = resolve_time_split(
+        meta,
+        train_label_end="2023-12-31",
+        val_label_end="2024-12-31",
+        label_family="cc",
+        auxiliary_label_family="oo_lag1",
+        horizon_indices=(6,),
+    )
+    assert dates[cc_oo_lag1_train[-1] + 9] <= pd.Timestamp("2023-12-31")
+    assert dates[cc_oo_lag1_val[-1] + 9] <= pd.Timestamp("2024-12-31")
+
 
 def test_resolve_time_split_requires_both_boundaries():
     meta = {
@@ -176,6 +198,57 @@ def test_resolve_time_split_requires_both_boundaries():
         assert "provided together" in str(exc)
     else:
         raise AssertionError("one-sided time split must be rejected")
+
+
+def test_resolve_time_split_supports_fixed_length_feature_windows():
+    dates = pd.bdate_range("2019-01-01", "2025-03-31")
+    meta = {
+        "all_dates": list(dates),
+        "train_indices": list(range(len(dates) // 2)),
+        "val_indices": list(range(len(dates) // 2, len(dates) - 10)),
+        "max_horizon": 10,
+    }
+
+    train, val, _ = resolve_time_split(
+        meta,
+        train_start="2020-01-01",
+        train_label_end="2023-06-30",
+        val_start="2023-07-03",
+        val_label_end="2023-12-29",
+        label_family="oo_lag1",
+        horizon_indices=(0, 2, 4, 6),
+    )
+
+    assert dates[train[0]] >= pd.Timestamp("2020-01-01")
+    assert dates[train[-1] + 9] <= pd.Timestamp("2023-06-30")
+    assert dates[val[0]] >= pd.Timestamp("2023-07-03")
+    assert dates[val[-1] + 9] <= pd.Timestamp("2023-12-29")
+
+
+def test_resolve_time_split_rejects_partial_or_overlapping_starts():
+    dates = pd.bdate_range("2022-01-01", "2024-12-31")
+    meta = {
+        "all_dates": list(dates),
+        "train_indices": list(range(len(dates) // 2)),
+        "val_indices": list(range(len(dates) // 2, len(dates) - 10)),
+        "max_horizon": 5,
+    }
+
+    with pytest.raises(ValueError, match="provided together"):
+        resolve_time_split(
+            meta,
+            train_start="2022-01-01",
+            train_label_end="2023-06-30",
+            val_label_end="2023-12-29",
+        )
+    with pytest.raises(ValueError, match="val_start must be after"):
+        resolve_time_split(
+            meta,
+            train_start="2022-01-01",
+            train_label_end="2023-06-30",
+            val_start="2023-06-01",
+            val_label_end="2023-12-29",
+        )
 
 
 def test_shifted_labels_require_explicit_boundaries():

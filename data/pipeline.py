@@ -11,7 +11,8 @@ import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
-from core.research_protocol import cached_dates_within_research
+from core.research_protocol import assert_research_end_date, cached_dates_within_research
+from data.labels import PHYSICAL_LABEL_FAMILIES, build_forward_return_labels
 
 warnings.filterwarnings('ignore')
 
@@ -19,6 +20,12 @@ warnings.filterwarnings('ignore')
 MACRO_COLS = ['north_net_zscore', 'margin_balance_change', 'pmi_zscore']
 # 基本面特征列名（akshare下载，不含pe_percentile）
 FUNDAMENTAL_COLS = ['roe', 'revenue_yoy']
+FUNDAMENTAL_QUALITY_COLS = [
+    'has_value',
+    'days_since_effective',
+    'is_fresh_quarter',
+    'notice_is_estimated',
+]
 # 股东户数特征列名
 SHAREHOLDER_COLS = ['sh_conc_ratio', 'sh_per_capita_ratio']
 # 限售解禁特征列名
@@ -39,7 +46,7 @@ TECH_FEATURES = [
     'rsi_norm', 'macd_pct', 'macd_signal_pct', 'macd_diff_pct',
     'atr_pct', 'volume_ratio'
 ]
-CACHE_VERSION = "v13_config_key"
+CACHE_VERSION = "v14_multilabel_open"
 N_STOCK_RISK = 6  # 个股风险因子数: size, vol, momentum, reversal, turnover, amplitude
 
 
@@ -221,17 +228,23 @@ def _load_extra_features(config, df_dict, all_dates):
             if os.path.exists(funda_path):
                 funda_df = pd.read_parquet(funda_path)
                 if not funda_df.empty:
-                    funda_daily = merge_to_daily_akshare(funda_df, codes, all_dates)
+                    include_quality = getattr(config, 'use_fundamental_quality_features', False)
+                    funda_daily = merge_to_daily_akshare(
+                        funda_df, codes, all_dates, include_quality=include_quality
+                    )
+                    fundamental_cols = list(FUNDAMENTAL_COLS)
+                    if include_quality:
+                        fundamental_cols += FUNDAMENTAL_QUALITY_COLS
                     for code in codes:
-                        for col in FUNDAMENTAL_COLS:
+                        for col in fundamental_cols:
                             citem = f'{code}_{col}'
                             if citem in funda_daily.columns:
                                 df_dict[code][f'fund_{col}'] = funda_daily[citem].reindex(
                                     df_dict[code].index, method='ffill').fillna(0).values
                             else:
                                 df_dict[code][f'fund_{col}'] = 0.0
-                    extra_feat_cols += [f'fund_{c}' for c in FUNDAMENTAL_COLS]
-                    print(f"已加载基本面特征: {[f'fund_{c}' for c in FUNDAMENTAL_COLS]}")
+                    extra_feat_cols += [f'fund_{c}' for c in fundamental_cols]
+                    print(f"已加载基本面特征: {[f'fund_{c}' for c in fundamental_cols]}")
             else:
                 print("提示: fundamental_features_akshare.parquet 不存在，跳过基本面因子")
         except Exception as e:
@@ -291,6 +304,10 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
     - 保留截面rank特征和行业相对特征
     """
     data_dir = config.data_dir
+    research_end = assert_research_end_date(
+        getattr(config, 'research_end_date', None),
+        context="cross-section dataset",
+    )
     seq_len = config.seq_len
     future_len = getattr(config, 'future_len', 5)
     max_horizon = getattr(config, 'max_horizon', 10)
@@ -307,7 +324,7 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
     if config.use_market_features:
         features.append("market")
     if config.use_fundamental_features:
-        features.append("funda")
+        features.append("fundaq" if getattr(config, 'use_fundamental_quality_features', False) else "funda")
     if config.use_shareholder_features:
         features.append("shareh")
     if config.use_restricted_features:
@@ -330,6 +347,14 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
     cache_candidates = [meta_path]
     if legacy_meta_path != meta_path:
         cache_candidates.append(legacy_meta_path)
+    if getattr(config, 'allow_cache_superset', False):
+        target_token = f"_end{pd.Timestamp(config.research_end_date).strftime('%Y%m%d')}_meta.pkl"
+        superset_pattern = os.path.basename(meta_path).replace(target_token, "_end*_meta.pkl")
+        cache_candidates.extend(
+            str(path)
+            for path in sorted(Path(cache_dir).glob(superset_pattern), key=lambda item: item.name)
+            if str(path) not in cache_candidates
+        )
     if use_cache and not config.force_rebuild:
         # 验证所有 .dat 文件存在，防止手动删文件后缓存静默失败
         for candidate in cache_candidates:
@@ -340,11 +365,34 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
             dat_keys = ('feat_path', 'risk_path', 'ret_path',
                         'x_norm_path', 'risk_full_path', 'y_norm_path', 'y_seq_norm_path')
             dat_files = [cached[k] for k in dat_keys if k in cached]
+            for family_meta in cached.get('label_families', {}).values():
+                if family_meta.get('alias_of'):
+                    continue
+                dat_files.extend(
+                    family_meta[k] for k in ('raw_path', 'norm_path') if k in family_meta
+                )
             missing = [p for p in dat_files if not os.path.exists(p)]
             if missing:
                 print(f"缓存不完整（{len(missing)} 个 .dat 文件缺失），重建: {missing[0]}")
                 continue
-            if not cached_dates_within_research(cached):
+            if (
+                not cached_dates_within_research(cached, research_end)
+                and getattr(config, 'allow_cache_superset', False)
+            ):
+                dates = pd.DatetimeIndex(pd.to_datetime(cached.get('all_dates', []))).normalize()
+                if not dates.empty and dates.min() <= research_end <= dates.max():
+                    cached = dict(cached)
+                    cached['physical_data_start'] = str(dates.min().date())
+                    cached['physical_data_end'] = str(dates.max().date())
+                    cached['effective_data_end'] = str(research_end.date())
+                    cached['cache_view_kind'] = 'physical_superset_logical_cutoff'
+                    cached['meta_path'] = str(Path(candidate).resolve())
+                    print(
+                        f"loaded physical superset cache with logical cutoff "
+                        f"{research_end.date()}: {candidate}"
+                    )
+                    return cached
+            if not cached_dates_within_research(cached, research_end):
                 print(f"缓存超过研究截止日，拒绝使用: {candidate}")
                 continue
             print(f"加载缓存元数据: {candidate}")
@@ -383,9 +431,7 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
         if not all(c in df.columns for c in required):
             return None, None
         df = df.sort_index()
-        research_end = getattr(config, 'research_end_date', None)
-        if research_end:
-            df = df[df.index <= pd.Timestamp(research_end)]
+        df = df[df.index <= research_end]
         if config.use_technical_features:
             df = add_technical_features(df, config)
         if len(df) >= seq_len + max_horizon + 50:
@@ -463,7 +509,17 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
     risk_cont_dim = 6 + N_MARKET + macro_dim  # 6 stock risk factors
     risk_raw_array = np.zeros((num_stocks, num_dates, risk_cont_dim), dtype=np.float32)
     industry_array = np.full((num_stocks, num_dates), -1, dtype=np.int16)
-    ret_seq_array = np.full((num_stocks, num_dates, max_horizon), np.nan, dtype=np.float32)
+    raw_label_paths = {
+        family: os.path.join(cache_dir, cache_key + f"_label_{family}_raw.dat")
+        for family in PHYSICAL_LABEL_FAMILIES
+    }
+    label_arrays = {
+        family: np.memmap(
+            raw_label_paths[family], dtype=np.float32, mode='w+',
+            shape=(num_stocks, num_dates, max_horizon),
+        )
+        for family in PHYSICAL_LABEL_FAMILIES
+    }
 
     # 高频特征索引（前23个：base12 + tech11），低频特征索引（后7个：extra）
     HIGH_FREQ_COUNT = len(FEATURE_COLS) - len(extra_feat_cols)  # 23
@@ -514,13 +570,12 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
         industry_array[sidx, stock_idx_inner] = ind_id
 
         # 多期收益率
-        close_vals = df['close'].values
-        if T >= max_horizon + 1:
-            pw = sliding_window_view(close_vals, max_horizon + 1, axis=0)
-            n_ret = pw.shape[0]
-            ret_idx = stock_idx_inner[:n_ret]
-            for h in range(1, max_horizon + 1):
-                ret_seq_array[sidx, ret_idx, h - 1] = (pw[:, h] - pw[:, 0]) / pw[:, 0]
+        aligned = df.reindex(all_dates)
+        stock_labels = build_forward_return_labels(
+            aligned['open'].values, aligned['close'].values, max_horizon
+        )
+        for family, values in stock_labels.items():
+            label_arrays[family][sidx, :, :] = values
 
     # 准备任务
     fill_tasks = [(code, df, code_to_idx[code], FEATURE_COLS, high_freq_slice, low_freq_slice)
@@ -528,8 +583,8 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
     n_fill_workers = min(8, os.cpu_count() or 4)
     with ThreadPoolExecutor(max_workers=n_fill_workers) as pool:
         futs = [pool.submit(_fill_one_stock, task) for task in fill_tasks]
-        for _ in tqdm(as_completed(futs), total=len(futs), desc="填充数组", mininterval=10):
-            pass
+        for fut in tqdm(as_completed(futs), total=len(futs), desc="填充数组", mininterval=10):
+            fut.result()
 
     # 填充市场整体属性（向量化计算，避免O(N*D)循环）
     if getattr(config, 'use_market_features', True):
@@ -593,23 +648,22 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
     min_stocks = getattr(config, 'min_stocks_per_time', 30)
     # vol_60d needs 60d history + sma20 aggregation needs 20d → min 80d
     min_history = max(seq_len, 80)
-    valid_times = list(range(min_history, num_dates - max_horizon))
+    valid_times = list(range(min_history, num_dates))
     print(f"写入特征矩阵到磁盘 memmap ({num_stocks}只 × {num_dates}天)...")
 
     feat_path = os.path.join(cache_dir, cache_key + "_feat.dat")
     risk_path = os.path.join(cache_dir, cache_key + "_risk.dat")
-    ret_path = os.path.join(cache_dir, cache_key + "_ret.dat")
-
     _write_memmap(feat_path, feat_array)
     _write_memmap(risk_path, risk_raw_array)
-    _write_memmap(ret_path, ret_seq_array)
+    for values in label_arrays.values():
+        values.flush()
 
     # 预计算全部截面特征（X_norm + risk_factors + labels），存 int16
     print(f"预计算截面特征 ({len(valid_times)} 个截面)...")
     _risk_cont_dim = N_STOCK_RISK + N_MARKET + (len(MACRO_COLS) if getattr(config, 'use_macro_features', False) else 0)
-    x_norm_path, risk_full_path, y_norm_path, y_seq_norm_path, x_dim, risk_full_dim = \
+    x_norm_path, risk_full_path, y_norm_path, norm_label_paths, x_dim, risk_full_dim = \
         _precompute_all(
-            feat_array, risk_raw_array, industry_array, ret_seq_array,
+            feat_array, risk_raw_array, industry_array, label_arrays,
             valid_times, high_agg_dim, n_industries, FEATURE_COLS,
             max_horizon, getattr(config, 'target_horizon', 5),
             getattr(config, 'residualize_labels', False),
@@ -618,17 +672,27 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
         )
     print(f"预计算完成: X_norm={x_dim}维, risk_full={risk_full_dim}维")
 
-    del feat_array, risk_raw_array, ret_seq_array
+    del feat_array, risk_raw_array, label_arrays
     gc.collect()
 
     split = int(len(valid_times) * 0.8)
     train_indices = valid_times[:split]
     val_indices = valid_times[split:]
 
+    label_families = {
+        family: {
+            'raw_path': raw_label_paths[family],
+            'norm_path': norm_label_paths[family],
+            'date_shift': 0,
+        }
+        for family in PHYSICAL_LABEL_FAMILIES
+    }
+    label_families['oo_lag1'] = {'alias_of': 'oo', 'date_shift': 1}
     metadata = {
-        'feat_path': feat_path, 'risk_path': risk_path, 'ret_path': ret_path,
+        'feat_path': feat_path, 'risk_path': risk_path, 'ret_path': raw_label_paths['cc'],
         'x_norm_path': x_norm_path, 'risk_full_path': risk_full_path,
-        'y_norm_path': y_norm_path, 'y_seq_norm_path': y_seq_norm_path,
+        'y_norm_path': y_norm_path, 'y_seq_norm_path': norm_label_paths['cc'],
+        'label_schema_version': 1, 'label_families': label_families,
         'x_dim': x_dim, 'risk_full_dim': risk_full_dim,
         'risk_cont_dim': _risk_cont_dim,
         'industry_array': industry_array,
@@ -651,39 +715,44 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
     return metadata
 
 
-def _precompute_one_date(args):
-    """处理单个日期的截面预计算，返回 (t, valid_idx, X, risk, y, y_seq) 或 None。
+def _normalize_label_family(values, ind_ids, size_proxy, residualize, min_stocks):
+    """Normalize each horizon independently while preserving missing cells."""
+    result = np.full(values.shape, np.int16(-32768), dtype=np.int16)
+    for h in range(values.shape[1]):
+        valid = np.isfinite(values[:, h])
+        if int(valid.sum()) < min_stocks:
+            continue
+        y_h = values[valid, h].astype(np.float32, copy=True)
+        if residualize:
+            y_h = _residualize_labels(
+                y_h[:, None], ind_ids[valid], size_proxy[valid]
+            )[:, 0]
+        p_low, p_high = np.percentile(y_h, [1, 99])
+        y_h = np.clip(y_h, p_low, p_high)
+        y_h = (y_h - np.mean(y_h)) / (np.std(y_h) + 1e-8)
+        result[valid, h] = (y_h * 1000).clip(-32767, 32767).astype(np.int16)
+    return result
 
-    此函数供 _precompute_all 的线程池调用。NumPy 密集操作（argsort/mean/percentile）
-    释放 GIL，多线程可真实并行。
-    """
-    (t, feat_array, risk_raw_array, industry_array, ret_seq_array,
+
+def _precompute_one_date(args):
+    """Precompute one feature cross-section and all label families."""
+    (t, feat_array, risk_raw_array, industry_array, label_arrays,
      high_agg_dim, n_industries, relative_indices, max_horizon,
      target_horizon, residualize, min_stocks) = args
 
     X_t_all = feat_array[:, t, :]
     risk_all = risk_raw_array[:, t, :]
-    y_seq_all = ret_seq_array[:, t, :]
     ind_all = industry_array[:, t]
 
     valid = (~np.isnan(X_t_all).any(axis=1)
-             & ~np.isnan(risk_all).any(axis=1)
-             & ~np.isnan(y_seq_all).any(axis=1))
+             & ~np.isnan(risk_all).any(axis=1))
     if valid.sum() < min_stocks:
         return None
 
     valid_idx = np.where(valid)[0]
     X_t = X_t_all[valid_idx]
     risk_vals = risk_all[valid_idx]
-    y_seq_t = y_seq_all[valid_idx]
     ind_ids = ind_all[valid_idx]
-
-    if residualize:
-        size_proxy = risk_vals[:, 0]
-        y_seq_t = _residualize_labels(y_seq_t, ind_ids, size_proxy)
-
-    target_h = min(target_horizon - 1, max_horizon - 1)
-    y_t = y_seq_t[:, target_h]
 
     # Rank
     denom = max(X_t.shape[0] - 1, 1)
@@ -708,27 +777,24 @@ def _precompute_one_date(args):
     X_norm_t, risk_factors_t = _normalize_and_assemble(
         X_t, X_rank, industry_relative, risk_vals, ind_ids, n_industries)
 
-    # Label standardization
-    p_low, p_high = np.percentile(y_t, [1, 99])
-    y_clipped = np.clip(y_t, p_low, p_high)
-    y_label = (y_clipped - np.mean(y_clipped)) / (np.std(y_clipped) + 1e-8)
-
-    y_seq_norm_t = np.zeros_like(y_seq_t)
-    for h in range(max_horizon):
-        y_h = y_seq_t[:, h]
-        p_l, p_h = np.percentile(y_h, [1, 99])
-        y_h_c = np.clip(y_h, p_l, p_h)
-        y_seq_norm_t[:, h] = (y_h_c - np.mean(y_h_c)) / (np.std(y_h_c) + 1e-8)
+    normalized_labels = {
+        family: _normalize_label_family(
+            values[valid_idx, t, :], ind_ids, risk_vals[:, 0],
+            residualize, min_stocks,
+        )
+        for family, values in label_arrays.items()
+    }
+    target_h = min(target_horizon - 1, max_horizon - 1)
+    y_label = normalized_labels['cc'][:, target_h]
 
     scale = 1000
     return (t, valid_idx,
-            (X_norm_t * scale).clip(-32768, 32767).astype(np.int16),
-            (risk_factors_t * scale).clip(-32768, 32767).astype(np.int16),
-            (y_label * scale).clip(-32768, 32767).astype(np.int16),
-            (y_seq_norm_t * scale).clip(-32768, 32767).astype(np.int16))
+            (X_norm_t * scale).clip(-32767, 32767).astype(np.int16),
+            (risk_factors_t * scale).clip(-32767, 32767).astype(np.int16),
+            y_label, normalized_labels)
 
 
-def _precompute_all(feat_array, risk_raw_array, industry_array, ret_seq_array,
+def _precompute_all(feat_array, risk_raw_array, industry_array, label_arrays,
                     valid_times, high_agg_dim, n_industries, feature_cols,
                     max_horizon, target_horizon, residualize, cache_key, cache_dir,
                     min_stocks=30):
@@ -746,22 +812,30 @@ def _precompute_all(feat_array, risk_raw_array, industry_array, ret_seq_array,
     x_path = os.path.join(cache_dir, cache_key + "_X_norm.dat")
     r_path = os.path.join(cache_dir, cache_key + "_risk_full.dat")
     y_path = os.path.join(cache_dir, cache_key + "_y_norm.dat")
-    ys_path = os.path.join(cache_dir, cache_key + "_y_seq_norm.dat")
+    norm_paths = {
+        family: os.path.join(cache_dir, cache_key + f"_label_{family}_norm.dat")
+        for family in PHYSICAL_LABEL_FAMILIES
+    }
 
     X_mm = np.memmap(x_path, dtype=np.int16, mode='w+', shape=(num_stocks, num_dates, x_dim))
     R_mm = np.memmap(r_path, dtype=np.int16, mode='w+', shape=(num_stocks, num_dates, risk_full_dim))
     Y_mm = np.memmap(y_path, dtype=np.int16, mode='w+', shape=(num_stocks, num_dates))
-    YS_mm = np.memmap(ys_path, dtype=np.int16, mode='w+', shape=(num_stocks, num_dates, max_horizon))
+    label_mmaps = {
+        family: np.memmap(path, dtype=np.int16, mode='w+',
+                          shape=(num_stocks, num_dates, max_horizon))
+        for family, path in norm_paths.items()
+    }
     INVALID = np.int16(-32768)
     X_mm[:] = INVALID
     R_mm[:] = INVALID
     Y_mm[:] = INVALID
-    YS_mm[:] = INVALID
+    for mm in label_mmaps.values():
+        mm[:] = INVALID
 
     relative_indices = [feature_cols.index(name) for name in INDUSTRY_REL_FEATURES if name in feature_cols]
 
     # 构建参数列表（共享数组只传引用，不复制）
-    base_args = (feat_array, risk_raw_array, industry_array, ret_seq_array,
+    base_args = (feat_array, risk_raw_array, industry_array, label_arrays,
                  high_agg_dim, n_industries, relative_indices, max_horizon,
                  target_horizon, residualize, min_stocks)
     tasks = [(t,) + base_args for t in valid_times]
@@ -773,19 +847,22 @@ def _precompute_all(feat_array, risk_raw_array, industry_array, ret_seq_array,
         for fut in as_completed(futures):
             result = fut.result()
             if result is not None:
-                t, valid_idx, X_t, R_t, Y_t, YS_t = result
+                t, valid_idx, X_t, R_t, Y_t, labels_t = result
                 X_mm[valid_idx, t, :] = X_t
                 R_mm[valid_idx, t, :] = R_t
                 Y_mm[valid_idx, t] = Y_t
-                YS_mm[valid_idx, t, :] = YS_t
+                for family, values in labels_t.items():
+                    label_mmaps[family][valid_idx, t, :] = values
             n_done += 1
             if n_done % 500 == 0:
                 print(f"  预计算进度: {n_done}/{len(valid_times)}")
 
-    X_mm.flush(); R_mm.flush(); Y_mm.flush(); YS_mm.flush()
-    del X_mm, R_mm, Y_mm, YS_mm
+    X_mm.flush(); R_mm.flush(); Y_mm.flush()
+    for mm in label_mmaps.values():
+        mm.flush()
+    del X_mm, R_mm, Y_mm, label_mmaps
 
-    return x_path, r_path, y_path, ys_path, x_dim, risk_full_dim
+    return x_path, r_path, y_path, norm_paths, x_dim, risk_full_dim
 
 
 def _write_memmap(path, arr):
@@ -801,7 +878,7 @@ def _open_memmap(path, dtype, shape):
     return np.memmap(path, dtype=dtype, mode='r', shape=shape)
 
 
-def samples_from_precomputed_metadata(meta, split='val'):
+def samples_from_precomputed_metadata(meta, split='val', *, time_indices=None, require_labels=True):
     """Convert precomputed memmap metadata back to legacy cross-section samples.
 
     This is a compatibility adapter for backtest/recommendation code that still
@@ -815,14 +892,15 @@ def samples_from_precomputed_metadata(meta, split='val'):
     y_mm = _open_memmap(meta['y_norm_path'], np.int16, (n_stocks, n_dates))
     ys_mm = _open_memmap(meta['y_seq_norm_path'], np.int16, (n_stocks, n_dates, meta['max_horizon']))
 
-    if split == 'train':
-        time_indices = meta['train_indices']
-    elif split == 'val':
-        time_indices = meta['val_indices']
-    elif split == 'all':
-        time_indices = list(meta['train_indices']) + list(meta['val_indices'])
-    else:
-        raise ValueError(f"unknown split: {split}")
+    if time_indices is None:
+        if split == 'train':
+            time_indices = meta['train_indices']
+        elif split == 'val':
+            time_indices = meta['val_indices']
+        elif split == 'all':
+            time_indices = list(meta['train_indices']) + list(meta['val_indices'])
+        else:
+            raise ValueError(f"unknown split: {split}")
 
     all_codes = np.asarray(meta['all_codes'])
     all_dates = list(meta['all_dates'])
@@ -832,13 +910,22 @@ def samples_from_precomputed_metadata(meta, split='val'):
     scale = 1000.0
 
     for t in time_indices:
-        # All precomputed arrays share valid_idx; use the compact label map.
-        valid = y_mm[:, t] != invalid
+        # Inference must never use future-label availability as a universe
+        # filter. Feature/risk sentinels describe what was knowable on date t.
+        valid = (
+            y_mm[:, t] != invalid
+            if require_labels
+            else ((x_mm[:, t, 0] != invalid) & (r_mm[:, t, 0] != invalid))
+        )
         if int(valid.sum()) < meta.get('min_stocks', 30):
             continue
         valid_idx = np.where(valid)[0]
-        y = y_mm[valid_idx, t].astype(np.float32) / scale
-        y_seq = ys_mm[valid_idx, t, :].astype(np.float32) / scale
+        if require_labels:
+            y = y_mm[valid_idx, t].astype(np.float32) / scale
+            y_seq = ys_mm[valid_idx, t, :].astype(np.float32) / scale
+        else:
+            y = np.zeros(len(valid_idx), dtype=np.float32)
+            y_seq = np.zeros((len(valid_idx), meta['max_horizon']), dtype=np.float32)
         samples.append({
             'date': all_dates[t],
             'X': x_mm[valid_idx, t, :].astype(np.float32) / scale,
@@ -898,7 +985,7 @@ def add_technical_features(df: "pd.DataFrame", config) -> "pd.DataFrame":
     return df
 
 
-def _inference_cache_path_for(config, max_lookback=None, stock_universe=None):
+def _inference_cache_path_for(config, max_lookback=None, stock_universe=None, data_end_date=None):
     data_dir = Path(config.data_dir).resolve()
     dependencies = list(data_dir.rglob("*.csv"))
     dependencies.extend(
@@ -917,16 +1004,32 @@ def _inference_cache_path_for(config, max_lookback=None, stock_universe=None):
         f"{path.resolve()}:{path.stat().st_mtime_ns}:{path.stat().st_size}"
         for path in sorted(dependencies, key=lambda item: str(item))
     )
+    feature_signature = "|".join(
+        f"{name}={int(bool(getattr(config, name, False)))}"
+        for name in (
+            "use_technical_features",
+            "use_market_features",
+            "use_macro_features",
+            "use_fundamental_features",
+            "use_fundamental_quality_features",
+            "use_shareholder_features",
+            "use_restricted_features",
+        )
+    )
     data_tag = hashlib.sha1(
-        f"{data_dir}|{dependency_signature}".encode("utf-8")
+        f"{data_dir}|{feature_signature}|{dependency_signature}".encode("utf-8")
     ).hexdigest()[:10]
     lookback_tag = "all" if max_lookback is None else str(int(max_lookback))
+    end_tag = "latest" if data_end_date is None else pd.Timestamp(data_end_date).strftime("%Y%m%d")
     if stock_universe:
         universe_text = "|".join(sorted(str(code) for code in stock_universe))
         universe_tag = hashlib.sha1(universe_text.encode("utf-8")).hexdigest()[:8]
     else:
         universe_tag = "all"
-    return os.path.join("cache", f"inference_matrices_{data_tag}_lb{lookback_tag}_u{universe_tag}.pkl")
+    return os.path.join(
+        "cache",
+        f"inference_matrices_{data_tag}_lb{lookback_tag}_u{universe_tag}_end{end_tag}.pkl",
+    )
 
 
 def _save_inference_cache(matrices, cache_path):
@@ -950,13 +1053,24 @@ def _load_inference_cache(cache_path):
     return None
 
 
-def _build_inference_matrices(config, stock_universe=None, max_lookback=None):
+def _build_inference_matrices(
+    config,
+    stock_universe=None,
+    max_lookback=None,
+    data_end_date=None,
+):
     """Load CSVs, compute features, and build the full inference matrices once.
 
     Returns a dict with all shared data used to produce cross-section samples.
     If max_lookback is provided, only keep the most recent N dates to save memory.
     """
-    cache_path = _inference_cache_path_for(config, max_lookback, stock_universe)
+    data_end_date = pd.Timestamp(data_end_date) if data_end_date is not None else None
+    cache_path = _inference_cache_path_for(
+        config,
+        max_lookback,
+        stock_universe,
+        data_end_date=data_end_date,
+    )
     cached = _load_inference_cache(cache_path)
     if cached is not None:
         print(f"加载推理矩阵缓存: {cache_path}")
@@ -999,6 +1113,8 @@ def _build_inference_matrices(config, stock_universe=None, max_lookback=None):
         if not all(c in df.columns for c in required):
             continue
         df = df.sort_index()
+        if data_end_date is not None:
+            df = df[df.index <= data_end_date]
         if len(df) >= seq_len + 50:
             df_dict[code] = df
 
@@ -1218,7 +1334,14 @@ def _sample_from_matrices(m, t_idx):
 def build_inference_sample(config, stock_universe=None, as_of_date=None):
     """Build a single label-free inference cross-section sample. Backward compatible."""
     max_lookback = config.seq_len + 50  # ~90天，只加载近期数据
-    matrices = _build_inference_matrices(config, stock_universe, max_lookback=max_lookback)
+    explicit_as_of = as_of_date is not None and str(as_of_date).lower() != "latest"
+    data_end_date = pd.Timestamp(as_of_date) if explicit_as_of else None
+    matrices = _build_inference_matrices(
+        config,
+        stock_universe,
+        max_lookback=max_lookback,
+        data_end_date=data_end_date,
+    )
     all_dates = matrices['all_dates']
     seq_len = matrices['seq_len']
     num_dates = len(all_dates)
@@ -1247,12 +1370,16 @@ def build_inference_sample(config, stock_universe=None, as_of_date=None):
 def build_inference_samples(config, as_of_dates, stock_universe=None):
     """Build inference samples for multiple dates efficiently (CSVs read once)."""
     as_of_dates = list(as_of_dates)
+    if not as_of_dates:
+        return []
     n_requested = max(len(as_of_dates), 1)
     max_lookback = int(config.seq_len) + n_requested + 80
+    data_end_date = max(pd.Timestamp(date) for date in as_of_dates)
     matrices = _build_inference_matrices(
         config,
         stock_universe,
         max_lookback=max_lookback,
+        data_end_date=data_end_date,
     )
     all_dates = matrices['all_dates']
     seq_len = matrices['seq_len']

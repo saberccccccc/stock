@@ -112,6 +112,81 @@ def stock_label_rows(path, wanted_dates, max_label_date):
     return records
 
 
+def stock_open_label_rows(path, wanted_dates, max_label_date):
+    """Build labels that match next-open execution in the share ledger."""
+    frame = pd.read_csv(path, usecols=["trade_date", "open", "low", "close"])
+    frame["trade_date"] = pd.to_datetime(frame["trade_date"])
+    frame = frame.sort_values("trade_date").drop_duplicates("trade_date", keep="last")
+    frame = frame.set_index("trade_date")
+    opens = pd.to_numeric(frame["open"], errors="coerce").to_numpy(dtype=np.float64)
+    lows = pd.to_numeric(frame["low"], errors="coerce").to_numpy(dtype=np.float64)
+    closes = pd.to_numeric(frame["close"], errors="coerce").to_numpy(dtype=np.float64)
+    dates = frame.index
+    positions = pd.Series(np.arange(len(dates)), index=dates)
+    records = []
+    for date in wanted_dates:
+        if date not in positions.index:
+            continue
+        signal_pos = int(positions.loc[date])
+        entry_pos = signal_pos + 1
+        required_pos = entry_pos + 1 + max(HORIZONS)
+        if required_pos >= len(opens) or dates[required_pos] > max_label_date:
+            continue
+        entry = opens[entry_pos]
+        delayed_entry = opens[entry_pos + 1]
+        signal_close = closes[signal_pos]
+        if not all(
+            np.isfinite(value) and value > 0
+            for value in (entry, delayed_entry, signal_close)
+        ):
+            continue
+        forward = np.asarray(
+            [opens[entry_pos + horizon] / entry - 1.0 for horizon in HORIZONS],
+            dtype=np.float64,
+        )
+        delayed = np.asarray(
+            [
+                opens[entry_pos + 1 + horizon] / delayed_entry - 1.0
+                for horizon in HORIZONS
+            ],
+            dtype=np.float64,
+        )
+        path_lows = lows[entry_pos : entry_pos + max(HORIZONS) + 1]
+        signal_to_entry = entry / signal_close - 1.0
+        if not (
+            np.isfinite(forward).all()
+            and np.isfinite(delayed).all()
+            and np.isfinite(path_lows).all()
+            and np.isfinite(signal_to_entry)
+        ):
+            continue
+        base_return = float(np.dot(forward, HORIZON_WEIGHTS))
+        delayed_return = float(np.dot(delayed, HORIZON_WEIGHTS))
+        max_downside = float(max(0.0, -np.min(path_lows / entry - 1.0)))
+        blocked_penalty = 0.10 if signal_to_entry >= 0.095 else 0.0
+        executable_target = (
+            0.60 * base_return
+            + 0.25 * delayed_return
+            - 0.50 * max_downside
+            - ROUND_TRIP_COST
+            - blocked_penalty
+        )
+        record = {
+            "date": date,
+            "exec_target_raw": executable_target,
+            "exec_base_return": base_return,
+            "exec_delayed_return": delayed_return,
+            "exec_max_downside": max_downside,
+            "exec_signal_to_entry": signal_to_entry,
+            "exec_blocked_buy": int(signal_to_entry >= 0.095),
+        }
+        record.update(
+            {f"exec_return_{horizon}d": value for horizon, value in zip(HORIZONS, forward)}
+        )
+        records.append(record)
+    return records
+
+
 def daily_normalize(frame):
     def normalize(values):
         values = values.astype(float)

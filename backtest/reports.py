@@ -17,7 +17,7 @@ def plot_backtest(returns, dates, title="Backtest Performance", output_path=None
     returns = np.asarray(returns, dtype=float)
     dates = pd.DatetimeIndex(dates[:len(returns)])
     cum = np.cumprod(1 + returns)
-    peak = np.maximum.accumulate(cum)
+    peak = np.maximum.accumulate(np.concatenate(([1.0], cum)))[1:]
     drawdown = (cum - peak) / peak
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 8), sharex=True)
@@ -67,8 +67,13 @@ def calc_extended_metrics(returns):
     if len(returns) == 0:
         return {}
 
-    returns = np.nan_to_num(returns, nan=0.0)
-    cum = np.cumprod(1 + returns)
+    returns = np.nan_to_num(
+        np.asarray(returns, dtype=float),
+        nan=0.0,
+        posinf=0.0,
+        neginf=0.0,
+    )
+    cum = np.concatenate(([1.0], np.cumprod(1 + returns)))
     days = len(returns)
     years = days / 252
 
@@ -79,9 +84,9 @@ def calc_extended_metrics(returns):
 
     calmar = ann_ret / (mdd * 100 + 1e-8) if mdd > 0 else 0.0
 
-    downside_returns = returns[returns < 0]
-    downside_std = np.std(downside_returns) if len(downside_returns) > 0 else 1e-8
-    sortino = returns.mean() / (downside_std + 1e-8) * np.sqrt(TRADING_DAYS)
+    downside = np.minimum(returns, 0.0)
+    downside_deviation = float(np.sqrt(np.mean(np.square(downside))))
+    sortino = returns.mean() / (downside_deviation + 1e-8) * np.sqrt(TRADING_DAYS)
 
     win_rate = np.mean(returns > 0) if len(returns) > 0 else 0.0
 
@@ -106,6 +111,77 @@ def calc_metrics(returns):
     if not ext:
         return 0, 0, 0
     return ext["ann_return"], ext["sharpe"], ext["max_drawdown"] / 100.0
+
+
+def calc_active_management_metrics(strategy_returns, benchmark_returns=None):
+    """Return benchmark-relative diagnostics used by active management reports."""
+    strategy = np.nan_to_num(
+        np.asarray(strategy_returns, dtype=float),
+        nan=0.0,
+        posinf=0.0,
+        neginf=0.0,
+    )
+    if benchmark_returns is None:
+        benchmark = np.zeros_like(strategy)
+    else:
+        benchmark = np.nan_to_num(
+            np.asarray(benchmark_returns, dtype=float),
+            nan=0.0,
+            posinf=0.0,
+            neginf=0.0,
+        )
+    n = min(len(strategy), len(benchmark))
+    if n == 0:
+        return {
+            "benchmark_ann": 0.0,
+            "benchmark_sharpe": 0.0,
+            "benchmark_mdd": 0.0,
+            "active_ann": 0.0,
+            "active_sharpe": 0.0,
+            "active_mdd": 0.0,
+            "tracking_error": 0.0,
+            "information_ratio": 0.0,
+            "beta_to_benchmark": 0.0,
+            "benchmark_corr": 0.0,
+        }
+
+    strategy = strategy[:n]
+    benchmark = benchmark[:n]
+    active = strategy - benchmark
+
+    benchmark_ann, benchmark_sharpe, benchmark_mdd = calc_metrics(benchmark)
+    active_ann, active_sharpe, active_mdd = calc_metrics(active)
+
+    active_std = float(np.std(active))
+    tracking_error = active_std * np.sqrt(TRADING_DAYS)
+    information_ratio = float(
+        np.mean(active) / (active_std + 1e-8) * np.sqrt(TRADING_DAYS)
+    )
+
+    benchmark_var = float(np.var(benchmark))
+    beta = (
+        float(np.cov(strategy, benchmark, ddof=0)[0, 1] / (benchmark_var + 1e-12))
+        if n > 1 and benchmark_var > 0
+        else 0.0
+    )
+    corr = (
+        float(np.corrcoef(strategy, benchmark)[0, 1])
+        if n > 1 and np.std(strategy) > 0 and np.std(benchmark) > 0
+        else 0.0
+    )
+
+    return {
+        "benchmark_ann": float(benchmark_ann),
+        "benchmark_sharpe": float(benchmark_sharpe),
+        "benchmark_mdd": float(benchmark_mdd),
+        "active_ann": float(active_ann),
+        "active_sharpe": float(active_sharpe),
+        "active_mdd": float(active_mdd),
+        "tracking_error": float(tracking_error),
+        "information_ratio": float(information_ratio),
+        "beta_to_benchmark": beta,
+        "benchmark_corr": corr,
+    }
 
 
 def analyze_by_period(returns, dates, period='year'):

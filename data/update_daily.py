@@ -21,6 +21,8 @@ if str(ROOT) not in sys.path:
 os.chdir(ROOT)
 
 from data.api_utils import SafeAPICaller, resolve_tushare_token
+from data.update import resolve_update_end_date
+from core.research_protocol import research_end_date_str
 
 warnings.filterwarnings('ignore')
 
@@ -32,6 +34,7 @@ BATCH_SLEEP = 60         # 批次间休息（秒）
 MIN_SAFE_ROWS = 200      # 如果本地已有文件超过此行数，绝不允许覆盖为更少的行
 
 PROGRESS_FILE = os.path.join(DATA_DIR, "_update_progress.json")
+UPDATE_END_DATE = pd.Timestamp(datetime.today().date())
 os.makedirs(DATA_DIR, exist_ok=True)
 
 _api_call = SafeAPICaller(
@@ -90,6 +93,7 @@ def fetch_batch_stocks(pro, ts_codes, start_date, end_date):
 
 def safe_to_csv(df, csv_path, min_rows=MIN_SAFE_ROWS):
     """安全写入：如果本地已有更多行数据，则合并而非覆盖"""
+    df = df[df.index <= UPDATE_END_DATE]
     if os.path.exists(csv_path):
         try:
             existing = pd.read_csv(csv_path, index_col=0, parse_dates=True)
@@ -97,6 +101,7 @@ def safe_to_csv(df, csv_path, min_rows=MIN_SAFE_ROWS):
                 combined = pd.concat([existing, df])
                 combined = combined[~combined.index.duplicated(keep='last')]
                 combined.sort_index(inplace=True)
+                combined = combined[combined.index <= UPDATE_END_DATE]
                 combined.to_csv(csv_path)
                 return len(combined)
         except Exception:
@@ -116,10 +121,10 @@ def needs_update(ts_code):
         if df.empty:
             return True, 'full (empty_file)'
 
-        last_date = df.index.max()
-        days_behind = (datetime.today() - last_date).days
+        last_date = pd.Timestamp(df.index.max()).normalize()
+        days_behind = (UPDATE_END_DATE - last_date).days
 
-        if days_behind == 0:
+        if last_date >= UPDATE_END_DATE:
             return False, f'skip (behind {days_behind}d)'
         return True, f'incremental (behind {days_behind}d)'
     except Exception:
@@ -133,7 +138,7 @@ def update_one(pro, ts_code):
         return ts_code, 'skip', 0
 
     csv_path = os.path.join(DATA_DIR, f"{ts_code}.csv")
-    end_date = datetime.today().strftime('%Y%m%d')
+    end_date = UPDATE_END_DATE.strftime('%Y%m%d')
 
     if 'incremental' in info:
         # 只拉增量
@@ -185,7 +190,7 @@ def get_stock_list(pro):
                    fields='ts_code,symbol,name,list_date')
     if df is None or df.empty:
         return []
-    cutoff = (datetime.today() - timedelta(days=365)).strftime('%Y%m%d')
+    cutoff = (UPDATE_END_DATE - timedelta(days=365)).strftime('%Y%m%d')
     df = df[df['list_date'] <= cutoff]
     df.to_csv(cache_path, index=False)
     print(f"稳定股票: {len(df)} 只")
@@ -206,11 +211,15 @@ def main():
                         help='Tushare token；未传入时读取 TUSHARE_TOKEN 环境变量')
     parser.add_argument('--data-dir', type=str, default='data/tracking_raw',
                         help='日更数据目录（默认 data/tracking_raw，避免污染 data/raw 训练数据）')
+    parser.add_argument('--end-date', type=str, default=None,
+                        help=f'End date YYYYMMDD or YYYY-MM-DD; selection data is capped at {research_end_date_str()}')
     args = parser.parse_args()
 
-    global DATA_DIR, PROGRESS_FILE
+    global DATA_DIR, PROGRESS_FILE, UPDATE_END_DATE
     DATA_DIR = args.data_dir
     PROGRESS_FILE = os.path.join(DATA_DIR, "_update_progress.json")
+    end_date = resolve_update_end_date(DATA_DIR, args.end_date)
+    UPDATE_END_DATE = pd.Timestamp(end_date)
     os.makedirs(DATA_DIR, exist_ok=True)
 
     token = resolve_tushare_token(args.token)
@@ -224,7 +233,9 @@ def main():
     updated_set = set(progress['updated'])
 
     # 过滤已更新的股票
-    remaining = [s for s in stocks if s not in updated_set]
+    # Progress can belong to an older cutoff. The CSV date check below is the
+    # source of truth and safely skips files already current for this run.
+    remaining = list(stocks)
     if args.test:
         remaining = remaining[:args.test]
 
@@ -239,7 +250,7 @@ def main():
     print(f"待更新 {total} 只(共{len(stocks)} 只)")
     print(f"API批次大小: {args.api_batch} 只/调用, 批次间休息: {args.api_sleep}s")
 
-    end_date = datetime.today().strftime('%Y%m%d')
+    end_date = UPDATE_END_DATE.strftime('%Y%m%d')
 
     # 预处理：分类股票并决定每只需要拉取的日期范围
     tasks_full = []

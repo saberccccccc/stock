@@ -15,7 +15,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 os.chdir(ROOT)
 
-from core.research_protocol import assert_alpha_rows_within_research
+from core.research_protocol import RESEARCH_END_DATE, assert_alpha_rows_within_research
 from run.backtest_retention_execution_constraints import (
     load_alpha_rows as load_backtest_rows,
     load_close_money,
@@ -65,7 +65,7 @@ def generate_locked_alpha(output_dir, device, progress_every):
         checkpoint=str(ROOT / LOCKED_CHECKPOINT),
         split="test",
         start_date="2025-01-01",
-        end_date="2026-05-18",
+        end_date=str(RESEARCH_END_DATE.date()),
         output_dir=str(output_dir / LOCKED_MODEL),
         predictor_mode="average",
         window=3,

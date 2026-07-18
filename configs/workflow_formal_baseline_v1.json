@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "experiment_id": "formal_baseline_ledger_replay_v1",
+  "data": {
+    "sources": [
+      {"role": "research_market", "root": "data/raw"}
+    ],
+    "max_data_date": "2025-12-31"
+  },
+  "ranges": {
+    "feature_warmup": {"start": "2010-01-04", "end": "2023-12-31"},
+    "train": {"start": "2010-01-04", "end": "2023-12-31"},
+    "valid": {"start": "2024-01-01", "end": "2024-12-31"},
+    "signal": {"start": "2024-01-01", "end": "2025-12-31"},
+    "backtest": {"start": "2024-01-01", "end": "2025-12-31"}
+  },
+  "features": {
+    "set": "frozen_registered_alpha_artifact",
+    "transform_contract": {
+      "type": "frozen_alpha_input",
+      "candidate_id": "ledger_path_v3_t0001_nolookahead",
+      "model_transform_recomputed": false,
+      "model_provenance_status": "legacy_unresolved"
+    }
+  },
+  "labels": {
+    "family": "inherited_from_frozen_candidate",
+    "horizon_index": 0,
+    "tail_purge_days": 1
+  },
+  "windows": {
+    "type": "frozen_registry_evidence",
+    "selection_splits": ["val_2024", "test_2025"]
+  },
+  "model": {
+    "adapter": "frozen_registry_candidate",
+    "candidate_ids": ["ledger_path_v3_t0001_nolookahead"]
+  },
+  "checkpoint": {
+    "rule": "frozen_registered_artifact",
+    "forward_selection_allowed": false
+  },
+  "alpha": {
+    "transform": "registered_raw_signal",
+    "candidate_ids": ["ledger_path_v3_t0001_nolookahead"]
+  },
+  "strategy": {
+    "adapter": "retention",
+    "contract": "project_native_strategy_only",
+    "target_fracs": [0.006],
+    "hold_fracs": [0.10],
+    "rebalance_bands": [0.20],
+    "max_new_names": [5],
+    "exit_hold_fracs": [0],
+    "switch_gap_fracs": [0]
+  },
+  "ledger": {
+    "adapter": "official_open_ledger",
+    "execution_mode": "realistic",
+    "stresses": ["normal", "lag1", "cost2x", "capacity_3pct"],
+    "capitals": [500000, 1000000]
+  },
+  "evaluation": {
+    "splits": ["val_2024", "test_2025"]
+  },
+  "reports": {
+    "scorecard": "registry_apm_scorecard",
+    "attribution_required": true,
+    "append_registry": true
+  }
+}

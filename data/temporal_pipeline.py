@@ -19,6 +19,7 @@ from tqdm import tqdm
 
 from data.market_features import N_MARKET, build_market_features_index_only, compute_breadth_from_close_matrix
 from core.research_protocol import assert_research_end_date, cached_dates_within_research
+from data.labels import PHYSICAL_LABEL_FAMILIES
 from data.pipeline import (
     CACHE_VERSION,
     INDUSTRY_REL_FEATURES,
@@ -66,7 +67,10 @@ def _temporal_cache_key(config, stock_universe, seq_feature_cols=None):
     for name in ("technical", "market", "macro", "fundamental", "shareholder", "restricted"):
         attr = f"use_{name}_features"
         if getattr(config, attr, False):
-            feature_flags.append(name[:5])
+            if name == "fundamental" and getattr(config, "use_fundamental_quality_features", False):
+                feature_flags.append("fundaq")
+            else:
+                feature_flags.append(name[:5])
     feat_tag = "_".join(feature_flags) if feature_flags else "basic"
 
     date_tag = (
@@ -245,6 +249,10 @@ def build_temporal_cross_section_dataset(config, stock_universe=None, use_cache=
     to materialize train/val/test samples lazily.
     """
 
+    end_date = assert_research_end_date(
+        getattr(config, "temporal_end_date", None),
+        context="temporal dataset",
+    )
     cache_dir = getattr(config, "temporal_cache_dir", "cache")
     os.makedirs(cache_dir, exist_ok=True)
     cache_key = _temporal_cache_key(config, stock_universe)
@@ -272,7 +280,7 @@ def build_temporal_cross_section_dataset(config, stock_universe=None, use_cache=
             if missing:
                 print(f"Temporal cache incomplete, rebuilding: {missing[0]}")
                 continue
-            if not cached_dates_within_research(cached):
+            if not cached_dates_within_research(cached, end_date):
                 print(f"Temporal cache exceeds research cutoff, refusing: {candidate}")
                 continue
             print(f"Loaded temporal metadata cache: {candidate}")
@@ -453,11 +461,15 @@ def build_temporal_cross_section_dataset(config, stock_universe=None, use_cache=
     )
 
     print("Precomputing cross-section X/risk/labels...")
+    # Temporal sidecar currently stores one close-to-close return sequence.
+    # Wrap it for the v14 multi-label precompute API; dedicated open labels
+    # should be generated through data.pipeline for production M0 training.
+    label_arrays = {family: ret_seq_array for family in PHYSICAL_LABEL_FAMILIES}
     x_norm_path, risk_full_path, y_norm_path, y_seq_norm_path, x_dim, risk_full_dim = _precompute_all(
         feat_array,
         risk_raw_array,
         industry_array,
-        ret_seq_array,
+        label_arrays,
         valid_times,
         high_agg_dim,
         n_industries,
