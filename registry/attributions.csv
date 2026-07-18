@@ -1,0 +1,4 @@
+candidate_id,path,execution_mode,notes
+cond_pairrisk_volg001_realistic,reports/cond_pairrisk_volg001_attribution_20260710/attribution_aggregate_summary.csv,realistic,Registered attribution currently covers normal and lag1; cost2x and capacity_3pct must be added before promotion.
+ledger_path_v3_capital_aware_hybrid_50_75no_100volg001,,,No registered attribution yet.
+cond_pairrisk_v2_svol0_betag001_gate0,,,Rejected candidate; attribution not required unless reopened.

@@ -15,6 +15,8 @@
 │   ├── fundamental_factors.py     #   基本面因子 (PIT)
 │   ├── macro_factors.py           #   宏观因子 (北向/两融/PMI)
 │   ├── api_utils.py               #   SafeAPICaller + resolve_tushare_token()
+│   ├── st_status.py               #   PIT 历史 ST 状态事件契约与校验
+│   ├── dataset_runtime.py         #   流式 Dataset/DataHandler/Processor 运行时
 │   ├── validate.py                #   每日数据校验
 │   ├── update.py                  #   全量数据更新
 │   └── update_daily.py            #   日频增量更新
@@ -32,6 +34,8 @@
 ├── run/                           # 入口脚本
 │   ├── train.py                   #   统一训练入口 --model {v9,gat,gat_v2,legacy}
 │   ├── backtest.py                #   统一回测入口 --experiment {ensemble,intersection,concentrated,persistent}
+│   ├── audit_execution_coverage.py # 执行输入覆盖审计
+│   ├── download_historical_st_events.py # 下载并冻结历史 ST 事件
 │   ├── backtest_layered_holdings.py # 分层持仓回测
 │   ├── track_backtest_holdings.py #   回测持仓盯市跟踪
 │   ├── recommend_daily.py         #   单日推荐/单股查询
@@ -47,28 +51,40 @@
 ├── recommendations/               # 推荐输出 (CSV + 日志)
 ├── cache/                         # 运行时缓存
 ├── data/raw/                      # 原始日线CSV (gitignored)
-├── data/forward_raw/              # 2026-05-19起的前向回测数据 (gitignored)
+├── data/forward_raw/              # 兼容前向缓存；2026全年仅观察 (gitignored)
 ├── data/tracking_raw/             # 盯市跟踪数据 (gitignored)
 └── backtest_results*/             # 回测输出 (gitignored)
 ```
 
 ## 快速开始
 
-```bash
+```powershell
+# Required for all Torch/CUDA commands
+$env:PYTHON = "$env:USERPROFILE\miniconda3\envs\torch\python.exe"
+
 # 1. 初始化数据
 export TUSHARE_TOKEN="<your-token>"
-python data/update.py --init
-python data/update.py
+& $env:PYTHON data/update.py --init
+& $env:PYTHON data/update.py
 
 # 2. 训练
-python run/train.py --model v9
+& $env:PYTHON run/train.py --model v9
 
 # 3. 回测
-python run/backtest.py --experiment ensemble
+& $env:PYTHON run/backtest.py --experiment ensemble
 ```
 
-`data/update.py` 写入 `data/raw` 时会自动把结束日期限制为
-`2026-05-18`；更新真实前向数据请使用 `data/forward_raw`，不要解除研究集冻结。
+当前兼容阶段，`data/update.py` 写入 `data/raw` 时把选择数据限制到
+`2025-12-31`；2026 数据属于 Forward 观察。物理文件可以覆盖更长历史，
+但实验必须用逻辑 split 和实际日期字段约束读取，不能由目录名推断用途。
+可用下面的命令检查实际边界：
+
+```powershell
+python run/audit_data_boundary.py --dataset-role research --effective-end-date 2025-12-31
+```
+
+`data/update_daily.py` 仍禁止选择数据写过 `2025-12-31`；当前 Forward 更新
+继续使用兼容目录 `data/forward_raw`，后续由统一 Provider 消除双目录依赖。
 
 ## 每日推荐
 
@@ -118,14 +134,71 @@ $env:PYTHON = "$env:USERPROFILE\miniconda3\envs\torch\python.exe"
 & $env:PYTHON -m pytest -q
 ```
 
+## Qlib 对齐
+
+当前优先建设项目原生的 Qlib 式研究框架，而不是引入 Qlib 默认数据或
+回测器。Q0 对齐基线、组件矩阵和 Workflow v2 草案见：
+
+- `reports/qlib_alignment_20260717/QLIB_ALIGNMENT_REPORT_ZH.md`
+- `reports/qlib_alignment_20260717/QLIB_TERMINOLOGY_ZH.md`
+- `schemas/workflow_v2.schema.json`
+- `configs/workflow_v2_golden.json`
+
+`experiments/workflow.py` 现在兼容 Workflow schema v1，并可校验、归一化
+和编译 v2 的 `rolling_lgbm_alpha` 与 `frozen_artifact`。尚未绑定具体训练器
+的模型会明确拒绝，不会隐式回退。Workflow schema 版本与
+`experiments/recording.py` 的实验 manifest schema v2 是两个独立契约。
+正式执行仍只使用 realistic `open_ledger`，不使用 Qlib Executor。
+
+Q2 已提供 `ProjectDataset.prepare(segment, col_set, data_key)`，支持
+raw/infer/learn 数据视图、shared/infer/learn Processor、Train-only fit 和
+冻结状态重放，并直接包装现有 v14 memmap。正式 LightGBM rolling 已可通过
+`data.dataset_runtime=project_dataset` 使用该路径；2024 Compact 单窗口的
+模型与 alpha 已和 legacy 达到字节一致。由于当前仍有约 11.6% 性能开销，
+默认继续使用 `legacy_iter`，待 2025 第二窗口 parity 后再决定切换。Q3 的
+`experiments/model_adapters.py` 已统一 LightGBM、PyTorch strong alpha、冻结
+信号和 legacy 只读信号的生命周期与 `PredictionFrame`；Q5 再绑定真实 e19
+训练器并进行月度 Rolling，当前训练入口保持兼容。
+
+Q4 的 `experiments/record_templates.py` 与
+`run/materialize_standard_records.py` 已提供 Signal -> SignalAnalysis ->
+Portfolio -> RiskAttribution/Stress -> Decision 的不可变证据链。组合记录
+只接受 official open-price ledger 的真实产物；旧报告缺少订单等明细时会
+明确不完整，不会自动补造。
+
 ## 关键不变量
 
-- 当前正式执行基线: V9 `avgw3` + `maxret095` + open-price share-ledger；
+- 当前正式组合层基线: `ledger_path_v3_t0001_nolookahead`；
   T 日收盘后生成信号，T+1 开盘按现金、股数、整手、费用、ADV 与涨跌停约束成交
+- 历史执行基线: V9 `avgw3` + `maxret095` + open-price share-ledger，仅作为 legacy 参照
 - `next_close_to_next_close` 只属于旧版 close-based 连续性回测，不作为当前正式执行口径
-- 研究截止日: `2026-05-18`，训练/验证/测试不得超过该日期
-- 数据边界: `data/raw` (冻结研究集) vs `data/forward_raw` (真实前向回测)，不可混淆
+- 评价划分: 2024 Val、2025 Test、2026 全年 Forward；Forward 当前到
+  `2026-06-30`，只观察，不参与选择
+- 完整 2026 Forward 的父模型、变换和策略必须在 `2025-12-31` 前冻结；
+  `2026-05-18` 只是旧缓存/报告日期，不是 Forward 起点
+- 数据边界: 物理数据覆盖与逻辑 split 分开记录；当前双目录仅为兼容实现
+- 历史 ST: 正式历史执行必须有 `data/raw/st_status_events.csv` 及匹配
+  manifest；`data/stock_industry.csv` 只是当前快照，不能证明 2024/2025
+  的历史 ST 状态。下载器默认使用 Tushare `st`；只有显式使用
+  `--endpoint namechange` 并通过独立覆盖审计时，才允许使用名称区间重建；
+  其 manifest 必须标注 `source_label=由历史股票名称区间重建`，不能误读为
+  直接 ST 事件源。
+- 历史 ST 下载器对权限/积分错误立即失败，不会重复重试；网络和临时频率
+  错误仍按退避策略重试。官方接口未在页面中承诺通用 `offset/limit` 分页，
+  因此正式 CLI 使用 `namechange_date_range` 或 `st_by_ts_code` 两种明确
+  模式；未获得权限前不把任何下载结果当作完整研究证据。
+  研究来源按选择边界 `2025-12-31` 截断，Forward 来源只作观察。
 - 资金规模: 容量评估默认使用 50万元和100万元
 - 特征维度: X=236, risk=170 (get_regime_dim 动态)
 
-完整规则见 `RESEARCH_PROTOCOL.md`。
+完整规则见 `RESEARCH_PROTOCOL.md`。当前候选、baseline 与报告路径登记在
+`registry/`，项目当前索引见 `PROJECT_CURRENT_INDEX_20260710.md`，重构蓝图见
+`PROJECT_REFACTOR_BLUEPRINT_20260710.md`。
+
+项目唯一有效的总执行顺序见
+`MASTER_QUANT_RESEARCH_EXECUTION_PLAN_20260718.md`。旧 Qlib 计划和长期路线图
+只保留技术设计与历史证据，不再分别决定“下一步”。当前总计划位置为 P2：
+正式训练主线收敛。
+
+工程开发前请先阅读 `PROJECT_RULES.md`、`ARCHITECTURE.md`、
+`DEVELOPMENT_LOG.md` 与 `ADR/`；它们定义当前工程治理和决策记录规则。

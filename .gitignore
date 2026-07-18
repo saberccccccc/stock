@@ -9,6 +9,7 @@ __pycache__/
 *.pth
 *.pt
 checkpoints/
+checkpoints*/
 logs/
 archive/logs_202606/
 archive/cache_202606/
@@ -20,10 +21,19 @@ cache/
 data/raw/
 data/tracking_raw/
 data/forward_raw/
+data/global/
 recommendations/
 
 # Backtest results
 backtest_results*/
+
+# Local experiment evidence. Formal summaries are added explicitly with -f.
+reports/
+
+# Legacy root-level experiment launchers and output directories.
+/*.ps1
+/apm_official_open_ledger_*/
+/v14_m0_*
 
 # Registered local experiment artifacts (indexed by cleanup reports)
 /breadth_triggered_*_20*/

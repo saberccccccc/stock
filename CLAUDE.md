@@ -1,6 +1,6 @@
 ﻿# CLAUDE.md
 
-This file provides guidance to Claude Code when working with this repository.
+This file is historical context for Claude Code. Before making changes, read `PROJECT_RULES.md`; registry and research-protocol documents override all potentially stale hardware, environment, baseline, and backtest guidance below.
 
 ## PowerShell 编码注意事项
 
