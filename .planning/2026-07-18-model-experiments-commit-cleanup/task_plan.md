@@ -12,8 +12,8 @@ in reviewable batches without changing the active master execution sequence.
 - [x] Audit secrets, large files, generated outputs, deletions, and ignored
   artifact policy.
 - [x] Define commit batches and run focused/proportional verification for each.
-- [ ] Stage and commit only reviewed paths with imperative messages.
-- [ ] Verify branch history, residual working-tree state, and document any
+- [x] Stage and commit only reviewed paths with imperative messages.
+- [x] Verify branch history, residual working-tree state, and document any
   intentionally uncommitted artifacts.
 
 ## Constraints

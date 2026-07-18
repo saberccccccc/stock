@@ -19,5 +19,11 @@
 - Of 52 tracked report deletions, 47 have byte-identical archive copies. The
   remaining five have same-name archive versions and require final review in
   the separate cleanup commit.
+- The five non-identical archive versions preserve the same titles and contain
+  6-55 additional lines, so they supersede rather than lose the tracked copies.
+- `.gitignore` now treats reports, checkpoints, global downloads, legacy root
+  PowerShell launchers and named root experiment outputs as local artifacts.
+  No ignored local artifact was deleted.
+- Final tracked and untracked status is clean on `model-experiments`.
 - The active master execution plan remains
   `.planning/2026-07-18-master-execution-roadmap`; this cleanup is subordinate.

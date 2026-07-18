@@ -18,3 +18,8 @@
   whitespace diagnostics.
 - Applied repository artifact policy and staged governance, ADR, roadmap,
   planning, and lightweight registry state as the second commit batch.
+- Committed governance and registry state as `a4e6de3`.
+- Verified all 52 tracked report deletions against retained archive copies;
+  committed the report cleanup and corrected archive link as `406c060`.
+- Verified a clean tracked/untracked worktree. Ignored local experiments,
+  reports, data, caches and checkpoints remain on disk and were not deleted.

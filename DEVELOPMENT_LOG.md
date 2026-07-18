@@ -777,3 +777,18 @@ Append-only record of material engineering and governance changes. Experiment me
 - Observed one transient system-memory reading below 0.75 GiB, but not the three
   consecutive readings required to stop. No ledger, Registry, Forward,
   lifecycle or promotion state changed.
+
+## 2026-07-18 - Model Experiments Branch Baseline
+
+- Audited 116 tracked changes and 420 collapsed untracked entries before
+  committing; expanded local artifacts contained about 10,800 generated files.
+- Fixed direct-entrypoint import precedence so `run/backtest.py` cannot shadow
+  the project `backtest` package. Full Torch regression: 547 passed with one
+  pandas FutureWarning.
+- Committed the governed research/runtime framework, governance and Registry
+  contracts, and archived-report cleanup as three reviewable commits.
+- Added explicit ignore policy for reports, checkpoints, global downloads,
+  legacy root launchers and named experiment outputs. Local artifacts were
+  retained on disk and excluded from Git rather than deleted.
+- Verified every tracked report deletion against its retained archive copy;
+  47 are byte-identical and five archive versions are later supersets.
