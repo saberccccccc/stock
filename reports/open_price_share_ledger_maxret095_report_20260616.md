@@ -182,6 +182,12 @@ python run\transform_alpha_for_execution.py `
 
 ### Open-Price Share-Ledger 回测
 
+> 复现说明（2026-06-19）：本节最初的基础、lag1 和 cost2x 命令产生于
+> `max_replace` 优化之前，因此没有 `--max-new-names 5`，不是后来冻结的
+> 正式基线。正式配置及可直接复跑命令以
+> `archive/experiments_202606/codebase_cleanup_20260618/official_baselines.md`
+> 为准。
+
 基础版本：
 
 ```powershell
