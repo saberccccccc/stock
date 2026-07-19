@@ -48,3 +48,7 @@
 - Tushare daily OHLC is raw and the stored factor is fixed at 1.0. That is
   appropriate for execution, but v14 metadata lacks corporate-action/adjustment
   lineage for feature construction.
+- NT3 dry-run resolves all three baseline alpha files and expands to exactly 24
+  fixed cells with correct role-specific dates and data roots. The formal replay
+  was not launched because available RAM was 2.66 GiB, below the predeclared
+  3 GiB stop threshold.

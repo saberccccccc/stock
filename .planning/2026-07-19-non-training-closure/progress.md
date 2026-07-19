@@ -39,3 +39,9 @@
   suspension, limit-open, new-listing and ST samples in the NT2 quality report.
 - Validation passed: 16 focused NT2 tests and the full 553-test suite, with one
   existing pandas FutureWarning.
+- Began NT3 and completed the fixed baseline dry-run. It compiled Val 2024,
+  Test 2025 and Forward 2026 into 24 cells with no missing alpha input and no
+  parameter sweep beyond the frozen contract.
+- Did not start the formal replay or mutate Registry: available memory was
+  2.66 GiB, below the plan's 3 GiB resource stop threshold. NT3 remains active
+  and resumable once the resource gate clears.

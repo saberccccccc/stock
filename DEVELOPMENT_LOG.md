@@ -877,3 +877,13 @@ Append-only record of material engineering and governance changes. Experiment me
   execution-rule samples. No training, backtest or lifecycle transition ran.
 - Focused NT2 tests passed 16/16; full regression passed 553 tests with one
   existing pandas FutureWarning.
+
+## 2026-07-19 - NT3 Formal Baseline Dry-Run
+
+- Compiled the frozen baseline into Val 2024, Test 2025 and Forward 2026
+  commands covering four stresses and 50w/100w, for exactly 24 cells.
+- Verified role-specific data roots, dates, max-data dates and all three alpha
+  inputs. No parameter search or Forward-based selection was introduced.
+- Kept Registry unchanged and did not start the replay because free memory was
+  2.66 GiB, below the predeclared 3 GiB safety threshold. NT3 remains in
+  progress; the dry-run command manifest is persisted for resumption.
