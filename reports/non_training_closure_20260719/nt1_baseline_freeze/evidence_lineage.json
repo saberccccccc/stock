@@ -1,0 +1,33 @@
+{
+  "candidate_id": "ledger_path_v3_t0001_nolookahead",
+  "canonical_ledger_manifest": "reports/experiments/workflow_formal_baseline_ledger_replay_v4_20260716/ledger/formal_baseline_ledger_replay_v1/experiment_manifest.json",
+  "canonical_legacy_forward_rows": 8,
+  "experiments": [
+    {
+      "ledger_manifest": "reports/experiments/workflow_formal_baseline_ledger_replay_v2_20260716/ledger/formal_baseline_ledger_replay_v1/experiment_manifest.json",
+      "sha256": "60c5ff5f1e6a406f998f7ae58c4212ec5d751ee442157955cdafd8ad3da53e3c",
+      "status": "superseded",
+      "workflow_root": "reports/experiments/workflow_formal_baseline_ledger_replay_v2_20260716"
+    },
+    {
+      "ledger_manifest": "reports/experiments/workflow_formal_baseline_ledger_replay_v3_20260716/ledger/formal_baseline_ledger_replay_v1/experiment_manifest.json",
+      "sha256": "306f96942359074a4dd15fc178154837184db4f1e7c9bfd18a9db876fe27a041",
+      "status": "superseded",
+      "workflow_root": "reports/experiments/workflow_formal_baseline_ledger_replay_v3_20260716"
+    },
+    {
+      "ledger_manifest": "reports/experiments/workflow_formal_baseline_ledger_replay_v4_20260716/ledger/formal_baseline_ledger_replay_v1/experiment_manifest.json",
+      "sha256": "17900fc1fc1ea748945643eb1e0c99657f2fd2df2021e843b4459da414189308",
+      "status": "canonical",
+      "workflow_root": "reports/experiments/workflow_formal_baseline_ledger_replay_v4_20260716"
+    }
+  ],
+  "formal_registry_rows": 16,
+  "legacy_registry_rows_retained": 24,
+  "lineage_sha256": "087c20f10a205c9d8125e7a7175f6c78e1e8c5649721e21633092243ab1746fd",
+  "schema": "baseline_evidence_lineage_v1",
+  "selection_ledger_equivalence": {
+    "different_sha256_files": 0,
+    "v2_vs_v4_open_ledger_summary_files": 8
+  }
+}

@@ -846,3 +846,17 @@ Append-only record of material engineering and governance changes. Experiment me
   tag `accepted-research-20260719` without force-pushing or changing `main`.
 - Verified recovery from a fresh shallow clone at exact commit `83bba60`, with
   clean status, valid Git objects and all critical governance/runtime files.
+
+## 2026-07-19 - NT1 Formal Baseline Freeze
+
+- Froze `ledger_path_v3_t0001_nolookahead` as an explicit JSON contract with
+  fixed Val 2024/Test 2025 selection, Forward 2026 observation, 50w/100w,
+  four stresses and realistic open-ledger execution.
+- Added canonical evidence and supersession lineage to Registry so formal v4
+  Val/Test replay replaces duplicate legacy/v2 evidence without deleting audit
+  history. Forward legacy evidence remains observation-only pending NT3 replay.
+- Verified 23 required artifacts with no missing files and confirmed the eight
+  common v2/v4 ledger summaries are byte-identical.
+- The canonical scorecard contains 24 unique cells with complete coverage.
+  Focused tests passed 17/17; full regression passed 550 tests with one existing
+  pandas FutureWarning.

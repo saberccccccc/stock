@@ -21,6 +21,9 @@ required_capitals:
 
 execution_mode: realistic
 
+formal_baseline_contract: registry/baseline_contract.json
+formal_evidence_lineage: registry/evidence_lineage.json
+
 paths:
   ledger_path_v3_t0001_nolookahead:
     normal: reports/state_aware_policy_training_20260704/ledger_path_v3_t0001_nolookahead_open_ledger

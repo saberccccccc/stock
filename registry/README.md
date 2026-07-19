@@ -5,10 +5,28 @@ This directory is the source of truth for the refactored research flow.
 ## Files
 
 - `baselines.yaml`: formal baseline, split, stress, capital, and execution-mode rules.
+- `baseline_contract.json`: immutable formal-baseline identity and replay contract.
+- `evidence_lineage.json`: canonical and superseded baseline replay lineage.
 - `candidates.csv`: candidate metadata and signal/backtest paths.
 - `reports.csv`: registered backtest evidence rows.
 - `decision_rules.json`: versioned baseline-comparison and promotion rules.
 - `attributions.csv`: registered candidate-vs-baseline attribution evidence.
+
+`reports.csv` uses `canonical_evidence` to control scorecard consumption. A
+blank value remains backward-compatible for ordinary candidates, `true` is
+canonical evidence, and `false` is retained audit history. `superseded_by`
+points from an obsolete baseline row to the canonical experiment manifest.
+
+## Freeze The Formal Baseline
+
+```powershell
+python run/freeze_formal_baseline.py --apply-registry-lineage
+```
+
+The command validates the canonical experiment, verifies every referenced
+artifact, freezes the baseline contract and evidence lineage, and marks
+duplicate historical baseline rows as superseded. It does not train a model or
+run a backtest. Run it only when intentionally changing baseline evidence.
 
 ## Build A Registry Scorecard
 
@@ -63,6 +81,9 @@ python run/official_backtest_from_registry.py `
 ```
 
 Do not append exploratory or forward-selected experiments as official evidence.
+New official rows are registered with `canonical_evidence=true`. Superseding
+evidence is an explicit governance operation; appending a newer row alone does
+not silently invalidate older evidence.
 
 ## Build Attribution Coverage
 

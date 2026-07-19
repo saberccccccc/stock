@@ -52,6 +52,16 @@ def test_legacy_registered_evidence_remains_readable_but_explicit(monkeypatch):
     assert len(result) == 1
 
 
+def test_explicitly_superseded_evidence_is_not_loaded(monkeypatch):
+    monkeypatch.setattr(scorecard, "load_summary", lambda path: _summary())
+    reports = _reports("legacy_registered")
+    reports["canonical_evidence"] = "false"
+
+    result = scorecard.build_long(reports, _candidates(), "realistic", False)
+
+    assert result.empty
+
+
 def test_formal_evidence_requires_manifest(monkeypatch):
     monkeypatch.setattr(scorecard, "load_summary", lambda path: _summary())
 

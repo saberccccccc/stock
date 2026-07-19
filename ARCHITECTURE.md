@@ -122,6 +122,7 @@ identity but not economic equivalence.
 - Training: `run/train.py`
 - Signal/policy generation: `run/generate_ledger_path_v3_signal.py`
 - Official batch backtest: `run/official_backtest_from_registry.py`
+- Formal baseline freeze: `run/freeze_formal_baseline.py`
 - Daily Shadow and deterministic replay: `run/run_daily_shadow.py`
 - Experiment alpha evaluation: `run/evaluate_experiment_alpha.py` (records a
   dated research artifact, then delegates to the same realistic ledger; it is
@@ -166,6 +167,11 @@ Use single-run ledger scripts for diagnosis only. Official evidence uses registr
 - Registry evidence is classified as `formal_experiment` or
   `legacy_registered`. Only the former passes the formal manifest, artifact,
   and actual-result-date gates; legacy evidence remains available for audit.
+  `canonical_evidence=false` explicitly excludes a superseded row from
+  scorecards without deleting its audit history. The formal baseline identity,
+  replay contract, artifact hashes, and experiment lineage are frozen in
+  `registry/baseline_contract.json` and `registry/evidence_lineage.json` by
+  `run/freeze_formal_baseline.py`.
 - A dirty checkout is explicitly recorded and cannot be treated as a release
   snapshot. Experiment provenance does not replace the formal `registry/`.
 - Declarative workflows use `experiments/workflow.py`. The compiler freezes a

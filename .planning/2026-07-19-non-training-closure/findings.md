@@ -21,3 +21,15 @@
   unchanged and publish accepted, working, archive and tag refs separately.
 - A fresh shallow clone of remote `model-experiments` recovered the exact
   accepted commit with a clean status, valid objects and all critical entrypoints.
+- The baseline Registry contained 24 legacy rows plus 16 formal Val/Test rows.
+  Without an explicit canonical-evidence flag, the scorecard duplicate-weighted
+  the same baseline cells.
+- Formal workflow v4 is the latest complete Val/Test replay. Its eight shared
+  ledger summaries are byte-identical to v2, so canonicalizing v4 changes
+  evidence lineage rather than economic results.
+- Forward currently has only eight legacy observation rows. They remain
+  canonical but selection-ineligible until NT3 replaces them with a formal
+  Forward replay.
+- The frozen baseline inventory contains 23 artifacts with no missing files.
+  Training checkpoint provenance remains historically unresolved, but the
+  frozen-alpha ledger replay itself is complete and reproducible.

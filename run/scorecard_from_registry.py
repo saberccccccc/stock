@@ -23,6 +23,7 @@ sys.path.insert(0, root_path)
 
 from core.research_protocol import SPLIT_SPECS, validate_report_role, validate_result_dates
 from experiments.recording import validate_manifest_for_formal_use
+from experiments.baseline_artifacts import evidence_is_canonical
 
 METRICS = [
     "ann",
@@ -85,6 +86,8 @@ def build_long(reports, candidates, execution_mode, allow_mixed):
     candidate_status = dict(zip(candidates["candidate_id"], candidates["status"]))
     records = []
     for _, report in reports.iterrows():
+        if not evidence_is_canonical(report.get("canonical_evidence")):
+            continue
         validate_report_role(
             str(report.get("split", "")),
             selection_eligible=report.get("selection_eligible", ""),
@@ -123,6 +126,7 @@ def build_long(reports, candidates, execution_mode, allow_mixed):
                 "execution_mode": str(row.get("execution_constraint_mode", mode)),
                 "selection_eligible": str(report.get("selection_eligible", "")).lower() == "true",
                 "is_forward": str(report.get("is_forward", "")).lower() == "true",
+                "canonical_evidence": True,
                 "source": report["path"],
                 "signal_start": str(row.get("signal_start", report.get("signal_start", ""))),
                 "signal_end": str(row.get("signal_end", report.get("signal_end", ""))),

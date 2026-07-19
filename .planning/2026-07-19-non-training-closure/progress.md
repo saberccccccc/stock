@@ -19,3 +19,13 @@
   tag `accepted-research-20260719` while leaving divergent `origin/main` intact.
 - Passed remote recovery acceptance from a fresh shallow clone at `83bba60`;
   the clone was clean, object-valid and removed after checking critical files.
+- Completed NT1 by freezing `ledger_path_v3_t0001_nolookahead` into
+  `registry/baseline_contract.json` and recording replay lineage in
+  `registry/evidence_lineage.json`.
+- Added explicit canonical/superseded evidence semantics to Registry. The
+  resulting baseline scorecard has 24 unique cells: 16 selectable Val/Test and
+  8 observation-only Forward, with zero missing coverage.
+- Verified 23 frozen artifacts, retained v2/v3 as audit history, and confirmed
+  all eight common v2/v4 ledger summaries have identical SHA-256 values.
+- Validation passed: 17 focused tests and the full 550-test suite, with one
+  existing pandas FutureWarning.

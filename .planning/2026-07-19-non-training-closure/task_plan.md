@@ -12,7 +12,7 @@ resuming, or tuning any model training job.
 - [x] Consolidate plan authority, label superseded documents, and establish one
   machine-readable active-plan index.
 - [x] NT0: make the accepted repository state recoverable from the remote.
-- [ ] NT1: freeze the formal baseline contract and artifact inventory.
+- [x] NT1: freeze the formal baseline contract and artifact inventory.
 - [ ] NT2: audit research/forward data views, PIT inputs, and execution coverage.
 - [ ] NT3: replay the formal baseline through the fixed 24-cell contract.
 - [ ] NT4: qualify and fairly replay existing candidates only.

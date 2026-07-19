@@ -105,6 +105,8 @@ def test_registry_writer_derives_forward_role_from_split(tmp_path, monkeypatch):
     assert bool(row["selection_eligible"]) is False
     assert bool(row["is_forward"]) is True
     assert row["evidence_class"] == "formal_experiment"
+    assert bool(row["canonical_evidence"]) is True
+    assert pd.isna(row["superseded_by"]) or row["superseded_by"] == ""
 
 
 def test_registry_writer_rejects_result_outside_declared_split(tmp_path, monkeypatch):

@@ -1,0 +1,193 @@
+{
+  "artifact_count": 23,
+  "artifacts": [
+    {
+      "bytes": 878,
+      "path": "registry/baselines.yaml",
+      "role": "registry_baseline",
+      "sha256": "456022a793559d59c830d8b47413d880cbe2afc6e5277c925daa4ec4c84b35f2",
+      "status": "present"
+    },
+    {
+      "bytes": 2440,
+      "path": "registry/candidates.csv",
+      "role": "registry_candidate",
+      "sha256": "75872f7e44347dbb40af1e6d8972bf85f1c155ff82bc568196842ccbd2532480",
+      "status": "present"
+    },
+    {
+      "bytes": 48661,
+      "path": "registry/reports.csv",
+      "role": "registry_evidence",
+      "sha256": "2f236e9347814e5fded43dfdc9e9b79e141059c1903969fe525f13618c90bc96",
+      "status": "present"
+    },
+    {
+      "bytes": 782,
+      "path": "registry/decision_rules.json",
+      "role": "registry_decision_rules",
+      "sha256": "bf13e27cfc9aa947d7e6b12bf09e986da7ad8189edf2cf7c99a47818c4fc3163",
+      "status": "present"
+    },
+    {
+      "bytes": 6852,
+      "path": "reports/experiments/workflow_formal_baseline_ledger_replay_v4_20260716/experiment_manifest.json",
+      "role": "workflow_manifest",
+      "sha256": "38da8a7cfca380c5367548f360a976c1878db1529a3d383824ad00681b37775f",
+      "status": "present"
+    },
+    {
+      "bytes": 2801,
+      "path": "reports/experiments/workflow_formal_baseline_ledger_replay_v4_20260716/artifact_index.json",
+      "role": "workflow_artifact_index",
+      "sha256": "ba1b05e1f2389ee0f6dc03c2964cda6891349a744827010894dca3330481c31a",
+      "status": "present"
+    },
+    {
+      "bytes": 4771,
+      "path": "reports/experiments/workflow_formal_baseline_ledger_replay_v4_20260716/compiled_workflow.json",
+      "role": "compiled_workflow",
+      "sha256": "e3f443031df8ed9ff1cde6daa2a8651b900f2319be1807d97eba856ffadcb37f",
+      "status": "present"
+    },
+    {
+      "bytes": 5264,
+      "path": "reports/experiments/workflow_formal_baseline_ledger_replay_v4_20260716/ledger/formal_baseline_ledger_replay_v1/experiment_manifest.json",
+      "role": "ledger_manifest",
+      "sha256": "17900fc1fc1ea748945643eb1e0c99657f2fd2df2021e843b4459da414189308",
+      "status": "present"
+    },
+    {
+      "bytes": 5397,
+      "path": "reports/experiments/workflow_formal_baseline_ledger_replay_v4_20260716/ledger/formal_baseline_ledger_replay_v1/artifact_index.json",
+      "role": "ledger_artifact_index",
+      "sha256": "73cf5ea395da869bb14e4822210758d12242fbbef075e348aa9d01c2e7911428",
+      "status": "present"
+    },
+    {
+      "bytes": 45884330,
+      "path": "reports/state_aware_policy_applied_20260704/multi_downside_e19_sa_p05_ledger_path_v3_t0001_nolookahead/val_2024/alpha_policy.jsonl",
+      "role": "policy_alpha:val_2024",
+      "sha256": "701e13aa0fcc9171f491bbb0b0a0db822caf5f784f16c82c0137ff5b6602b128",
+      "status": "present"
+    },
+    {
+      "bytes": 20251,
+      "path": "reports/state_aware_policy_applied_20260704/multi_downside_e19_sa_p05_ledger_path_v3_t0001_nolookahead/val_2024/alpha_policy.pairwise_audit.csv",
+      "role": "policy_proposal_audit:val_2024",
+      "sha256": "d18e68cc6a6b3e326fc6c3423698c80e575bd627dad1e99f48120682cab7dbcb",
+      "status": "present"
+    },
+    {
+      "bytes": 44571915,
+      "path": "reports/state_aware_policy_applied_20260704/multi_downside_e19_sa_p05_ledger_path_v3_t0001_nolookahead/test_2025/alpha_policy.jsonl",
+      "role": "policy_alpha:test_2025",
+      "sha256": "152c661e60436168356c03dc0bb7c21ce86155d7693799f7c5cef1e6c1470ee0",
+      "status": "present"
+    },
+    {
+      "bytes": 20244,
+      "path": "reports/state_aware_policy_applied_20260704/multi_downside_e19_sa_p05_ledger_path_v3_t0001_nolookahead/test_2025/alpha_policy.pairwise_audit.csv",
+      "role": "policy_proposal_audit:test_2025",
+      "sha256": "176db93ed8fb9322a5ade937f7f41217367040a8869b398c60494699ca952967",
+      "status": "present"
+    },
+    {
+      "bytes": 20905214,
+      "path": "reports/state_aware_policy_applied_20260704/multi_downside_e19_sa_p05_ledger_path_v3_t0001_nolookahead/forward_2026/alpha_policy.jsonl",
+      "role": "policy_alpha:forward_2026",
+      "sha256": "26174663871a2d272482b9310a954a8ac7d28bf6595dcd9b6a4130d6d1bdebd3",
+      "status": "present"
+    },
+    {
+      "bytes": 9584,
+      "path": "reports/state_aware_policy_applied_20260704/multi_downside_e19_sa_p05_ledger_path_v3_t0001_nolookahead/forward_2026/alpha_policy.pairwise_audit.csv",
+      "role": "policy_proposal_audit:forward_2026",
+      "sha256": "35d7f379cbbcb116cd28d8074d1d319fb44ab0f613c7f30f44516a940904b919",
+      "status": "present"
+    },
+    {
+      "bytes": 5209,
+      "path": "reports/experiments/workflow_formal_baseline_ledger_replay_v4_20260716/ledger/formal_baseline_ledger_replay_v1/test_2025/ledger_path_v3_t0001_nolookahead/capacity_3pct/open_ledger_summary.csv",
+      "role": "canonical_ledger_summary",
+      "sha256": "075ccc11ffac7a12b94de4d2fe107893726c8be3906181f3749e73b6da166064",
+      "status": "present"
+    },
+    {
+      "bytes": 5201,
+      "path": "reports/experiments/workflow_formal_baseline_ledger_replay_v4_20260716/ledger/formal_baseline_ledger_replay_v1/test_2025/ledger_path_v3_t0001_nolookahead/cost2x/open_ledger_summary.csv",
+      "role": "canonical_ledger_summary",
+      "sha256": "981ce6f1486307aff256b5730e9790a15576ca4c4ca7ae6f82ca0819a18f1490",
+      "status": "present"
+    },
+    {
+      "bytes": 5183,
+      "path": "reports/experiments/workflow_formal_baseline_ledger_replay_v4_20260716/ledger/formal_baseline_ledger_replay_v1/test_2025/ledger_path_v3_t0001_nolookahead/lag1/open_ledger_summary.csv",
+      "role": "canonical_ledger_summary",
+      "sha256": "2c605418124627f280b346ba660e1b4e8476d803c765746d9c98262f3d4a2057",
+      "status": "present"
+    },
+    {
+      "bytes": 5195,
+      "path": "reports/experiments/workflow_formal_baseline_ledger_replay_v4_20260716/ledger/formal_baseline_ledger_replay_v1/test_2025/ledger_path_v3_t0001_nolookahead/normal/open_ledger_summary.csv",
+      "role": "canonical_ledger_summary",
+      "sha256": "91d5387d31c4609d5a16800f270f29c2838c065b4fe231733da2a09f6bf1f6ed",
+      "status": "present"
+    },
+    {
+      "bytes": 5224,
+      "path": "reports/experiments/workflow_formal_baseline_ledger_replay_v4_20260716/ledger/formal_baseline_ledger_replay_v1/val_2024/ledger_path_v3_t0001_nolookahead/capacity_3pct/open_ledger_summary.csv",
+      "role": "canonical_ledger_summary",
+      "sha256": "36028caa1e64d77188ec4ab7d445f3f36ee6fef58dcb017e364331d455f9ae8a",
+      "status": "present"
+    },
+    {
+      "bytes": 5206,
+      "path": "reports/experiments/workflow_formal_baseline_ledger_replay_v4_20260716/ledger/formal_baseline_ledger_replay_v1/val_2024/ledger_path_v3_t0001_nolookahead/cost2x/open_ledger_summary.csv",
+      "role": "canonical_ledger_summary",
+      "sha256": "2e985bbae54017dddda42cf2175398bdb2d4641fdc854de680a67f1b797c87cd",
+      "status": "present"
+    },
+    {
+      "bytes": 5187,
+      "path": "reports/experiments/workflow_formal_baseline_ledger_replay_v4_20260716/ledger/formal_baseline_ledger_replay_v1/val_2024/ledger_path_v3_t0001_nolookahead/lag1/open_ledger_summary.csv",
+      "role": "canonical_ledger_summary",
+      "sha256": "8e5af00ddcea7f2bfed24292c26c73308d116e6acd02e15387aa2ec13be8e75e",
+      "status": "present"
+    },
+    {
+      "bytes": 5210,
+      "path": "reports/experiments/workflow_formal_baseline_ledger_replay_v4_20260716/ledger/formal_baseline_ledger_replay_v1/val_2024/ledger_path_v3_t0001_nolookahead/normal/open_ledger_summary.csv",
+      "role": "canonical_ledger_summary",
+      "sha256": "2b4a5967a874be4d1cdfa75a233ace7944c5f00a8d66c0ed5d826016fcbe8cdb",
+      "status": "present"
+    }
+  ],
+  "candidate_id": "ledger_path_v3_t0001_nolookahead",
+  "canonical_manifest": "reports/experiments/workflow_formal_baseline_ledger_replay_v4_20260716/ledger/formal_baseline_ledger_replay_v1/experiment_manifest.json",
+  "checkpoint": {
+    "reason": "formal baseline replay consumes frozen dated policy alpha",
+    "required_for_replay": false,
+    "status": "legacy_unresolved"
+  },
+  "data_sources": [
+    {
+      "fingerprint": {
+        "file_count": 5371,
+        "kind": "inventory_sha256",
+        "total_bytes": 1546577414,
+        "value": "349354875a2a80bed581a4ccf705998ece05c4375be6ff9171c4563c731a6e63"
+      },
+      "role": "selection_market_data",
+      "root": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\raw"
+    }
+  ],
+  "inventory_sha256": "bdc2d40c48efb5accbc25cc7db311e619a9e66b8dbbb8a943975746ac1577279",
+  "missing_count": 0,
+  "missing_roles": [],
+  "ohlc_matrix_cache": {
+    "meaning": "market data fingerprint is frozen; no portable matrix-cache artifact was claimed",
+    "status": "not_declared_in_frozen_formal_manifest"
+  },
+  "schema": "baseline_artifact_inventory_v1"
+}

@@ -1,0 +1,56 @@
+{
+  "artifact_inventory_sha256": "bdc2d40c48efb5accbc25cc7db311e619a9e66b8dbbb8a943975746ac1577279",
+  "base_alpha": "multi_downside_e19_sa_p05",
+  "candidate_id": "ledger_path_v3_t0001_nolookahead",
+  "canonical_ledger_manifest": "reports/experiments/workflow_formal_baseline_ledger_replay_v4_20260716/ledger/formal_baseline_ledger_replay_v1/experiment_manifest.json",
+  "canonical_workflow_manifest": "reports/experiments/workflow_formal_baseline_ledger_replay_v4_20260716/experiment_manifest.json",
+  "contract_sha256": "7ea913a1416bf13de109793e4658c17e6e585221cc0ab427aacf37a9a4ed807f",
+  "display_name": "Ledger Path V3 T0001 No-Lookahead",
+  "execution_mode": "realistic",
+  "family": "ledger_path_v3",
+  "forward_policy": "forward_2026 is observation-only and must not affect the decision.",
+  "model_provenance_status": "legacy_unresolved",
+  "observation_splits": [
+    "forward_2026"
+  ],
+  "required_capitals": [
+    500000,
+    1000000
+  ],
+  "required_stresses": [
+    "normal",
+    "lag1",
+    "cost2x",
+    "capacity_3pct"
+  ],
+  "schema": "formal_baseline_contract_v1",
+  "selection_rule_source": "registry/decision_rules.json",
+  "selection_splits": [
+    "val_2024",
+    "test_2025"
+  ],
+  "signal_transform": "registered_raw_signal",
+  "status": "formal_baseline",
+  "strategy": {
+    "adapter": "retention",
+    "contract": "project_native_strategy_only",
+    "exit_hold_fracs": [
+      0
+    ],
+    "hold_fracs": [
+      0.1
+    ],
+    "max_new_names": [
+      5
+    ],
+    "rebalance_bands": [
+      0.2
+    ],
+    "switch_gap_fracs": [
+      0
+    ],
+    "target_fracs": [
+      0.006
+    ]
+  }
+}

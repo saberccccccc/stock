@@ -269,6 +269,8 @@ def append_report_registry(reports_csv, split, written_paths, experiment_manifes
                     "notes": "materialized from sweep_open_price_ledger_params.py",
                     "evidence_class": "formal_experiment",
                     "experiment_manifest": str(manifest_path.relative_to(ROOT)).replace("\\", "/"),
+                    "canonical_evidence": "true",
+                    "superseded_by": "",
                 }
             )
     new_rows = pd.DataFrame(rows)
