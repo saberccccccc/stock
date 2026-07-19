@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "dataset_role": "forward",
+  "data_dir": "data\\forward_raw",
+  "research_cutoff": "2025-12-31",
+  "forward_start": "2026-01-01",
+  "effective_end_date": "2026-06-30",
+  "effective_view_safe": true,
+  "physical_cache_clean": true,
+  "status": "effective_view_safe",
+  "boundary_method": "first_and_last_rows_assuming_chronological_rows",
+  "file_count": 5332,
+  "valid_date_file_count": 5332,
+  "invalid_or_unreadable_file_count": 0,
+  "physical_date_coverage": {
+    "start": "2010-01-04",
+    "end": "2026-06-30"
+  },
+  "research_cutoff_violation_count": 0,
+  "research_cutoff_violation_sample": [],
+  "note": "Forward observations are isolated from research selection."
+}

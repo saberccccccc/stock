@@ -12,6 +12,8 @@ import pandas as pd
 from backtest.ohlc_matrix_cache import (
     ensure_ohlc_matrix_cache,
     load_ohlcv_fields_from_matrix_cache,
+    load_ohlc_matrix_meta,
+    matrix_cache_is_current,
 )
 from backtest.execution_coverage import audit_execution_coverage
 from data.fundamental_factors import merge_to_daily_akshare
@@ -179,8 +181,15 @@ class OhlcvMatrixProvider:
             rebuild=rebuild,
         )
 
-    def manifest(self) -> dict[str, Any]:
-        meta = ensure_ohlc_matrix_cache(self.data_view.physical_root, self.cache_dir)
+    def manifest(self, *, ensure_cache: bool = True) -> dict[str, Any]:
+        """Describe the cache, optionally without creating or rebuilding it."""
+        if ensure_cache:
+            meta = ensure_ohlc_matrix_cache(self.data_view.physical_root, self.cache_dir)
+        else:
+            meta = load_ohlc_matrix_meta(self.cache_dir)
+            if meta is None:
+                raise FileNotFoundError(self.cache_dir / "ohlc_matrix_meta.json")
+        cache_current = matrix_cache_is_current(self.data_view.physical_root, self.cache_dir)
         return {
             "schema_version": 1,
             "provider": "ohlcv_matrix_v1",
@@ -190,6 +199,8 @@ class OhlcvMatrixProvider:
                 "version": meta["version"],
                 "source_count": meta["source_count"],
                 "source_hash": meta["source_hash"],
+                "data_dir": meta.get("data_dir"),
+                "matches_data_view": bool(cache_current),
                 "date_start": meta["dates"][0],
                 "date_end": meta["dates"][-1],
                 "fields": list(meta["fields"]),

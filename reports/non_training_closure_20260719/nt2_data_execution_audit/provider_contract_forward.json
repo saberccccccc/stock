@@ -1,0 +1,235 @@
+{
+  "blockers": [
+    "provider_v14_unavailable",
+    "historical_st_status_not_covered"
+  ],
+  "dataset_role": "forward",
+  "note": "Read-only audit: cache mismatches and unavailable providers are reported, never rebuilt or fabricated.",
+  "provider_count": 5,
+  "providers": {
+    "execution_constraints": {
+      "coverage": {
+        "dataset_role": "forward",
+        "gaps": [
+          "historical_st_status_not_covered"
+        ],
+        "historical_st": {
+          "covers_requested_interval": false,
+          "note": "A current-name/single-snapshot fallback is not historical ST evidence. Do not label a report as historical-ST-complete until dated status events cover the interval.",
+          "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\stock_industry.csv",
+          "required_columns_present": true,
+          "snapshot_date_coverage": {
+            "count": 1,
+            "end": "2026-04-27",
+            "start": "2026-04-27"
+          },
+          "source_type": "current_snapshot"
+        },
+        "ohlc_matrix": {
+          "date_coverage": {
+            "count": 4002,
+            "end": "2026-06-30",
+            "start": "2010-01-04"
+          },
+          "fields": [
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "money"
+          ],
+          "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\cache\\open_ledger_ohlc_matrix\\ohlc_matrix_meta.json",
+          "source_count": 5332
+        },
+        "requested_interval": {
+          "end": "2026-06-30",
+          "start": "2026-01-01"
+        },
+        "schema_version": 1,
+        "status": "audited_with_declared_gaps",
+        "stock_master": {
+          "listing_date_count": 5332,
+          "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\forward_raw\\stable_stocks.csv",
+          "rows": 5332
+        }
+      },
+      "data_view": {
+        "evaluation": {
+          "end": "2026-06-30",
+          "start": "2026-01-01"
+        },
+        "feature_warmup": {
+          "end": "2025-12-31",
+          "start": "2010-01-04"
+        },
+        "max_data_date": "2026-06-30",
+        "name": "forward_2026",
+        "physical_fingerprint": {
+          "file_count": 5371,
+          "kind": "inventory_sha256",
+          "total_bytes": 1664692634,
+          "value": "65bbc2b975399cd6417cdb11fbd999361aa8138c0db5974804b804299937864d"
+        },
+        "physical_root": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\forward_raw",
+        "schema_version": 1,
+        "task": {
+          "end": "2026-06-30",
+          "start": "2010-01-04"
+        }
+      },
+      "formal_coverage_complete": false,
+      "provider": "a_share_execution_constraints_v1",
+      "schema_version": 1
+    },
+    "external_markets": {
+      "availability_rule": "A-share date D uses only the latest completed external session strictly before D",
+      "data_view": {
+        "evaluation": {
+          "end": "2026-06-30",
+          "start": "2026-01-01"
+        },
+        "feature_warmup": {
+          "end": "2025-12-31",
+          "start": "2010-01-04"
+        },
+        "max_data_date": "2026-06-30",
+        "name": "forward_2026",
+        "physical_fingerprint": {
+          "file_count": 5371,
+          "kind": "inventory_sha256",
+          "total_bytes": 1664692634,
+          "value": "65bbc2b975399cd6417cdb11fbd999361aa8138c0db5974804b804299937864d"
+        },
+        "physical_root": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\forward_raw",
+        "schema_version": 1,
+        "task": {
+          "end": "2026-06-30",
+          "start": "2010-01-04"
+        }
+      },
+      "features": {
+        "columns": 1423,
+        "date_end": "2026-06-29",
+        "date_start": "2002-01-04",
+        "fingerprint": {
+          "kind": "file_sha256",
+          "value": "dc6267aa713a255665e2634b2349145a176624f28b2cd11c13d99c344fadce29"
+        },
+        "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\global\\global_overnight_features.parquet"
+      },
+      "provider": "external_market_pit_v1",
+      "schema_version": 1,
+      "summary": {
+        "alignment_rule": "A-share date D uses latest US session date strictly before D.",
+        "fingerprint": {
+          "kind": "file_sha256",
+          "value": "ffa244e05c6ac7e6be647a117d822b753b7fe52f1f5924194b3fdca55eb44544"
+        },
+        "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\global\\global_overnight_features_summary.json"
+      }
+    },
+    "fundamentals": {
+      "availability_rule": "effective_date <= feature_date; then forward-fill latest available report",
+      "data_view": {
+        "evaluation": {
+          "end": "2026-06-30",
+          "start": "2026-01-01"
+        },
+        "feature_warmup": {
+          "end": "2025-12-31",
+          "start": "2010-01-04"
+        },
+        "max_data_date": "2026-06-30",
+        "name": "forward_2026",
+        "physical_fingerprint": {
+          "file_count": 5371,
+          "kind": "inventory_sha256",
+          "total_bytes": 1664692634,
+          "value": "65bbc2b975399cd6417cdb11fbd999361aa8138c0db5974804b804299937864d"
+        },
+        "physical_root": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\forward_raw",
+        "schema_version": 1,
+        "task": {
+          "end": "2026-06-30",
+          "start": "2010-01-04"
+        }
+      },
+      "provider": "fundamental_pit_v1",
+      "quality_flags": [
+        "has_value",
+        "days_since_effective",
+        "is_fresh_quarter",
+        "notice_is_estimated"
+      ],
+      "schema_version": 1,
+      "source": {
+        "codes": 5322,
+        "effective_end": "2026-05-15",
+        "effective_start": "1990-03-21",
+        "estimated_notice_rows": 584,
+        "fingerprint": {
+          "kind": "file_sha256",
+          "value": "68646ae9d2f822c466c666bfdccc1c72a880bdd17fde7c2c6c0a4b6295754b45"
+        },
+        "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\cache\\fundamental_features_akshare.parquet",
+        "rows": 321598
+      }
+    },
+    "ohlcv": {
+      "cache": {
+        "data_dir": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\forward_raw",
+        "date_end": "2026-06-30",
+        "date_start": "2010-01-04",
+        "fields": [
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money"
+        ],
+        "matches_data_view": true,
+        "root": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\cache\\open_ledger_ohlc_matrix",
+        "source_count": 5332,
+        "source_hash": "e10186dbab19553b6ed48bc38d95fd201ce0e42b08a6c668a98a184506da6b5b",
+        "version": 2
+      },
+      "data_view": {
+        "evaluation": {
+          "end": "2026-06-30",
+          "start": "2026-01-01"
+        },
+        "feature_warmup": {
+          "end": "2025-12-31",
+          "start": "2010-01-04"
+        },
+        "max_data_date": "2026-06-30",
+        "name": "forward_2026",
+        "physical_fingerprint": {
+          "file_count": 5371,
+          "kind": "inventory_sha256",
+          "total_bytes": 1664692634,
+          "value": "65bbc2b975399cd6417cdb11fbd999361aa8138c0db5974804b804299937864d"
+        },
+        "physical_root": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\forward_raw",
+        "schema_version": 1,
+        "task": {
+          "end": "2026-06-30",
+          "start": "2010-01-04"
+        }
+      },
+      "provider": "ohlcv_matrix_v1",
+      "schema_version": 1
+    },
+    "v14": {
+      "blocker": "provider_v14_unavailable",
+      "error": "data view max_data_date exceeds v14 physical coverage",
+      "error_type": "ValueError",
+      "status": "unavailable"
+    }
+  },
+  "schema_version": 1,
+  "split": "forward_2026",
+  "status": "complete_with_declared_external_gaps"
+}

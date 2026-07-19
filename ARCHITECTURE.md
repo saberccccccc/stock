@@ -129,6 +129,8 @@ identity but not economic equivalence.
   not a registry-promotion path)
 - Execution evidence audit: `run/audit_execution_coverage.py` (reports source
   coverage and gates claims where historical execution inputs are incomplete)
+- Provider/PIT audit: `run/audit_provider_contracts.py` (read-only split-aware
+  audit; cache identity mismatches are reported and never trigger a rebuild)
 - Historical ST download: `run/download_historical_st_events.py` (Tushare
   source, filtered at the research cutoff, with page checkpoints; no registry
   or forward-data writes)

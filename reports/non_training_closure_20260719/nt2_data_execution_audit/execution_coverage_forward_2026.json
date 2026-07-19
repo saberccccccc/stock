@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "dataset_role": "forward",
+  "requested_interval": {
+    "start": "2026-01-01",
+    "end": "2026-06-30"
+  },
+  "stock_master": {
+    "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\forward_raw\\stable_stocks.csv",
+    "rows": 5332,
+    "listing_date_count": 5332
+  },
+  "ohlc_matrix": {
+    "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\cache\\open_ledger_ohlc_matrix\\ohlc_matrix_meta.json",
+    "source_count": 5332,
+    "fields": [
+      "open",
+      "high",
+      "low",
+      "close",
+      "volume",
+      "money"
+    ],
+    "date_coverage": {
+      "count": 4002,
+      "start": "2010-01-04",
+      "end": "2026-06-30"
+    }
+  },
+  "historical_st": {
+    "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\stock_industry.csv",
+    "source_type": "current_snapshot",
+    "required_columns_present": true,
+    "snapshot_date_coverage": {
+      "count": 1,
+      "start": "2026-04-27",
+      "end": "2026-04-27"
+    },
+    "covers_requested_interval": false,
+    "note": "A current-name/single-snapshot fallback is not historical ST evidence. Do not label a report as historical-ST-complete until dated status events cover the interval."
+  },
+  "gaps": [
+    "historical_st_status_not_covered"
+  ],
+  "status": "audited_with_declared_gaps"
+}

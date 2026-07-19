@@ -860,3 +860,20 @@ Append-only record of material engineering and governance changes. Experiment me
 - The canonical scorecard contains 24 unique cells with complete coverage.
   Focused tests passed 17/17; full regression passed 550 tests with one existing
   pandas FutureWarning.
+
+## 2026-07-19 - NT2 Data, PIT And Execution Audit
+
+- Audited separate logical research and Forward views over 5,332 readable
+  stock files. Research is capped at 2025-12-31 despite a physical 2026
+  superset; Forward is covered through 2026-06-30.
+- Confirmed complete OHLCV/money and listing-date coverage for all three
+  evaluation splits while retaining `historical_st_status_not_covered` as a
+  formal blocker. A current-name snapshot is not historical ST evidence.
+- Changed provider-contract audit to be split-aware and non-mutating. Cache
+  identity mismatch and unavailable v14 Forward coverage are now emitted as
+  blockers rather than causing an implicit OHLC cache rebuild.
+- Documented effective-date fundamental quality flags, strictly prior US/HK
+  session alignment, missing corporate-action lineage, and actual A-share
+  execution-rule samples. No training, backtest or lifecycle transition ran.
+- Focused NT2 tests passed 16/16; full regression passed 553 tests with one
+  existing pandas FutureWarning.

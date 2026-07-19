@@ -1,0 +1,376 @@
+{
+  "blockers": [
+    "ohlcv_cache_identity_mismatch",
+    "historical_st_status_not_covered"
+  ],
+  "dataset_role": "research",
+  "note": "Read-only audit: cache mismatches and unavailable providers are reported, never rebuilt or fabricated.",
+  "provider_count": 5,
+  "providers": {
+    "execution_constraints": {
+      "coverage": {
+        "dataset_role": "research",
+        "gaps": [
+          "historical_st_status_not_covered"
+        ],
+        "historical_st": {
+          "covers_requested_interval": false,
+          "note": "A current-name/single-snapshot fallback is not historical ST evidence. Do not label a report as historical-ST-complete until dated status events cover the interval.",
+          "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\stock_industry.csv",
+          "required_columns_present": true,
+          "snapshot_date_coverage": {
+            "count": 1,
+            "end": "2026-04-27",
+            "start": "2026-04-27"
+          },
+          "source_type": "current_snapshot"
+        },
+        "ohlc_matrix": {
+          "date_coverage": {
+            "count": 4002,
+            "end": "2026-06-30",
+            "start": "2010-01-04"
+          },
+          "fields": [
+            "open",
+            "high",
+            "low",
+            "close",
+            "volume",
+            "money"
+          ],
+          "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\cache\\open_ledger_ohlc_matrix\\ohlc_matrix_meta.json",
+          "source_count": 5332
+        },
+        "requested_interval": {
+          "end": "2025-12-31",
+          "start": "2024-01-01"
+        },
+        "schema_version": 1,
+        "status": "audited_with_declared_gaps",
+        "stock_master": {
+          "listing_date_count": 5332,
+          "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\raw\\stable_stocks.csv",
+          "rows": 5332
+        }
+      },
+      "data_view": {
+        "evaluation": {
+          "end": "2025-12-31",
+          "start": "2024-01-01"
+        },
+        "feature_warmup": {
+          "end": "2023-12-31",
+          "start": "2010-01-04"
+        },
+        "max_data_date": "2025-12-31",
+        "name": "selection_2024_2025",
+        "physical_fingerprint": {
+          "file_count": 5371,
+          "kind": "inventory_sha256",
+          "total_bytes": 1546577414,
+          "value": "349354875a2a80bed581a4ccf705998ece05c4375be6ff9171c4563c731a6e63"
+        },
+        "physical_root": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\raw",
+        "schema_version": 1,
+        "task": {
+          "end": "2025-12-31",
+          "start": "2010-01-04"
+        }
+      },
+      "formal_coverage_complete": false,
+      "provider": "a_share_execution_constraints_v1",
+      "schema_version": 1
+    },
+    "external_markets": {
+      "availability_rule": "A-share date D uses only the latest completed external session strictly before D",
+      "data_view": {
+        "evaluation": {
+          "end": "2025-12-31",
+          "start": "2024-01-01"
+        },
+        "feature_warmup": {
+          "end": "2023-12-31",
+          "start": "2010-01-04"
+        },
+        "max_data_date": "2025-12-31",
+        "name": "selection_2024_2025",
+        "physical_fingerprint": {
+          "file_count": 5371,
+          "kind": "inventory_sha256",
+          "total_bytes": 1546577414,
+          "value": "349354875a2a80bed581a4ccf705998ece05c4375be6ff9171c4563c731a6e63"
+        },
+        "physical_root": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\raw",
+        "schema_version": 1,
+        "task": {
+          "end": "2025-12-31",
+          "start": "2010-01-04"
+        }
+      },
+      "features": {
+        "columns": 1423,
+        "date_end": "2026-06-29",
+        "date_start": "2002-01-04",
+        "fingerprint": {
+          "kind": "file_sha256",
+          "value": "dc6267aa713a255665e2634b2349145a176624f28b2cd11c13d99c344fadce29"
+        },
+        "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\global\\global_overnight_features.parquet"
+      },
+      "provider": "external_market_pit_v1",
+      "schema_version": 1,
+      "summary": {
+        "alignment_rule": "A-share date D uses latest US session date strictly before D.",
+        "fingerprint": {
+          "kind": "file_sha256",
+          "value": "ffa244e05c6ac7e6be647a117d822b753b7fe52f1f5924194b3fdca55eb44544"
+        },
+        "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\global\\global_overnight_features_summary.json"
+      }
+    },
+    "fundamentals": {
+      "availability_rule": "effective_date <= feature_date; then forward-fill latest available report",
+      "data_view": {
+        "evaluation": {
+          "end": "2025-12-31",
+          "start": "2024-01-01"
+        },
+        "feature_warmup": {
+          "end": "2023-12-31",
+          "start": "2010-01-04"
+        },
+        "max_data_date": "2025-12-31",
+        "name": "selection_2024_2025",
+        "physical_fingerprint": {
+          "file_count": 5371,
+          "kind": "inventory_sha256",
+          "total_bytes": 1546577414,
+          "value": "349354875a2a80bed581a4ccf705998ece05c4375be6ff9171c4563c731a6e63"
+        },
+        "physical_root": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\raw",
+        "schema_version": 1,
+        "task": {
+          "end": "2025-12-31",
+          "start": "2010-01-04"
+        }
+      },
+      "provider": "fundamental_pit_v1",
+      "quality_flags": [
+        "has_value",
+        "days_since_effective",
+        "is_fresh_quarter",
+        "notice_is_estimated"
+      ],
+      "schema_version": 1,
+      "source": {
+        "codes": 5322,
+        "effective_end": "2026-05-15",
+        "effective_start": "1990-03-21",
+        "estimated_notice_rows": 584,
+        "fingerprint": {
+          "kind": "file_sha256",
+          "value": "68646ae9d2f822c466c666bfdccc1c72a880bdd17fde7c2c6c0a4b6295754b45"
+        },
+        "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\cache\\fundamental_features_akshare.parquet",
+        "rows": 321598
+      }
+    },
+    "ohlcv": {
+      "cache": {
+        "data_dir": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\forward_raw",
+        "date_end": "2026-06-30",
+        "date_start": "2010-01-04",
+        "fields": [
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume",
+          "money"
+        ],
+        "matches_data_view": false,
+        "root": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\cache\\open_ledger_ohlc_matrix",
+        "source_count": 5332,
+        "source_hash": "e10186dbab19553b6ed48bc38d95fd201ce0e42b08a6c668a98a184506da6b5b",
+        "version": 2
+      },
+      "data_view": {
+        "evaluation": {
+          "end": "2025-12-31",
+          "start": "2024-01-01"
+        },
+        "feature_warmup": {
+          "end": "2023-12-31",
+          "start": "2010-01-04"
+        },
+        "max_data_date": "2025-12-31",
+        "name": "selection_2024_2025",
+        "physical_fingerprint": {
+          "file_count": 5371,
+          "kind": "inventory_sha256",
+          "total_bytes": 1546577414,
+          "value": "349354875a2a80bed581a4ccf705998ece05c4375be6ff9171c4563c731a6e63"
+        },
+        "physical_root": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\raw",
+        "schema_version": 1,
+        "task": {
+          "end": "2025-12-31",
+          "start": "2010-01-04"
+        }
+      },
+      "provider": "ohlcv_matrix_v1",
+      "schema_version": 1
+    },
+    "v14": {
+      "data_view": {
+        "evaluation": {
+          "end": "2025-12-31",
+          "start": "2024-01-01"
+        },
+        "feature_warmup": {
+          "end": "2023-12-31",
+          "start": "2010-01-04"
+        },
+        "max_data_date": "2025-12-31",
+        "name": "selection_2024_2025",
+        "physical_fingerprint": {
+          "file_count": 5371,
+          "kind": "inventory_sha256",
+          "total_bytes": 1546577414,
+          "value": "349354875a2a80bed581a4ccf705998ece05c4375be6ff9171c4563c731a6e63"
+        },
+        "physical_root": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\raw",
+        "schema_version": 1,
+        "task": {
+          "end": "2025-12-31",
+          "start": "2010-01-04"
+        }
+      },
+      "metadata": {
+        "codes": 5178,
+        "date_end": "2026-05-18",
+        "date_start": "2010-01-04",
+        "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\cache\\cross_section_v14_multilabel_open_tech_market_fundaq_shareh_restr_macro_all_s40_t5_h10_min30_mad_rawlab_end20260518_meta.pkl",
+        "sha256": "2e79feb97f1654839a3c50b5601cb9cc04f392bc248e7684550b4fa8467d6d16"
+      },
+      "provider": "v14_memmap_v1",
+      "schema_version": 1,
+      "transform_contract": {
+        "cache_metadata": {
+          "bytes": 41301878,
+          "date_end": "2026-05-18",
+          "date_start": "2010-01-04",
+          "feature_columns": [
+            "ret_5d",
+            "ret_20d",
+            "vol_10d",
+            "vol_60d",
+            "price_momentum",
+            "log_volume",
+            "volume_spike",
+            "upper_shadow",
+            "lower_shadow",
+            "body_size",
+            "gap",
+            "amplitude",
+            "sma5_gap",
+            "sma10_gap",
+            "sma20_gap",
+            "ema12_gap",
+            "ema26_gap",
+            "rsi_norm",
+            "macd_pct",
+            "macd_signal_pct",
+            "macd_diff_pct",
+            "atr_pct",
+            "volume_ratio",
+            "fund_roe",
+            "fund_revenue_yoy",
+            "fund_has_value",
+            "fund_days_since_effective",
+            "fund_is_fresh_quarter",
+            "fund_notice_is_estimated",
+            "sh_sh_conc_ratio",
+            "sh_sh_per_capita_ratio",
+            "restr_restricted_next_inv_days",
+            "restr_restricted_next_ratio",
+            "restr_restricted_mv_ratio_90d"
+          ],
+          "mtime_ns": 1782717242466352000,
+          "n_codes": 5178,
+          "n_dates": 3972,
+          "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\cache\\cross_section_v14_multilabel_open_tech_market_fundaq_shareh_restr_macro_all_s40_t5_h10_min30_mad_rawlab_end20260518_meta.pkl",
+          "risk_full_dim": 59,
+          "x_dim": 258
+        },
+        "coverage_gaps": [
+          "cache metadata does not contain raw-source file hashes",
+          "cache metadata does not contain per-source publication timestamps",
+          "historical universe/ST/listing coverage is owned by the execution-mask audit, not this feature cache"
+        ],
+        "feature_transforms": {
+          "aggregate_features": "per-date 1/99 percentile winsorization, z-score, clip[-4,4]",
+          "fit_scope": "daily_cross_section",
+          "global_train_fitted_scaler": false,
+          "implication": "reusing the cache does not reuse future-period global scaler statistics",
+          "industry_relative_features": "per-date z-score, clip[-4,4]",
+          "missing_policy": "nan/positive_inf/negative_inf become zero after daily normalization",
+          "rank_features": "per-date z-score, clip[-4,4]",
+          "risk_continuous_features": "per-date z-score first six columns, clip[-4,4]"
+        },
+        "kind": "v14_transform_contract",
+        "labels": {
+          "execution_note": "oo_lag1 aliases oo with a one-trading-day label shift; task-level label-tail purge remains required",
+          "families": {
+            "cc": {
+              "date_shift": 0,
+              "norm_path": "cache\\cross_section_v14_multilabel_open_tech_market_fundaq_shareh_restr_macro_all_s40_t5_h10_min30_mad_rawlab_end20260518_label_cc_norm.dat",
+              "raw_path": "cache\\cross_section_v14_multilabel_open_tech_market_fundaq_shareh_restr_macro_all_s40_t5_h10_min30_mad_rawlab_end20260518_label_cc_raw.dat"
+            },
+            "oc": {
+              "date_shift": 0,
+              "norm_path": "cache\\cross_section_v14_multilabel_open_tech_market_fundaq_shareh_restr_macro_all_s40_t5_h10_min30_mad_rawlab_end20260518_label_oc_norm.dat",
+              "raw_path": "cache\\cross_section_v14_multilabel_open_tech_market_fundaq_shareh_restr_macro_all_s40_t5_h10_min30_mad_rawlab_end20260518_label_oc_raw.dat"
+            },
+            "oo": {
+              "date_shift": 0,
+              "norm_path": "cache\\cross_section_v14_multilabel_open_tech_market_fundaq_shareh_restr_macro_all_s40_t5_h10_min30_mad_rawlab_end20260518_label_oo_norm.dat",
+              "raw_path": "cache\\cross_section_v14_multilabel_open_tech_market_fundaq_shareh_restr_macro_all_s40_t5_h10_min30_mad_rawlab_end20260518_label_oo_raw.dat"
+            },
+            "oo_lag1": {
+              "alias_of": "oo",
+              "date_shift": 1
+            }
+          },
+          "normalization": "per-date cross-sectional normalization by horizon"
+        },
+        "point_in_time_sources": {
+          "execution": {
+            "price_contract": "features may use adjusted series; formal execution must use raw OHLC through realistic open ledger",
+            "required_follow_up": "corporate-action adjustment lineage is not retained in this cache metadata"
+          },
+          "fundamentals": {
+            "availability": "effective_date derived from announcement dates when present; daily values forward-fill only after effective_date",
+            "quality_flags": [
+              "has_value",
+              "days_since_effective",
+              "is_fresh_quarter",
+              "notice_is_estimated"
+            ]
+          },
+          "market_and_macro": {
+            "availability": "rolling calculations are trailing; macro PMI uses next-month effective date and shifted expanding statistics",
+            "required_follow_up": "source publication timestamps and external-market timezone lags must be covered by a source availability audit"
+          }
+        },
+        "schema_version": 1,
+        "status": "audited_with_declared_gaps"
+      },
+      "transform_contract_sha256": "a677b001f95aef64377aef960fc8978966bfcded53893c8cdb8915ee03db0137"
+    }
+  },
+  "schema_version": 1,
+  "split": "selection_2024_2025",
+  "status": "complete_with_declared_external_gaps"
+}

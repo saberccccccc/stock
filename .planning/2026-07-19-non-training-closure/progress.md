@@ -29,3 +29,13 @@
   all eight common v2/v4 ledger summaries have identical SHA-256 values.
 - Validation passed: 17 focused tests and the full 550-test suite, with one
   existing pandas FutureWarning.
+- Completed NT2 read-only boundary and execution audits for Val 2024, Test 2025
+  and Forward 2026. All 5,332 market files and listing dates are readable; the
+  only common execution-coverage blocker is historical ST status.
+- Made provider-contract audit split-aware and genuinely read-only. It now
+  reports selection OHLC cache identity mismatch and the v14 Forward coverage
+  shortfall instead of rebuilding cache data or failing without a report.
+- Recorded PIT, external-session, adjustment-lineage and real A-share board,
+  suspension, limit-open, new-listing and ST samples in the NT2 quality report.
+- Validation passed: 16 focused NT2 tests and the full 553-test suite, with one
+  existing pandas FutureWarning.

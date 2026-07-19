@@ -33,3 +33,18 @@
 - The frozen baseline inventory contains 23 artifacts with no missing files.
   Training checkpoint provenance remains historically unresolved, but the
   frozen-alpha ledger replay itself is complete and reproducible.
+- Both physical market roots contain 5,332 readable stock files. Research is a
+  physical superset through 2026-06-29 but its logical view is safely capped at
+  2025-12-31; Forward is physically covered through 2026-06-30.
+- OHLC, volume, money and all 5,332 listing dates cover Val, Test and Forward.
+  Historical ST is not covered in any split. The current-name fallback cannot
+  establish historical status and may apply present-day names retrospectively.
+- The v14 cache ends on 2026-05-18 and cannot serve a full 2026-06-30 Forward
+  feature replay. Fundamentals have effective dates and quality flags but end
+  on 2026-05-15; external markets enforce a strictly-prior-session rule.
+- The shared OHLC cache is currently bound to `data/forward_raw`, so a research
+  provider sees an identity mismatch. The prior read-only provider audit could
+  rebuild this cache; it now reports the mismatch without mutating it.
+- Tushare daily OHLC is raw and the stored factor is fixed at 1.0. That is
+  appropriate for execution, but v14 metadata lacks corporate-action/adjustment
+  lineage for feature construction.

@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "dataset_role": "research",
+  "data_dir": "data\\raw",
+  "research_cutoff": "2025-12-31",
+  "forward_start": "2026-01-01",
+  "effective_end_date": "2025-12-31",
+  "effective_view_safe": true,
+  "physical_cache_clean": false,
+  "status": "runtime_cutoff_required",
+  "boundary_method": "first_and_last_rows_assuming_chronological_rows",
+  "file_count": 5332,
+  "valid_date_file_count": 5332,
+  "invalid_or_unreadable_file_count": 0,
+  "physical_date_coverage": {
+    "start": "2010-01-04",
+    "end": "2026-06-29"
+  },
+  "research_cutoff_violation_count": 5328,
+  "research_cutoff_violation_sample": [
+    {
+      "path": "data\\raw\\000001.SZ.csv",
+      "date_column": "trade_date",
+      "first_date": "2010-01-04",
+      "last_date": "2026-06-29",
+      "status": "ok",
+      "boundary_method": "first_and_last_rows_assuming_chronological_rows"
+    },
+    {
+      "path": "data\\raw\\000002.SZ.csv",
+      "date_column": "trade_date",
+      "first_date": "2010-01-04",
+      "last_date": "2026-06-29",
+      "status": "ok",
+      "boundary_method": "first_and_last_rows_assuming_chronological_rows"
+    },
+    {
+      "path": "data\\raw\\000004.SZ.csv",
+      "date_column": "trade_date",
+      "first_date": "2010-02-11",
+      "last_date": "2026-06-29",
+      "status": "ok",
+      "boundary_method": "first_and_last_rows_assuming_chronological_rows"
+    },
+    {
+      "path": "data\\raw\\000006.SZ.csv",
+      "date_column": "trade_date",
+      "first_date": "2010-01-04",
+      "last_date": "2026-06-29",
+      "status": "ok",
+      "boundary_method": "first_and_last_rows_assuming_chronological_rows"
+    },
+    {
+      "path": "data\\raw\\000007.SZ.csv",
+      "date_column": "trade_date",
+      "first_date": "2010-01-04",
+      "last_date": "2026-06-29",
+      "status": "ok",
+      "boundary_method": "first_and_last_rows_assuming_chronological_rows"
+    },
+    {
+      "path": "data\\raw\\000008.SZ.csv",
+      "date_column": "trade_date",
+      "first_date": "2010-01-20",
+      "last_date": "2026-06-29",
+      "status": "ok",
+      "boundary_method": "first_and_last_rows_assuming_chronological_rows"
+    },
+    {
+      "path": "data\\raw\\000009.SZ.csv",
+      "date_column": "trade_date",
+      "first_date": "2010-01-04",
+      "last_date": "2026-06-29",
+      "status": "ok",
+      "boundary_method": "first_and_last_rows_assuming_chronological_rows"
+    },
+    {
+      "path": "data\\raw\\000010.SZ.csv",
+      "date_column": "trade_date",
+      "first_date": "2010-01-04",
+      "last_date": "2026-06-29",
+      "status": "ok",
+      "boundary_method": "first_and_last_rows_assuming_chronological_rows"
+    },
+    {
+      "path": "data\\raw\\000011.SZ.csv",
+      "date_column": "trade_date",
+      "first_date": "2010-01-04",
+      "last_date": "2026-06-29",
+      "status": "ok",
+      "boundary_method": "first_and_last_rows_assuming_chronological_rows"
+    },
+    {
+      "path": "data\\raw\\000012.SZ.csv",
+      "date_column": "trade_date",
+      "first_date": "2010-01-04",
+      "last_date": "2026-06-29",
+      "status": "ok",
+      "boundary_method": "first_and_last_rows_assuming_chronological_rows"
+    },
+    {
+      "path": "data\\raw\\000014.SZ.csv",
+      "date_column": "trade_date",
+      "first_date": "2010-01-04",
+      "last_date": "2026-06-29",
+      "status": "ok",
+      "boundary_method": "first_and_last_rows_assuming_chronological_rows"
+    },
+    {
+      "path": "data\\raw\\000016.SZ.csv",
+      "date_column": "trade_date",
+      "first_date": "2010-01-04",
+      "last_date": "2026-06-29",
+      "status": "ok",
+      "boundary_method": "first_and_last_rows_assuming_chronological_rows"
+    },
+    {
+      "path": "data\\raw\\000017.SZ.csv",
+      "date_column": "trade_date",
+      "first_date": "2010-03-18",
+      "last_date": "2026-06-29",
+      "status": "ok",
+      "boundary_method": "first_and_last_rows_assuming_chronological_rows"
+    },
+    {
+      "path": "data\\raw\\000019.SZ.csv",
+      "date_column": "trade_date",
+      "first_date": "2010-01-04",
+      "last_date": "2026-06-29",
+      "status": "ok",
+      "boundary_method": "first_and_last_rows_assuming_chronological_rows"
+    },
+    {
+      "path": "data\\raw\\000020.SZ.csv",
+      "date_column": "trade_date",
+      "first_date": "2010-01-04",
+      "last_date": "2026-06-29",
+      "status": "ok",
+      "boundary_method": "first_and_last_rows_assuming_chronological_rows"
+    },
+    {
+      "path": "data\\raw\\000021.SZ.csv",
+      "date_column": "trade_date",
+      "first_date": "2010-01-04",
+      "last_date": "2026-06-29",
+      "status": "ok",
+      "boundary_method": "first_and_last_rows_assuming_chronological_rows"
+    },
+    {
+      "path": "data\\raw\\000025.SZ.csv",
+      "date_column": "trade_date",
+      "first_date": "2010-01-04",
+      "last_date": "2026-06-29",
+      "status": "ok",
+      "boundary_method": "first_and_last_rows_assuming_chronological_rows"
+    },
+    {
+      "path": "data\\raw\\000026.SZ.csv",
+      "date_column": "trade_date",
+      "first_date": "2010-01-04",
+      "last_date": "2026-06-29",
+      "status": "ok",
+      "boundary_method": "first_and_last_rows_assuming_chronological_rows"
+    },
+    {
+      "path": "data\\raw\\000027.SZ.csv",
+      "date_column": "trade_date",
+      "first_date": "2010-01-04",
+      "last_date": "2026-06-29",
+      "status": "ok",
+      "boundary_method": "first_and_last_rows_assuming_chronological_rows"
+    },
+    {
+      "path": "data\\raw\\000028.SZ.csv",
+      "date_column": "trade_date",
+      "first_date": "2010-01-04",
+      "last_date": "2026-06-29",
+      "status": "ok",
+      "boundary_method": "first_and_last_rows_assuming_chronological_rows"
+    }
+  ],
+  "note": "A physical research-cache superset is not selection-safe by itself. Every research consumer must apply effective_end_date <= research_cutoff."
+}

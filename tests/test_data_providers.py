@@ -70,6 +70,25 @@ def test_same_physical_store_supports_bounded_arbitrary_views(tmp_path):
         )
 
 
+def test_ohlcv_manifest_can_audit_without_rebuilding_mismatched_cache(tmp_path):
+    source = tmp_path / "source"
+    source.mkdir()
+    _write_stock(source / "000001.SZ.csv")
+    other = tmp_path / "other"
+    other.mkdir()
+    _write_stock(other / "000001.SZ.csv")
+    cache = tmp_path / "cache"
+    OhlcvMatrixProvider(data_view=_view(source), cache_dir=cache).manifest()
+    before = (cache / "ohlc_matrix_meta.json").read_bytes()
+
+    manifest = OhlcvMatrixProvider(data_view=_view(other), cache_dir=cache).manifest(
+        ensure_cache=False
+    )
+
+    assert manifest["cache"]["matches_data_view"] is False
+    assert (cache / "ohlc_matrix_meta.json").read_bytes() == before
+
+
 def test_data_view_manifest_separates_physical_and_logical_ranges(tmp_path):
     data = tmp_path / "raw"
     data.mkdir()
