@@ -16,3 +16,8 @@
 - The accepted hierarchy is now master plan -> one `.active_plan` ledger -> at
   most one current-stage technical specification. Historical plans remain
   immutable evidence rather than being deleted or moved and breaking links.
+- NT0 found that `origin/master` could be fast-forwarded, while `origin/main`
+  contained one independent commit. The safe solution was to leave `main`
+  unchanged and publish accepted, working, archive and tag refs separately.
+- A fresh shallow clone of remote `model-experiments` recovered the exact
+  accepted commit with a clean status, valid objects and all critical entrypoints.

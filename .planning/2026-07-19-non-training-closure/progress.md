@@ -14,3 +14,8 @@
   patterns and report paths only, never secret values.
 - Paused NT0 to audit plan sprawl. Added one planning index, corrected stale
   status labels, and retained old plans as non-authoritative historical evidence.
+- Completed NT0 with no force push: fast-forwarded remote `master`, created
+  remote `model-experiments`, archived the legacy branch, and published annotated
+  tag `accepted-research-20260719` while leaving divergent `origin/main` intact.
+- Passed remote recovery acceptance from a fresh shallow clone at `83bba60`;
+  the clone was clean, object-valid and removed after checking critical files.

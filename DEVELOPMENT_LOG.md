@@ -835,3 +835,14 @@ Append-only record of material engineering and governance changes. Experiment me
 - Added a rule that new plan files require a distinct stage boundary, protocol,
   owner, deliverable and acceptance gate; covered subtasks must update the
   active plan instead.
+
+## 2026-07-19 - NT0 Repository Durability
+
+- Audited tracked object sizes and sensitive-value patterns without printing
+  matching values; only the explicitly permitted Tushare-token references were
+  present.
+- Fast-forwarded remote `master`, created remote `model-experiments`, preserved
+  the isolated legacy snapshot under an archive branch, and published annotated
+  tag `accepted-research-20260719` without force-pushing or changing `main`.
+- Verified recovery from a fresh shallow clone at exact commit `83bba60`, with
+  clean status, valid Git objects and all critical governance/runtime files.
