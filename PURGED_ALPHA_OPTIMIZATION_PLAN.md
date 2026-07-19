@@ -1,5 +1,7 @@
 # Purged Alpha Optimization Plan
 
+> 状态：历史研究计划与筛选记录；不再决定当前执行顺序。
+
 Updated: 2026-06-13
 
 ## Objective

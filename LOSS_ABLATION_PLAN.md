@@ -1,5 +1,7 @@
 # V9 Loss Ablation and Trading-Objective Plan
 
+> 状态：历史消融计划；V9 不进入当前正式候选，本文件不再决定下一步。
+
 Updated: 2026-06-13
 
 ## Objective
@@ -212,4 +214,3 @@ is not the formal promotion gate.
 | A4 | Pending | `checkpoints_loss_ablation_A4` |
 | R1 | Pending implementation | `checkpoints_loss_rawtop_R1` |
 | R2 | Pending implementation | `checkpoints_loss_chase_R2` |
-

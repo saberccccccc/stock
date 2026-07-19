@@ -1,5 +1,7 @@
 # Reranker V4: Confidence-Gated Marginal Fill Plan
 
+> 状态：历史实验计划与结论记录；不再决定当前执行顺序。
+
 ## Objective
 
 V4 improves V3 by adding an explicit abstention decision. It does not replace

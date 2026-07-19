@@ -1,5 +1,7 @@
 # V9 Small-Account Test Plan
 
+> 状态：历史 V9 测试记录；当前正式测试合同以 Registry 和总计划为准。
+
 Updated: 2026-06-12
 
 ## Fixed constraints

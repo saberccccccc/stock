@@ -822,3 +822,16 @@ Append-only record of material engineering and governance changes. Experiment me
   Qlib Executor substitution and automatic `prepared -> shadow` transition.
 - Switched the active planning pointer to
   `.planning/2026-07-19-non-training-closure/`.
+
+## 2026-07-19 - Plan Governance Consolidation
+
+- Kept one authoritative execution sequence in the master plan and one current
+  execution ledger through `.planning/.active_plan`.
+- Added `.planning/README.md` as a status index and classified older Qlib,
+  Rolling, reranker, loss, validation, cleanup and migration plans as paused,
+  transferred, complete, closed or superseded evidence.
+- Corrected the stale Qlib `in_progress` label and current-index P2 statement;
+  no historical plan or report was deleted or moved, avoiding broken links.
+- Added a rule that new plan files require a distinct stage boundary, protocol,
+  owner, deliverable and acceptance gate; covered subtasks must update the
+  active plan instead.

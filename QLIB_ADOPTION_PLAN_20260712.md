@@ -6,7 +6,7 @@
 > `MASTER_QUANT_RESEARCH_EXECUTION_PLAN_20260718.md`. Any older `next phase` or
 > priority wording here is non-normative and cannot reorder the master plan.
 
-Status: in_progress - current-state corrected
+Status: historical technical reference - execution order superseded by the master plan
 Date: 2026-07-12; corrected 2026-07-16
 Scope: research-layer improvements inspired by the local Qlib reference. This
 plan does not replace the project's PIT data pipeline, realistic execution

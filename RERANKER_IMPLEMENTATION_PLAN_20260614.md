@@ -1,5 +1,7 @@
 # M0 Candidate Reranker Implementation Plan
 
+> 状态：历史实验计划与结论记录；不再决定当前执行顺序。
+
 Date: 2026-06-14
 
 ## Objective

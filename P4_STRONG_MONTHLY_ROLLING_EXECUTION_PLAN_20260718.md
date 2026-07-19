@@ -1,5 +1,8 @@
 # P4 强模型月度滚动 OOF 详细执行计划书
 
+> 状态：暂停并保留为 P4 技术说明。当前活动执行单是
+> `.planning/2026-07-19-non-training-closure/task_plan.md`；本文件不能自行恢复训练。
+
 版本：2026-07-18
 所属总计划：`MASTER_QUANT_RESEARCH_EXECUTION_PLAN_20260718.md`
 执行清单：`.planning/2026-07-18-p4-monthly-oof/task_plan.md`

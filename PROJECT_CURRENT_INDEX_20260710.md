@@ -3,7 +3,8 @@
 > 2026-07-18 执行治理更新：项目唯一有效的完整推进顺序已统一到
 > `MASTER_QUANT_RESEARCH_EXECUTION_PLAN_20260718.md`。本索引继续登记当前
 > baseline、候选、报告和入口，但其中历史“next phase”文字不再决定执行
-> 顺序。当前位于总计划 P2 正式训练主线收敛阶段。
+> 顺序。P4 强模型 Rolling 当前暂停；项目正在执行不含训练的研究闭环专项，活动状态以
+> `.planning/.active_plan` 为准。
 
 Purpose: prevent repeated context loss, missed baselines, and mixed
 proxy/realistic evidence. This file is intentionally ASCII so it can be read

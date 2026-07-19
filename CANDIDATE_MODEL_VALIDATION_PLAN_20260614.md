@@ -1,5 +1,7 @@
 # Candidate Model Validation Plan
 
+> 状态：历史验证计划与结论记录；正式候选门禁以 Registry 和总计划为准。
+
 Updated: 2026-06-14
 
 ## Objective
