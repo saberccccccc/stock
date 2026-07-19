@@ -792,3 +792,19 @@ Append-only record of material engineering and governance changes. Experiment me
   retained on disk and excluded from Git rather than deleted.
 - Verified every tracked report deletion against its retained archive copy;
   47 are byte-identical and five archive versions are later supersets.
+
+## 2026-07-19 - Standalone Repository Migration
+
+- Preserved the dirty legacy optimized checkout as isolated branch
+  `legacy/optimized-pre-model-exp-20260719` at `c91eb2a`; it is historical
+  evidence and must not be merged into accepted branches.
+- Copied its two unique research files to the ignored local archive
+  `archive/legacy_optimized_20260719/` and verified their SHA-256 hashes.
+- Fast-forwarded local `master` to `model-experiments`, then replaced the
+  linked-worktree metadata with a no-hardlink standalone Git repository while
+  retaining the original GitHub remote and branch history.
+- Verified the independent repository with `git fsck` and the full suite:
+  547 passed with one existing pandas FutureWarning.
+- Removed the temporary migration clone and retired the obsolete 2.98 GiB
+  `deepseek_optimized` checkout. `deepseek_model_exp` is now the sole active
+  repository for this development line.
