@@ -72,6 +72,11 @@ class DataConfig:
     horizon_indices: Tuple[int, ...] = (0, 2, 4, 6)   # y_seq中的列索引 h1,h3,h5,h7
     horizon_weights: Tuple[float, ...] = (0.225, 0.225, 0.3, 0.25)  # 各周期loss权重
 
+    # ==================== 实验性损失权重（0=禁用，非0=启用）====================
+    industry_loss_weight: float = 0.0           # 行业内IC loss权重，0=纯全局，1=纯行业内
+    spread_loss_weight: float = 0.0             # head-tail spread loss 权重
+    spread_temperature: float = 0.5             # spread loss softmax 温度，越小越集中
+
 
 # ── 项目环境初始化 ──────────────────────────────────────
 def setup_project_environment():

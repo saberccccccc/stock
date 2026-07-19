@@ -8,8 +8,11 @@ from pathlib import Path
 import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
+# 始终确保项目根在 sys.path 最前面，防止 run/backtest.py 遮蔽 backtest/ 包
+_root_str = str(PROJECT_ROOT)
+if _root_str in sys.path:
+    sys.path.remove(_root_str)
+sys.path.insert(0, _root_str)
 
 from backtest.runtime import build_v9_backtest_config, load_backtest_runtime
 from data.pipeline import _normalize_ts_code, build_cross_section_dataset, build_inference_sample, build_inference_samples

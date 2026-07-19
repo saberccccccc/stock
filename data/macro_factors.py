@@ -34,12 +34,13 @@ def fetch_north_flow(save_path=None):
 
     if os.path.exists(save_path):
         df = pd.read_csv(save_path, index_col=0, parse_dates=True)
-        print(f"cache: loaded north flow {len(df)} rows")
-        return df
+        if len(df) > 0:
+            print(f"cache: loaded north flow {len(df)} rows")
+            return df
 
     print("下载北向资金数据...")
-    df = _safe_ak_call(ak.stock_hsgt_hist_em, symbol="hutong")
-    df_sz = _safe_ak_call(ak.stock_hsgt_hist_em, symbol="shentong")
+    df = _safe_ak_call(ak.stock_hsgt_hist_em, symbol="沪股通")
+    df_sz = _safe_ak_call(ak.stock_hsgt_hist_em, symbol="深股通")
 
     if df is not None and not df.empty:
         # 列名：日期、当日成交净买额
@@ -76,8 +77,9 @@ def fetch_margin_balance(save_path=None):
 
     if os.path.exists(save_path):
         df = pd.read_csv(save_path, index_col=0, parse_dates=True)
-        print(f"cache: loaded margin balance {len(df)} rows")
-        return df
+        if len(df) > 0:
+            print(f"cache: loaded margin balance {len(df)} rows")
+            return df
 
     print("下载融资融券数据...")
     # 使用宏观接口：macro_china_market_margin_sh / sz
@@ -113,15 +115,16 @@ def fetch_pmi(save_path=None):
 
     if os.path.exists(save_path):
         df = pd.read_csv(save_path, index_col=0, parse_dates=True)
-        print(f"从缓存加载PMI: {len(df)} 条")
-        return df
+        if len(df) > 0:
+            print(f"从缓存加载PMI: {len(df)} 条")
+            return df
 
     print("下载PMI数据...")
     df = _safe_ak_call(ak.macro_china_pmi)
     if df is not None and not df.empty:
         def parse_pmi_month(s):
             import re
-            m = re.search(r"(\d{4})year(\d{2})month", str(s))
+            m = re.search(r"(\d{4})年(\d{2})月", str(s))
             if m:
                 return pd.Timestamp(f"{m.group(1)}-{m.group(2)}-01")
             return pd.NaT

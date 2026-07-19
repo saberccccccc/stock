@@ -8,6 +8,7 @@ from numpy.lib.stride_tricks import sliding_window_view
 from collections import defaultdict
 import hashlib
 import warnings
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 warnings.filterwarnings('ignore')
 
@@ -41,11 +42,12 @@ def _bool_tag(name, enabled):
 def _cache_config_tag(config, data_dir, stock_universe):
     norm_tag = "mad" if getattr(config, 'normalize_features', True) else "raw"
     min_stocks = getattr(config, 'min_stocks_per_time', 30)
+    res_tag = "res" if getattr(config, 'residualize_labels', False) else "rawlab"
     universe_tag = "all"
     if stock_universe:
         universe_digest = hashlib.md5("|".join(sorted(stock_universe)).encode()).hexdigest()[:6]
         universe_tag = f"u{len(stock_universe)}_{universe_digest}"
-    return f"{universe_tag}_s{config.seq_len}_t{config.target_horizon}_h{getattr(config, 'max_horizon', 10)}_min{min_stocks}_{norm_tag}"
+    return f"{universe_tag}_s{config.seq_len}_t{config.target_horizon}_h{getattr(config, 'max_horizon', 10)}_min{min_stocks}_{norm_tag}_{res_tag}"
 
 
 def _compute_base_features(df_dict):
@@ -98,6 +100,42 @@ def _load_industry_map(data_dir):
     n_industries = len(all_industries)
     industry_to_idx = {ind: i for i, ind in enumerate(all_industries)}
     return industry_dict, all_industries, industry_to_idx, n_industries
+
+
+def _residualize_labels(y_seq_t, ind_ids, size_proxy):
+    """
+    标签残差化：剥离行业均值 + 规模效应，保留纯个股 alpha 信号。
+    y_seq_t: (N, H) 原始未来收益率
+    ind_ids: (N,) 行业 ID，-1 表示未知
+    size_proxy: (N,) 规模代理变量（log_volume）
+    Returns: (N, H) 残差化后的收益率
+    """
+    residual = y_seq_t.copy()
+    n_stocks, n_horizons = residual.shape
+
+    for h in range(n_horizons):
+        y_h = residual[:, h]
+
+        # 1. 行业内去均值
+        valid = ind_ids >= 0
+        unique_inds = np.unique(ind_ids[valid])
+        for ind in unique_inds:
+            mask = ind_ids == ind
+            if mask.sum() >= 3:
+                y_h[mask] -= np.mean(y_h[mask])
+        if (~valid).any():
+            y_h[~valid] -= np.mean(y_h[valid]) if valid.any() else 0.0
+
+        # 2. 市值回归去趋势：残差 = y - (alpha + beta * size)
+        size_valid = np.isfinite(size_proxy) & (np.abs(size_proxy) < 50)
+        if size_valid.sum() >= 20:
+            A = np.column_stack([np.ones(size_valid.sum()), size_proxy[size_valid]])
+            beta = np.linalg.lstsq(A, y_h[size_valid], rcond=None)[0]
+            y_h[size_valid] -= A @ beta
+            y_h[~size_valid] -= beta[0]  # 无 size 数据时至少去掉截距
+
+        residual[:, h] = y_h
+    return residual
 
 
 def _normalize_and_assemble(X_t, X_rank, industry_relative, risk_vals, ind_ids, n_industries):
@@ -240,11 +278,10 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
         csv_files = csv_files[:test_n]
         print(f"test mode: loading only {len(csv_files)} stocks")
 
-    df_dict = {}
-    for fname in tqdm(csv_files, desc="加载CSV", mininterval=10):
+    def _load_one(fname):
         code = fname.replace('.csv', '')
         if stock_universe and code not in stock_universe:
-            continue
+            return None, None
         file_path = os.path.join(data_dir, fname)
         try:
             df = pd.read_csv(file_path)
@@ -255,16 +292,25 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
             if 'code' in df.columns:
                 df.drop(columns=['code'], inplace=True)
         except Exception:
-            continue
+            return None, None
         required = ['open', 'high', 'low', 'close', 'volume']
         if not all(c in df.columns for c in required):
-            continue
+            return None, None
         df = df.sort_index()
         if config.use_technical_features:
-            # add_technical_features defined in this module
             df = add_technical_features(df, config)
         if len(df) >= seq_len + max_horizon + 50:
-            df_dict[code] = df
+            return code, df
+        return None, None
+
+    df_dict = {}
+    n_workers = min(8, os.cpu_count() or 4)
+    with ThreadPoolExecutor(max_workers=n_workers) as pool:
+        futures = {pool.submit(_load_one, fname): fname for fname in csv_files}
+        for fut in tqdm(as_completed(futures), total=len(futures), desc="加载CSV", mininterval=10):
+            code, df = fut.result()
+            if code is not None:
+                df_dict[code] = df
 
     if not df_dict:
         raise ValueError("没有有效股票数据")
@@ -415,13 +461,16 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
     del df_dict
     gc.collect()
 
-    # ========== 7. 构建截面样本 ==========
+    # ========== 7. 构建截面样本（多线程加速）==========
     print("构建截面样本...")
-    X_samples = []
     min_stocks = getattr(config, 'min_stocks_per_time', 30)
+    residualize = getattr(config, 'residualize_labels', False)
     all_codes_np = np.array(all_codes)
+    valid_times = list(range(seq_len, num_dates - max_horizon))
+    relative_indices = [FEATURE_COLS.index(name) for name in INDUSTRY_REL_FEATURES if name in FEATURE_COLS]
 
-    for t in tqdm(range(seq_len, num_dates - max_horizon), desc="构建截面", mininterval=10):
+    def _build_one_sample(t):
+        """构建单个时间步的截面样本（线程安全：只读访问大数组）"""
         X_t_all = feat_array[:, t, :]
         y_seq_all = ret_seq_array[:, t, :]
         risk_all = risk_raw_array[:, t, :]
@@ -432,24 +481,25 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
         valid_risk = ~np.isnan(risk_all).any(axis=1)
         valid = valid_feat & valid_ret & valid_risk
         if valid.sum() < min_stocks:
-            continue
+            return None
 
         X_t = X_t_all[valid]
         y_seq_t = y_seq_all[valid]
         risk_vals = risk_all[valid]
         ind_ids = ind_all[valid]
 
-        # V7: 多周期加权标签（而非单周期future_len-1）
+        if residualize:
+            size_proxy = risk_vals[:, 0]
+            y_seq_t = _residualize_labels(y_seq_t, ind_ids, size_proxy)
+
         target_h = getattr(config, 'target_horizon', 5)
         h_idx = min(target_h - 1, max_horizon - 1)
-        y_t = y_seq_t[:, h_idx]           # 主标签用 target_horizon 日收益
-        # y_seq_t 保留全部10个horizon用于多任务训练
+        y_t = y_seq_t[:, h_idx]
 
         # 截面rank特征
-        X_rank = np.argsort(np.argsort(X_t, axis=0), axis=0).astype(np.float32) / (X_t.shape[0] - 1)
+        X_rank = np.argsort(np.argsort(X_t, axis=0), axis=0).astype(np.float32) / max(X_t.shape[0] - 1, 1)
 
-        # 行业相对特征：仅对last聚合的核心因子计算，避免维度过高
-        relative_indices = [FEATURE_COLS.index(name) for name in INDUSTRY_REL_FEATURES if name in FEATURE_COLS]
+        # 行业相对特征（向量化替代嵌套for循环）
         n_relative = len(relative_indices)
         industry_relative = np.zeros((X_t.shape[0], n_relative), dtype=np.float32)
         if n_industries > 0:
@@ -468,12 +518,11 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
 
         X_norm, risk_factors = _normalize_and_assemble(X_t, X_rank, industry_relative, risk_vals, ind_ids, n_industries)
 
-        # 标签：稳健缩放
+        # 标签
         p_low, p_high = np.percentile(y_t, [1, 99])
         y_clipped = np.clip(y_t, p_low, p_high)
         y_label = (y_clipped - np.mean(y_clipped)) / (np.std(y_clipped) + 1e-8)
 
-        # 多期标签
         y_seq_norm = np.zeros_like(y_seq_t)
         for h in range(max_horizon):
             y_h = y_seq_t[:, h]
@@ -481,7 +530,7 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
             y_h_c = np.clip(y_h, p_l, p_h)
             y_seq_norm[:, h] = (y_h_c - np.mean(y_h_c)) / (np.std(y_h_c) + 1e-8)
 
-        X_samples.append({
+        return {
             'date': all_dates[t],
             'X': X_norm,
             'y': y_label,
@@ -490,7 +539,19 @@ def build_cross_section_dataset(config, stock_universe=None, use_cache=True):
             'raw_y': y_t,
             'risk': risk_factors,
             'industry_ids': ind_ids,
-        })
+        }
+
+    # 用多线程并行构建截面（每个时间步独立，只读大数组线程安全）
+    X_samples = []
+    n_workers = min(8, os.cpu_count() or 4)
+    with ThreadPoolExecutor(max_workers=n_workers) as pool:
+        futures = {pool.submit(_build_one_sample, t): t for t in valid_times}
+        for fut in tqdm(as_completed(futures), total=len(futures), desc="构建截面", mininterval=10):
+            result = fut.result()
+            if result is not None:
+                X_samples.append(result)
+    # 按日期排序恢复时间顺序
+    X_samples.sort(key=lambda s: s['date'])
 
     print(f"截面样本数 {len(X_samples)}")
 
@@ -628,14 +689,34 @@ def _build_inference_matrices(config, stock_universe=None, max_lookback=None):
         if not all(c in df.columns for c in required):
             continue
         df = df.sort_index()
-        if config.use_technical_features:
-            df = add_technical_features(df, config)
         if len(df) >= seq_len + 50:
             df_dict[code] = df
 
     if not df_dict:
         raise ValueError("没有有效股票数据")
     print(f"有效股票数 {len(df_dict)}")
+
+    # 早期截断：max_lookback 时仅保留近期数据再计算特征（大幅加速推理）
+    all_dates_raw = sorted(set().union(*[df.index for df in df_dict.values()]))
+    num_dates_raw = len(all_dates_raw)
+    if max_lookback is not None and num_dates_raw > max_lookback:
+        # 保留足够历史用于滚动窗口特征（vol60需要60天）
+        buffer = 80
+        cutoff_idx = max(0, num_dates_raw - max_lookback - buffer)
+        cutoff_date = all_dates_raw[cutoff_idx]
+        for code in list(df_dict.keys()):
+            df = df_dict[code]
+            df = df[df.index >= cutoff_date]
+            if len(df) < seq_len:
+                del df_dict[code]
+            else:
+                df_dict[code] = df
+        print(f"推理截断: 仅保留 {cutoff_date.date()} 之后数据 ({len(df_dict)} 只股票)")
+
+    # 在截断后的数据上计算技术特征
+    if config.use_technical_features:
+        for code in list(df_dict.keys()):
+            df_dict[code] = add_technical_features(df_dict[code], config)
 
     print("构造多尺度特征...")
     base_features = _compute_base_features(df_dict)
@@ -649,6 +730,7 @@ def _build_inference_matrices(config, stock_universe=None, max_lookback=None):
     agg_feat_dim = base_feat_dim * N_AGGS
     print(f"最终特征列数 {base_feat_dim}, 聚合特征数 {agg_feat_dim}")
 
+    # 去除缓冲区，仅保留 max_lookback 窗口
     num_dates = len(all_dates)
     if max_lookback is not None and num_dates > max_lookback:
         cutoff_date = all_dates[-max_lookback]
@@ -811,7 +893,8 @@ def _sample_from_matrices(m, t_idx):
 
 def build_inference_sample(config, stock_universe=None, as_of_date=None):
     """Build a single label-free inference cross-section sample. Backward compatible."""
-    matrices = _build_inference_matrices(config, stock_universe)
+    max_lookback = config.seq_len + 50  # ~90天，只加载近期数据
+    matrices = _build_inference_matrices(config, stock_universe, max_lookback=max_lookback)
     all_dates = matrices['all_dates']
     seq_len = matrices['seq_len']
     num_dates = len(all_dates)

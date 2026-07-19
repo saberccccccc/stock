@@ -84,15 +84,62 @@ class FusionGate(nn.Module):
         self.gate = nn.Sequential(
             nn.Linear(hidden_dim * 2, hidden_dim),
             nn.GELU(),
-            nn.Linear(hidden_dim, 1),
+            nn.Linear(hidden_dim, hidden_dim),
             nn.Sigmoid(),
         )
 
     def forward(self, trans_out, gat_out):
-        # trans_out, gat_out: (B, N, hidden_dim)
+        # 逐维度 gate：每个特征维独立决定信 Transformer 还是信 GAT
         gate_input = torch.cat([trans_out, gat_out], dim=-1)
-        gate = self.gate(gate_input)  # (B, N, 1)
+        gate = self.gate(gate_input)  # (B, N, H)
         return gate * trans_out + (1 - gate) * gat_out
+
+
+class CrossIndustryAttention(nn.Module):
+    """GAT输出 → 按行业pool → 跨行业attention → 逐股票门控吸收"""
+
+    def __init__(self, hidden_dim, num_heads=4, dropout=0.1):
+        super().__init__()
+        self.ind_attn = nn.MultiheadAttention(hidden_dim, num_heads, batch_first=True, dropout=dropout)
+        self.ind_norm = nn.LayerNorm(hidden_dim)
+        # 逐股票门控：决定吸收多少跨行业信号
+        self.stock_gate = nn.Sequential(
+            nn.Linear(hidden_dim * 2, hidden_dim),
+            nn.GELU(),
+            nn.Linear(hidden_dim, 1),
+            nn.Sigmoid(),
+        )
+        self.out_norm = nn.LayerNorm(hidden_dim)
+
+    def forward(self, x, industry_ids, mask):
+        B, N, H = x.shape
+        output = x.clone()
+        for b in range(B):
+            valid = mask[b]
+            ids = industry_ids[b][valid]
+            feats = x[b][valid]
+            unique_ids = ids[ids >= 0].unique()
+            if len(unique_ids) < 3:
+                continue
+
+            nodes, idx_map = [], {}
+            for uid in unique_ids:
+                idx_map[uid.item()] = len(nodes)
+                nodes.append(feats[ids == uid].mean(0))
+            nodes = torch.stack(nodes)
+
+            updated = self.ind_attn(nodes.unsqueeze(0), nodes.unsqueeze(0), nodes.unsqueeze(0))[0]
+            updated = self.ind_norm(updated.squeeze(0) + nodes)  # (n_inds, H)
+
+            valid_pos = valid.nonzero(as_tuple=True)[0]
+            for uid, pos in idx_map.items():
+                stock_pos = valid_pos[ids == uid]
+                stock_feats = output[b][stock_pos]
+                ind_node = updated[pos].unsqueeze(0).expand(stock_feats.shape[0], -1)
+                gate = self.stock_gate(torch.cat([stock_feats, ind_node], dim=-1))
+                output[b][stock_pos] = self.out_norm(stock_feats + gate * (ind_node - stock_feats))
+
+        return output
 
 
 class UltimateV7Model(nn.Module):
@@ -135,10 +182,11 @@ class UltimateV7Model(nn.Module):
         )
         self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
 
-        # 多头Alpha
+        # 多头Alpha（exp: +Dropout +LayerNorm）
         self.alpha_heads = nn.ModuleList([
             nn.Sequential(
-                nn.Linear(hidden_dim, hidden_dim), nn.GELU(),
+                nn.Dropout(0.1),
+                nn.Linear(hidden_dim, hidden_dim), nn.LayerNorm(hidden_dim), nn.GELU(),
                 nn.Linear(hidden_dim, 1)
             )
             for _ in range(n_alpha)
@@ -147,10 +195,11 @@ class UltimateV7Model(nn.Module):
             nn.Linear(hidden_dim, n_alpha), nn.Softmax(dim=-1)
         )
 
-        # 多周期预测头
+        # 多周期预测头（exp: +Dropout +LayerNorm）
         self.horizon_heads = nn.ModuleList([
             nn.Sequential(
-                nn.Linear(hidden_dim, hidden_dim), nn.GELU(),
+                nn.Dropout(0.1),
+                nn.Linear(hidden_dim, hidden_dim), nn.LayerNorm(hidden_dim), nn.GELU(),
                 nn.Linear(hidden_dim, 1)
             )
             for _ in range(n_horizons)
@@ -159,14 +208,17 @@ class UltimateV7Model(nn.Module):
         # 市场状态编码(regime_dim = 股票级风险 + 市场特征 + 可选宏观特征)
         self.regime_proj = nn.Linear(regime_dim, hidden_dim)
 
-        # GAT分支：1层GATConv，行业全连接图
+        # GAT分支：2层GATConv + 残差 + 4 heads + 跨行业attention
         if use_gat:
-            self.gat_conv = GATConv(hidden_dim, hidden_dim, heads=2, concat=False, dropout=0.3)
             self.gat_proj = nn.Linear(hidden_dim, hidden_dim)
+            self.gat_conv1 = GATConv(hidden_dim, hidden_dim, heads=4, concat=False, dropout=0.3)
+            self.gat_dropout = nn.Dropout(0.3)
+            self.gat_conv2 = GATConv(hidden_dim, hidden_dim, heads=4, concat=False, dropout=0.3)
             self.gat_norm = nn.LayerNorm(hidden_dim)
+            self.cross_ind_attn = CrossIndustryAttention(hidden_dim, num_heads=4)
             self.fusion_gate = FusionGate(hidden_dim)
-        self._eval_edge_cache = OrderedDict()
-        self._eval_edge_cache_max_size = 32
+        self._edge_cache = OrderedDict()
+        self._edge_cache_max_size = 512
 
     def _build_rank_embed(self, X, mask):
         """基于第一维特征构建排名嵌入"""
@@ -183,65 +235,67 @@ class UltimateV7Model(nn.Module):
         return self.rank_embed(ranks)  # (B, N, hidden_dim)
 
     def build_industry_edges(self, industry_ids, mask, max_edges_per_stock=5):
-        """Build same-industry graph edges on CPU."""
+        """Build same-industry graph edges on GPU (native, no CPU transfer)."""
         device = industry_ids.device
-        ids_cpu = industry_ids.cpu()
-        mask_cpu = mask.cpu()
+        B, N = industry_ids.shape
 
-        if not self.training:
-            ids_arr = ids_cpu.numpy()
-            mask_arr = mask_cpu.numpy()
-            ids_crc = zlib.crc32(ids_arr.tobytes())
-            mask_crc = zlib.crc32(mask_arr.tobytes())
-            cache_key = (ids_arr.shape, ids_crc, mask_crc, max_edges_per_stock)
-            if cache_key in self._eval_edge_cache:
-                cached_edges = self._eval_edge_cache.pop(cache_key)
-                self._eval_edge_cache[cache_key] = cached_edges
-                return [e.to(device) for e in cached_edges]
+        # 缓存key：用 tensor hash（GPU tensor bytes，比 CPU numpy 更快）
+        ids_contig = industry_ids.contiguous()
+        mask_contig = mask.contiguous()
+        cache_key = (B, N, zlib.crc32(ids_contig.view(-1).cpu().numpy().tobytes()),
+                     zlib.crc32(mask_contig.view(-1).cpu().numpy().tobytes()),
+                     max_edges_per_stock, self.training)
+        if cache_key in self._edge_cache:
+            cached = self._edge_cache.pop(cache_key)
+            self._edge_cache[cache_key] = cached
+            return cached
 
-        B, N = ids_cpu.shape
         batch_edges = []
         for b in range(B):
-            valid = mask_cpu[b]
-            ids = ids_cpu[b]
-            unique_ids = ids[(ids >= 0) & valid].unique()
+            valid = mask[b]
+            ids = industry_ids[b]
+            # GPU: 获取有效且非unkown的行业id
+            id_mask = (ids >= 0) & valid
+            valid_ids = ids[id_mask]
+            unique_ids = valid_ids.unique()
+
             edges_list = []
             for uid in unique_ids:
-                idx_global = ((ids == uid) & valid).nonzero(as_tuple=True)[0]
-                n_ind = len(idx_global)
+                ind_mask = id_mask & (ids == uid)
+                idx_global = ind_mask.nonzero(as_tuple=False).squeeze(-1)
+                n_ind = idx_global.shape[0]
                 if n_ind < 2:
                     continue
+
                 k = min(max_edges_per_stock, n_ind - 1)
-                src_parts = []
-                dst_parts = []
-                for src_pos in range(n_ind):
-                    if self.training:
-                        perm = torch.randperm(n_ind - 1)[:k]
-                        candidates = torch.cat([idx_global[:src_pos], idx_global[src_pos + 1:]])
-                        dst_nodes = candidates[perm]
-                    else:
-                        offsets = torch.arange(1, k + 1)
-                        dst_nodes = idx_global[(src_pos + offsets) % n_ind]
-                    src_parts.append(idx_global[src_pos].repeat(k))
-                    dst_parts.append(dst_nodes)
-                src_global = torch.cat(src_parts)
-                dst_global = torch.cat(dst_parts)
-                edges_list.append(torch.stack([src_global, dst_global]))
+                src_all = idx_global.repeat_interleave(k)
+
+                if self.training:
+                    # GPU 向量化随机邻居（不含自身）
+                    r = torch.randint(0, n_ind - 1, (n_ind, k), device=device)
+                    r = torch.where(r >= torch.arange(n_ind, device=device).unsqueeze(1), r + 1, r)
+                    dst_all = idx_global[r].reshape(-1)
+                else:
+                    # GPU 确定性邻居（环形偏移）
+                    offsets = torch.arange(1, k + 1, device=device)
+                    dst_all = idx_global[(torch.arange(n_ind, device=device).unsqueeze(1) + offsets) % n_ind].reshape(-1)
+
+                edges_list.append(torch.stack([src_all, dst_all]))
+
             if edges_list:
                 e = torch.cat(edges_list, dim=1)
-                e = torch.cat([e, e.flip(0)], dim=1)
+                e = torch.cat([e, e.flip(0)], dim=1)  # 无向图
             else:
-                e = torch.zeros(2, 0, dtype=torch.long)
+                e = torch.zeros(2, 0, dtype=torch.long, device=device)
             batch_edges.append(e)
 
-        if not self.training:
-            self._eval_edge_cache[cache_key] = batch_edges
-            while len(self._eval_edge_cache) > self._eval_edge_cache_max_size:
-                self._eval_edge_cache.popitem(last=False)
-        return [e.to(device) for e in batch_edges]
+        self._edge_cache[cache_key] = batch_edges
+        while len(self._edge_cache) > self._edge_cache_max_size:
+            self._edge_cache.popitem(last=False)
+        return batch_edges
 
     def _gat_forward(self, h, mask, industry_ids, trans_out=None):
-        """GAT forward: single GATConv layer, industry subgraph propagation"""
+        """GAT forward: 2-layer GATConv + residual, industry subgraph propagation"""
         B, N, H = h.shape
         fallback = trans_out if trans_out is not None else h
         gat_out = fallback.clone()
@@ -258,11 +312,18 @@ class UltimateV7Model(nn.Module):
                 del batch_edges, edges
                 continue
             x = self.gat_proj(h[b])
-            x = self.gat_conv(x, edges)
+            identity = x
+            x = self.gat_conv1(x, edges)
+            x = F.gelu(x)
+            x = self.gat_dropout(x)
+            x = self.gat_conv2(x, edges)
+            x = x + identity  # 残差
             x = F.gelu(x)
             x = self.gat_norm(x)
+            # 跨行业attention：按行业pool → 行业间互注意 → broadcast回股票
+            x = self.cross_ind_attn(x.unsqueeze(0), industry_ids[b:b+1], mask[b:b+1]).squeeze(0)
             gat_out[b] = x
-            del batch_edges, edges, x
+            del batch_edges, edges, x, identity
         return gat_out
 
     def forward(self, X, risk_cont, mask, industry_ids):
@@ -307,7 +368,7 @@ class UltimateV7Model(nn.Module):
 
         # 5. GAT分支：行业图注意力传播
         if self.use_gat:
-            gat_out = self._gat_forward(h, mask, industry_ids, trans_out=trans_out)
+            gat_out = self._gat_forward(trans_out, mask, industry_ids, trans_out=trans_out)
             h_out = self.fusion_gate(trans_out, gat_out)
         else:
             h_out = trans_out

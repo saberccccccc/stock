@@ -1,4 +1,4 @@
-# deepseek_optimized - 股票多因子Alpha预测系统
+﻿# deepseek_optimized - 股票多因子Alpha预测系统
 
 ## 项目结构
 
@@ -91,16 +91,16 @@ python run/backtest_layered_holdings.py               # 分层持仓
 ## 环境
 
 - PyTorch 2.7.1+cu118, RTX 2060 6GB
-- Python: `F:/miniconda3/envs/pytorch/python`
+- Python: `C:/Users/x/miniconda3/envs/torch/python`
 - CUDA 训练: `batch_size=2, accum_steps=8` (V9), `batch_size=4, accum_steps=4` (GAT)
 - AMP 必须禁用（否则 Loss NaN）
 
 ## 测试
 
 ```bash
-F:/miniconda3/envs/pytorch/python tests/test_config.py
-F:/miniconda3/envs/pytorch/python tests/test_metrics.py
-F:/miniconda3/envs/pytorch/python tests/test_pipeline.py
+C:/Users/x/miniconda3/envs/torch/python tests/test_config.py
+C:/Users/x/miniconda3/envs/torch/python tests/test_metrics.py
+C:/Users/x/miniconda3/envs/torch/python tests/test_pipeline.py
 ```
 
 ## 关键不变量

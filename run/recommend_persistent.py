@@ -15,7 +15,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from backtest.runtime import build_v9_backtest_config
 from data.pipeline import build_cross_section_dataset, build_inference_samples
-from run.recommend_utils import build_recommendation_predictor, generate_query_dates, predict_alpha_with_regime
+from run.recommend_utils import build_recommendation_predictor, filter_main_board, generate_query_dates, predict_alpha_with_regime
 
 
 def parse_args():
@@ -79,7 +79,7 @@ def main():
     df = pd.DataFrame(rows).sort_values("avg_alpha", ascending=False).reset_index(drop=True)
 
     if not args.all_boards:
-        df = df[~df["code"].str[:3].isin(["688", "300", "301", "689"])].reset_index(drop=True)
+        df = filter_main_board(df)
 
     print(f"\nDates: {date_info[0]['date']} ~ {date_info[-1]['date']}")
     print(f"Stocks ranked: {len(df)}  |  Predictor: {getattr(pred, 'name', pred.__class__.__name__)}")

@@ -81,9 +81,9 @@ MODEL_CONFIGS = {
     },
     "gat_v2": {
         "use_gat": True, "keep_ratio": 0.5, "resume": False,
-        "ckpt_suffix": "gat_best", "log_style": "raw", "risk_trim": True,
+        "ckpt_suffix": "gat_v2_best", "log_style": "raw", "risk_trim": True,
         "backup_ckpt": True,
-        "header": "GAT training (V9 + industry graph attention)",
+        "header": "GAT v2 training (V9 + GAT + experimental)",
     },
     "legacy": {
         "use_gat": False, "keep_ratio": None, "resume": True,
@@ -94,8 +94,8 @@ MODEL_CONFIGS = {
 }
 
 BATCH_CONFIGS = {
-    "v9":     {"lt8": (2, 8), "ge8": (4, 4), "cpu": (4, 4), "val_lt8": 1},
-    "gat":    {"lt8": (4, 4), "ge8": (8, 2), "cpu": (2, 8), "val_lt8": 2},
+    "v9":     {"lt8": (4, 4), "ge8": (8, 2), "cpu": (4, 4), "val_lt8": 4},
+    "gat":    {"lt8": (2, 8), "ge8": (8, 2), "cpu": (2, 8), "val_lt8": 2},
     "gat_v2": {"lt8": (8, 2), "ge8": (8, 2), "cpu": (2, 8), "val_lt8": 4},
     "legacy": {"lt8": (2, 4), "ge8": (4, 4), "cpu": (4, 4), "val_lt8": 1},
 }
@@ -110,12 +110,15 @@ def parse_args():
     parser.add_argument("--lr", type=float, default=3e-4, help="Learning rate")
     parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
     parser.add_argument("--output-dir", default=None, help="Override checkpoint directory")
+    parser.add_argument("--data-dir", default=None, help="Override data directory (e.g. ../deepseek_optimized/data/raw)")
     return parser.parse_args()
 
 
 # ── Core helpers ──────────────────────────────────────────
-def build_config(mc):
+def build_config(mc, data_dir=None):
     cfg = DataConfig()
+    if data_dir:
+        cfg.data_dir = data_dir
     cfg.use_technical_features = True
     cfg.min_stocks_per_time = 30
     cfg.target_horizon = 5
@@ -241,7 +244,7 @@ def train(args):
     try:
         print_banner(mc)
 
-        cfg = build_config(mc)
+        cfg = build_config(mc, data_dir=args.data_dir)
         if args.test_stocks is not None:
             cfg.test_mode = True
             cfg.test_stocks = args.test_stocks

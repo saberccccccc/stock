@@ -12,7 +12,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 os.chdir(PROJECT_ROOT)
 sys.path.insert(0, str(PROJECT_ROOT))
 
-PYTHON = "F:/miniconda3/envs/pytorch/python"
+PYTHON = sys.executable
 LOG_FILE = PROJECT_ROOT / "recommendations" / "daily_top10_log.txt"
 ERROR_LOG = PROJECT_ROOT / "errors.log"
 
@@ -25,10 +25,13 @@ def log_error(script, exc):
 
 def run(cmd, timeout=600):
     print(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] 执行: {cmd[:80]}...")
+    env = os.environ.copy()
+    env['PYTHONPATH'] = str(PROJECT_ROOT)
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True,
-                            timeout=timeout, env=os.environ.copy(), encoding="utf-8", errors="replace")
+                            timeout=timeout, env=env, encoding="utf-8", errors="replace")
     if result.returncode != 0:
-        print(f"  警告: exit={result.returncode}, stderr={result.stderr[-200:]}")
+        safe_stderr = result.stderr[-200:].encode('ascii', errors='replace').decode('ascii')
+        print(f"  警告: exit={result.returncode}, stderr={safe_stderr}")
     return result.stdout
 
 def main():
@@ -57,7 +60,7 @@ def main():
     csv_path = PROJECT_ROOT / "recommendations" / f"daily_{today}.csv"
     output = run(
         f"{PYTHON} run/recommend_daily.py --as-of latest --predictor top_union_bottom_intersection --top-n 10 --output {csv_path} --data-dir data/tracking_raw",
-        timeout=600,
+        timeout=1200,
     )
 
     # 解析输出中的表格部分

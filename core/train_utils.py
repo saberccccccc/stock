@@ -8,6 +8,7 @@ from torch.utils.data import Dataset, DataLoader
 import numpy as np
 # V9: tqdm removed - too verbose, use simple prints instead
 import pickle
+import math
 import time
 import warnings
 
@@ -165,18 +166,60 @@ def weighted_horizon_target(y_seq, cfg):
     return target_weighted, valid_indices, norm_weights
 
 
-def total_loss_v7(alpha_raw, alphas, horizon_preds, y, y_seq, mask, cfg):
+def _masked_corr_within_industry_1d(pred, target, mask, industry_ids, min_stocks=5):
+    """单截面：每个行业内算 Pearson IC，等权平均所有行业"""
+    valid_mask = mask & (industry_ids >= 0)
+    if valid_mask.sum() < 20:
+        return _masked_corr_loss_1d(pred, target, mask)
+
+    unique_inds = torch.unique(industry_ids[valid_mask])
+    within_corrs = []
+    for ind in unique_inds:
+        ind_mask = valid_mask & (industry_ids == ind)
+        if ind_mask.sum() < min_stocks:
+            continue
+        pred_i = pred[ind_mask]
+        target_i = target[ind_mask]
+        pred_z = (pred_i - pred_i.mean()) / (pred_i.std() + 1e-8)
+        target_z = (target_i - target_i.mean()) / (target_i.std() + 1e-8)
+        within_corrs.append((pred_z * target_z).mean())
+
+    if not within_corrs:
+        return _masked_corr_loss_1d(pred, target, mask)
+    return -torch.stack(within_corrs).mean()
+
+
+def correlation_ic_loss_within_industry(pred, target, mask, industry_ids):
+    """批量版：逐截面计算行业内平均IC，再取batch平均"""
+    losses = []
+    for b in range(pred.shape[0]):
+        loss = _masked_corr_within_industry_1d(pred[b], target[b], mask[b], industry_ids[b])
+        if loss is not None:
+            losses.append(loss)
+    if not losses:
+        return torch.tensor(0.0, device=pred.device)
+    return torch.stack(losses).mean()
+
+
+def total_loss_v7(alpha_raw, alphas, horizon_preds, y, y_seq, mask, cfg, industry_ids=None, spread_enabled=True):
     """
     V7 多周期联合损失
-    - main: alpha_raw vs 主标签(加权多周期目标)
-    - multi: 各horizon独立预测 vs 对应标签
-    - div: alpha头多样性正则
+    Returns (total_loss, components) where components is a dict with per-component scalars.
     """
+    comp = {}  # loss components for logging
 
     target_weighted, valid_indices, norm_weights = weighted_horizon_target(y_seq, cfg)
 
-    # 主loss
-    main = correlation_ic_loss(alpha_raw, target_weighted, mask)
+    # 主loss：全局IC + 行业内IC
+    w_ind = getattr(cfg, 'industry_loss_weight', 0.0)
+    main_global = correlation_ic_loss(alpha_raw, target_weighted, mask)
+    comp['global_ic'] = main_global.detach()
+    if w_ind > 0 and industry_ids is not None:
+        main_industry = correlation_ic_loss_within_industry(alpha_raw, target_weighted, mask, industry_ids)
+        comp['within_ic'] = main_industry.detach()
+        main = (1 - w_ind) * main_global + w_ind * main_industry
+    else:
+        main = main_global
 
     # 多周期loss
     multi = 0.0
@@ -185,11 +228,47 @@ def total_loss_v7(alpha_raw, alphas, horizon_preds, y, y_seq, mask, cfg):
             multi = multi + w * correlation_ic_loss(
                 horizon_preds[..., j], y_seq[..., idx], mask
             )
+    comp['multi'] = multi.detach() if isinstance(multi, torch.Tensor) else torch.tensor(multi)
 
     # 多样性正则：惩罚alpha头之间的相关性，避免多头塌缩
     div = alpha_diversity_loss(alphas, mask)
+    comp['div'] = div.detach()
 
-    return main + 0.3 * multi + 0.05 * div
+    # Top-bottom spread loss：per-horizon 等权平均，避免 h5 主导
+    w_spread = getattr(cfg, 'spread_loss_weight', 0.0)
+    spread = torch.tensor(0.0, device=alpha_raw.device)
+    if w_spread > 0 and spread_enabled:
+        temp = getattr(cfg, 'spread_temperature', 0.5)
+        n_h = 0
+        for h_idx in valid_indices:
+            if h_idx < y_seq.shape[-1]:
+                spread = spread + top_bottom_spread_loss(alpha_raw, y_seq[..., h_idx], mask, temperature=temp)
+                n_h += 1
+        if n_h > 0:
+            spread = spread / n_h
+    comp['spread'] = spread.detach()
+
+    total = main + 0.3 * multi + 0.05 * div + w_spread * spread
+    return total, comp
+
+
+def top_bottom_spread_loss(alpha_raw, ret, mask, min_stocks=40, temperature=0.5):
+    """可微 Top-Bottom spread：softmax 加权多头-空头收益差"""
+    losses = []
+    for b in range(alpha_raw.shape[0]):
+        valid_mask = mask[b]
+        if valid_mask.sum() < min_stocks:
+            continue
+        a = alpha_raw[b][valid_mask]
+        r = ret[b][valid_mask]
+        r_z = (r - r.mean()) / (r.std() + 1e-8)
+        long_w = torch.softmax(a / temperature, dim=0)
+        short_w = torch.softmax(-a / temperature, dim=0)
+        spread_val = (long_w * r_z).sum() - (short_w * r_z).sum()
+        losses.append(-spread_val)
+    if not losses:
+        return torch.tensor(0.0, device=alpha_raw.device)
+    return torch.stack(losses).mean()
 
 
 # ============================ 评估 ============================
@@ -200,11 +279,12 @@ def _is_oom_error(error):
 
 @torch.no_grad()
 def evaluate(model, loader, cfg, device):
-    """Compute validation set Pearson IC per horizon (chunked processing, memory cleanup)"""
+    """Compute validation set Pearson IC per horizon + top/bottom spread metrics."""
     model.eval()
     h_indices = list(cfg.horizon_indices)
     all_ics = {f"h{h_indices[i]+1}": [] for i in range(len(h_indices))}
     all_ics["alpha"] = []
+    top_spreads = {f"topbot_h{h_indices[i]+1}": [] for i in range(len(h_indices))}
 
     regime_dim = get_regime_dim(cfg)
 
@@ -222,7 +302,6 @@ def evaluate(model, loader, cfg, device):
             if not _is_oom_error(e):
                 raise
             print(f"  [WARN] 验证 batch {bi} OOM: {e}, 跳过")
-            # OOM时也要清理已分配的输入tensor
             del X, y, y_seq, risk, industry_ids, mask
             if device.type == "cuda":
                 torch.cuda.empty_cache()
@@ -245,7 +324,8 @@ def evaluate(model, loader, cfg, device):
 
         for b in range(alpha_cpu.shape[0]):
             m = mask_cpu[b]
-            if m.sum() < 10:
+            n_valid = m.sum().item()
+            if n_valid < 50:
                 continue
 
             # Alpha IC
@@ -264,10 +344,24 @@ def evaluate(model, loader, cfg, device):
                     if np.isfinite(ic_h):
                         all_ics[f"h{h_idx+1}"].append(ic_h)
 
+            # Top-bottom spread: top 10% vs bottom 10% by alpha, per horizon
+            k = max(5, int(n_valid * 0.10))
+            top_idx = np.argpartition(pred_np, -k)[-k:]
+            bot_idx = np.argpartition(pred_np, k)[:k]
+            for h_idx in h_indices:
+                if h_idx < y_seq_cpu.shape[-1]:
+                    ret_h = y_seq_cpu[b, m, h_idx].numpy()
+                    top_ret = ret_h[top_idx].mean()
+                    bot_ret = ret_h[bot_idx].mean()
+                    if np.isfinite(top_ret) and np.isfinite(bot_ret):
+                        top_spreads[f"topbot_h{h_idx+1}"].append(top_ret - bot_ret)
+
         del alpha_cpu, horizon_cpu, y_cpu, y_seq_cpu, target_cpu, mask_cpu
 
     results = {}
     for k, v in all_ics.items():
+        results[k] = np.mean(v) if v else 0.0
+    for k, v in top_spreads.items():
         results[k] = np.mean(v) if v else 0.0
     return results
 
@@ -312,7 +406,19 @@ def train_model(train_loader, val_loader, input_dim, base_feat_dim, cfg,
     }
 
     optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-5)
+
+    warmup = getattr(cfg, 'lr_warmup_epochs', 0)
+    if warmup > 0 and warmup < epochs:
+        decay_epochs = epochs - warmup
+        eta_min = 1e-5
+        def lr_lambda(e):
+            if e < warmup:
+                return 1.0
+            progress = (e - warmup) / max(decay_epochs, 1)
+            return eta_min/lr + 0.5 * (1 - eta_min/lr) * (1 + math.cos(math.pi * progress))
+        scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda)
+    else:
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-5)
 
     # AMP：自动混合精度，节省GPU显存40%
     scaler = torch.cuda.amp.GradScaler() if use_amp and device.type == 'cuda' else None
@@ -350,7 +456,7 @@ def train_model(train_loader, val_loader, input_dim, base_feat_dim, cfg,
                 print(f"  (检查点无optimizer状态，使用全新优化器)")
             if 'scheduler_state_dict' in checkpoint:
                 scheduler.load_state_dict(checkpoint['scheduler_state_dict'])
-                print(f"restored optimizer state")
+                print(f"restored scheduler state")
             print(f"从epoch {start_epoch} 恢复, best val_loss={best_val_loss:.4f}")
 
     print(f"\n{'='*60}")
@@ -365,6 +471,7 @@ def train_model(train_loader, val_loader, input_dim, base_feat_dim, cfg,
 
         print(f"\n--- Epoch {epoch+1} TRAINING start ---")
         train_loss = 0.0
+        train_comps = {}
         optimizer.zero_grad()
 
         n_batches = len(train_loader)
@@ -381,8 +488,9 @@ def train_model(train_loader, val_loader, input_dim, base_feat_dim, cfg,
 
             with torch.cuda.amp.autocast(enabled=scaler is not None):
                 alpha_raw, alphas, horizon_preds = model(X, risk[..., :regime_dim], mask, industry_ids)
-                loss = total_loss_v7(alpha_raw, alphas, horizon_preds, y, y_seq, mask, cfg)
-            loss = loss / accum_steps
+                spread_on = epoch >= getattr(cfg, 'spread_delay_epochs', 5)
+                total, comp = total_loss_v7(alpha_raw, alphas, horizon_preds, y, y_seq, mask, cfg, industry_ids, spread_enabled=spread_on)
+            loss = total / accum_steps
 
             # 释放模型输出tensor，这些在loss中不再需要
             del alpha_raw, alphas, horizon_preds
@@ -394,7 +502,10 @@ def train_model(train_loader, val_loader, input_dim, base_feat_dim, cfg,
 
             # 提前提取标量值用于统计，然后释放loss tensor
             loss_val = loss.item() * accum_steps
-            del loss
+            # 累积各分量用于epoch级别打印
+            for k, v in comp.items():
+                train_comps[k] = train_comps.get(k, 0.0) + v.item()
+            del loss, total, comp
 
             if (i + 1) % accum_steps == 0:
                 if scaler:
@@ -464,8 +575,25 @@ def train_model(train_loader, val_loader, input_dim, base_feat_dim, cfg,
             f"平均: {avg_epoch_time/60:.1f} min/epoch | "
             f"预计剩余: {eta_seconds/3600:.2f} h"
         )
-        ic_str = " | ".join([f"{k}: {v:.4f}" for k, v in val_ics.items()])
-        print(f"Epoch {epoch+1} | Train Loss: {train_loss:.4f} | Val IC -> {ic_str}")
+        current_lr = optimizer.param_groups[0]['lr']
+
+        # 构建loss分量字符串
+        comp_strs = []
+        for k in ['global_ic', 'within_ic', 'spread']:
+            if k in train_comps:
+                comp_strs.append(f"{k}={train_comps[k]/len(train_loader):.4f}")
+        comp_str = "  [" + " | ".join(comp_strs) + "]" if comp_strs else ""
+
+        # 分开 IC 和 top-bottom spread
+        ic_items = {k: v for k, v in val_ics.items() if not k.startswith('topbot')}
+        spread_items = {k: v for k, v in val_ics.items() if k.startswith('topbot')}
+        ic_str = " | ".join([f"{k}: {v:.4f}" for k, v in ic_items.items()])
+        spread_str = " | ".join([f"{k}: {v:.4f}" for k, v in spread_items.items()])
+
+        print(f"Epoch {epoch+1} | LR: {current_lr:.2e} | Train: {train_loss:.4f}{comp_str}")
+        print(f"         Val IC  -> {ic_str}")
+        if spread_str:
+            print(f"         Val TB  -> {spread_str}")
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
