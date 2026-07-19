@@ -808,3 +808,17 @@ Append-only record of material engineering and governance changes. Experiment me
 - Removed the temporary migration clone and retired the obsolete 2.98 GiB
   `deepseek_optimized` checkout. `deepseek_model_exp` is now the sole active
   repository for this development line.
+
+## 2026-07-19 - Non-Training Research Closure Plan
+
+- Added a subordinate ten-stage implementation plan for repository durability,
+  baseline and artifact freezing, data/execution audits, fixed 24-cell replay,
+  existing-candidate review, attribution, backtest parity optimization,
+  prepared-only Shadow replay, governance closure and a final decision review.
+- Kept `ledger_path_v3_t0001_nolookahead` as the Registry-defined formal
+  baseline and treated `multi_downside_e19` as an Alpha/candidate family rather
+  than silently changing the baseline.
+- Explicitly prohibited training, Forward-based selection, parameter sweeps,
+  Qlib Executor substitution and automatic `prepared -> shadow` transition.
+- Switched the active planning pointer to
+  `.planning/2026-07-19-non-training-closure/`.
