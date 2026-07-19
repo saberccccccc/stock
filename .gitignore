@@ -15,6 +15,7 @@ archive/logs_202606/
 archive/cache_202606/
 archive/experiments_202606/
 archive/checkpoints_202606/
+archive/legacy_optimized_*/
 
 # Cache & data
 cache/
