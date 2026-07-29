@@ -3,12 +3,18 @@
 ## Flow
 
 ```text
-data/raw (frozen) -> data/ PIT features and labels -> v14 memmap cache
+data/raw (compatibility) -> data/ PIT features and labels -> v14 memmap cache
 -> core/ PyTorch model -> alpha/ JSONL signal -> portfolio candidate
 -> backtest/ realistic open-price ledger -> registry evidence
 -> attribution -> scorecard -> governance decision
 
-data/forward_raw -> forward signal and ledger observation only
+data/forward_raw (compatibility) -> forward signal and ledger observation only
+
+target: data/market_daily content-addressed Parquet
+-> logical selection/Forward DataView
+-> MarketDailyProvider
+-> month-sharded execution cache
+-> existing realistic open-price ledger
 ```
 
 ## Module Ownership
@@ -143,11 +149,18 @@ Use single-run ledger scripts for diagnosis only. Official evidence uses registr
 ## Data Contracts
 
 - Canonical logical views: 2024 Val, 2025 Test, and observation-only 2026
-  Forward, currently through 2026-06-30. `core/research_protocol.py` is the
+  Forward, physically verified through 2026-07-29. `core/research_protocol.py` is the
   single split source.
 - `data/raw` and `data/forward_raw` are compatibility storage roots during the
   provider migration. Directory names do not define selection eligibility;
   manifests record physical coverage and logical ranges separately.
+- `data/market_daily_store.py` is the MD1 transaction boundary for the target
+  daily store. It validates one-date partitions, writes deterministic Parquet
+  payloads, preserves revisions by content hash, verifies immutable manifests
+  and changes the active generation only through `CURRENT`.
+- ADR 0010 requires one physical market store with separate logical DataViews.
+  CSV remains the default parity oracle until Provider, monthly-cache and full
+  24-cell ledger equivalence gates pass.
 - v14 memmap caches: rebuild only for data/feature/label semantic changes.
 - OHLC matrix cache: immutable daily execution inputs.
 - Historical ST contract: `data/raw/st_status_events.csv` plus its manifest;

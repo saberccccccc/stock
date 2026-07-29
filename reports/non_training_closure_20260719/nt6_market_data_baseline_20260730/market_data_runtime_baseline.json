@@ -1,0 +1,279 @@
+{
+  "csv_range_benchmark": {
+    "cache_state": "single_pass_os_cache_unspecified",
+    "elapsed_seconds": 22.909519900000305,
+    "end_date": "2026-07-29",
+    "failures": [],
+    "files_scanned": 5332,
+    "materialization": "streamed_count_only_no_global_matrix",
+    "root": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\forward_raw",
+    "rows_in_range": 725577,
+    "source_bytes_scanned": 1014246033,
+    "start_date": "2026-01-01",
+    "throughput_mib_per_second": 42.22089316629516
+  },
+  "csv_roots": [
+    {
+      "bytes": 887678359,
+      "latest_dates_top20": [
+        [
+          "2026-06-29",
+          5299
+        ],
+        [
+          "2026-06-26",
+          7
+        ],
+        [
+          "2026-06-22",
+          5
+        ],
+        [
+          "2026-06-23",
+          2
+        ],
+        [
+          "2026-04-30",
+          2
+        ],
+        [
+          "2026-06-25",
+          2
+        ],
+        [
+          "2026-04-13",
+          1
+        ],
+        [
+          "2025-09-26",
+          1
+        ],
+        [
+          "2026-01-29",
+          1
+        ],
+        [
+          "2026-04-21",
+          1
+        ],
+        [
+          "2026-01-21",
+          1
+        ],
+        [
+          "2026-04-10",
+          1
+        ],
+        [
+          "2025-12-29",
+          1
+        ],
+        [
+          "2026-04-03",
+          1
+        ],
+        [
+          "2026-06-24",
+          1
+        ],
+        [
+          "2026-01-20",
+          1
+        ],
+        [
+          "2026-06-15",
+          1
+        ],
+        [
+          "2025-11-10",
+          1
+        ],
+        [
+          "2026-06-08",
+          1
+        ],
+        [
+          "2026-04-29",
+          1
+        ]
+      ],
+      "root": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\raw",
+      "signature": {
+        "source_count": 5332,
+        "source_hash": "3262cfe40b119aa909d7f1f56366786c0db302486ca7c1d4dc709754bea7ceab"
+      },
+      "stock_files": 5332,
+      "timings_seconds": {
+        "discover": 0.015519200002017897,
+        "signature": 0.12036359999910928,
+        "tail_scan": 51.37747330000275
+      }
+    },
+    {
+      "bytes": 1014246033,
+      "latest_dates_top20": [
+        [
+          "2026-07-29",
+          5299
+        ],
+        [
+          "2026-07-24",
+          4
+        ],
+        [
+          "2026-06-22",
+          4
+        ],
+        [
+          "2026-06-29",
+          3
+        ],
+        [
+          "2026-07-13",
+          2
+        ],
+        [
+          "2026-07-22",
+          2
+        ],
+        [
+          "2026-07-15",
+          2
+        ],
+        [
+          "2026-04-13",
+          1
+        ],
+        [
+          "2026-07-28",
+          1
+        ],
+        [
+          "2025-09-26",
+          1
+        ],
+        [
+          "2026-01-29",
+          1
+        ],
+        [
+          "2026-07-16",
+          1
+        ],
+        [
+          "2026-07-09",
+          1
+        ],
+        [
+          "2026-04-21",
+          1
+        ],
+        [
+          "2026-01-21",
+          1
+        ],
+        [
+          "2026-04-10",
+          1
+        ],
+        [
+          "2026-07-23",
+          1
+        ],
+        [
+          "2025-12-29",
+          1
+        ],
+        [
+          "2026-04-03",
+          1
+        ],
+        [
+          "2026-01-20",
+          1
+        ]
+      ],
+      "root": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\forward_raw",
+      "signature": {
+        "source_count": 5332,
+        "source_hash": "dbee2f785bc265735a730b74309f3c6e9e36b41f17c5429c1b0f5106a5420039"
+      },
+      "stock_files": 5332,
+      "timings_seconds": {
+        "discover": 0.014562399999704212,
+        "signature": 0.07807320000574691,
+        "tail_scan": 1.842947600001935
+      }
+    }
+  ],
+  "environment": {
+    "memory": {
+      "available_bytes": 6520864768,
+      "percent": 60.5,
+      "total_bytes": 16513417216
+    },
+    "platform": "Windows-10-10.0.26200-SP0",
+    "python": "3.11.15"
+  },
+  "generated_at_utc": "2026-07-29T18:00:05.332908+00:00",
+  "matrix_cache": {
+    "bytes": 1024381598,
+    "files": 7,
+    "identity_check_seconds": 0.0914141000030213,
+    "matches_data_root": false,
+    "meta": {
+      "data_dir": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\forward_raw",
+      "date_end": "2026-06-30",
+      "date_start": "2010-01-04",
+      "fields": [
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "money"
+      ],
+      "shape": [
+        4002,
+        5332
+      ],
+      "source_count": 5332,
+      "source_hash": "e10186dbab19553b6ed48bc38d95fd201ce0e42b08a6c668a98a184506da6b5b",
+      "version": 2
+    },
+    "root": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\cache\\open_ledger_ohlc_matrix"
+  },
+  "parity_oracles": {
+    "artifact_inventory": {
+      "bytes": 8984,
+      "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\reports\\non_training_closure_20260719\\nt1_baseline_freeze\\artifact_inventory.json",
+      "sha256": "9c49c99a0e057a7665e202ee8a7eb1c2ae19e91ccd9ea92de165bd462538b2b0"
+    },
+    "baseline_contract": {
+      "bytes": 1676,
+      "path": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\registry\\baseline_contract.json",
+      "sha256": "f62515511d542855a3c3657f47f64b0013a486deb51722ec177faa0672f38bde"
+    },
+    "rule": "existing canonical ledger artifacts remain the MD0 parity oracle"
+  },
+  "schema": "market_data_runtime_baseline_v1",
+  "source": {
+    "commit": "c980829ed91605c457b9817b047b3c2ae7379e29",
+    "status_short": [
+      "M .planning/2026-07-19-non-training-closure/findings.md",
+      " M .planning/2026-07-19-non-training-closure/progress.md",
+      " M .planning/2026-07-19-non-training-closure/task_plan.md",
+      " M DEVELOPMENT_LOG.md",
+      " M NON_TRAINING_RESEARCH_CLOSURE_PLAN_20260719.md",
+      " M scripts/update_forward_market_data.py",
+      " M scripts/update_forward_stock_daily_one_date.py",
+      "?? NT6_MARKET_DATA_PARQUET_INCREMENTAL_CACHE_PLAN_20260730.md",
+      "?? data/forward_daily_update.py",
+      "?? data/market_data_profile.py",
+      "?? run/profile_market_data_baseline.py",
+      "?? scripts/repair_forward_daily_tail.py",
+      "?? tests/test_forward_daily_update.py",
+      "?? tests/test_market_data_profile.py"
+    ]
+  }
+}

@@ -22,6 +22,10 @@ resuming, or tuning any model training job.
 - [ ] NT8: close Registry, reports, documentation, archive, and tests.
 - [ ] NT9: issue one GO/HOLD/STOP decision and a pre-registered next-study draft.
 
+Current implementation unit: NT6 MD0 market-data/runtime baseline freeze. NT3
+dry-run remains the parity oracle and resumes after NT6 performance work passes
+its behavior-equivalence gate.
+
 ## Constraints
 
 - No model training, continuation, tuning, loss search, or checkpoint selection.

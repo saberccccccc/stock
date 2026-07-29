@@ -214,6 +214,9 @@ physical market data
 
 目标：降低反复读取硬盘和重复构建矩阵的时间，不改变回测语义。
 
+行情权威层、统一 Provider、按月增量 OHLC cache、迁移门禁和回退方案的详细技术
+规格见 `NT6_MARKET_DATA_PARQUET_INCREMENTAL_CACHE_PLAN_20260730.md`。
+
 动作：
 
 1. 对官方 24-cell replay 分段计时：文件发现、CSV/Parquet 读取、矩阵构建、策略、ledger、

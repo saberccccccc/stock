@@ -25,12 +25,18 @@ BROAD_INDICES = {
 }
 
 
-def parse_args():
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(description="Update forward market index files")
     parser.add_argument("--data-dir", default="data/forward_raw")
     parser.add_argument("--retries", type=int, default=3)
     parser.add_argument("--sleep", type=float, default=0.5)
-    return parser.parse_args()
+    parser.add_argument(
+        "--scope",
+        choices=("broad", "industry", "all"),
+        default="all",
+        help="Update broad indices, Shenwan industries, or both",
+    )
+    return parser.parse_args(argv)
 
 
 def retry_fetch(func, retries, label):
@@ -95,8 +101,10 @@ def main():
     args = parse_args()
     data_dir = Path(args.data_dir)
     data_dir.mkdir(parents=True, exist_ok=True)
-    update_broad_indices(data_dir, args.retries)
-    update_industry_indices(data_dir, args.retries, args.sleep)
+    if args.scope in {"broad", "all"}:
+        update_broad_indices(data_dir, args.retries)
+    if args.scope in {"industry", "all"}:
+        update_industry_indices(data_dir, args.retries, args.sleep)
 
 
 if __name__ == "__main__":

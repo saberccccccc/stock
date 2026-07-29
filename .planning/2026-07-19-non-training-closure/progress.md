@@ -45,3 +45,26 @@
 - Did not start the formal replay or mutate Registry: available memory was
   2.66 GiB, below the plan's 3 GiB resource stop threshold. NT3 remains active
   and resumable once the resource gate clears.
+
+## 2026-07-30
+
+- Expanded NT6 with
+  `NT6_MARKET_DATA_PARQUET_INCREMENTAL_CACHE_PLAN_20260730.md`.
+- The specification keeps the existing DataView, Provider and realistic ledger
+  boundaries, introduces transactionally written daily Parquet partitions and
+  month-sharded incremental OHLC caches, and requires full 24-cell parity before
+  any default-backend switch.
+- No Parquet migration, cache rebuild, training, Registry mutation or lifecycle
+  transition was started.
+- The first MD0 profile test incorrectly required a deterministic order for
+  tied `Counter.most_common()` entries. The implementation was correct; the
+  test now compares the date/count mapping instead of an undefined tie order.
+- Completed the MD0 read-only baseline without rebuilding the stale OHLC cache
+  or replaying the ledger. The report freezes source inventory, streamed CSV
+  timing, cache identity and the existing baseline/artifact parity oracles.
+- Completed the MD1 storage contract and ADR 0010. Focused coverage includes
+  deterministic idempotency across input order, explicit revisions, immutable
+  manifest verification, CURRENT-switch failure recovery, invalid OHLC/key
+  rejection and concurrent-writer exclusion.
+- Focused MD0/MD1/compatibility tests passed 23/23. The full regression suite
+  passed 576 tests with one pre-existing pandas FutureWarning.

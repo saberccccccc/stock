@@ -887,3 +887,36 @@ Append-only record of material engineering and governance changes. Experiment me
 - Kept Registry unchanged and did not start the replay because free memory was
   2.66 GiB, below the predeclared 3 GiB safety threshold. NT3 remains in
   progress; the dry-run command manifest is persisted for resumption.
+
+## 2026-07-30 - NT6 Market Data And Incremental Cache Plan
+
+- Audited the current daily-market storage path: `data/raw` and
+  `data/forward_raw` contain more than 10,000 files and about 3.0 GiB, while
+  the global OHLC matrix cache is about 0.95 GiB and invalidates as a whole
+  after source-file changes.
+- Added `NT6_MARKET_DATA_PARQUET_INCREMENTAL_CACHE_PLAN_20260730.md` as the
+  subordinate NT6 specification. It retains DataView, Provider and realistic
+  open-ledger boundaries while planning one content-addressed Parquet authority,
+  immutable manifests, daily transactional updates and month-sharded execution
+  caches.
+- Required CSV/Parquet/provider/cache and full 24-cell ledger parity before
+  changing the formal backend. CSV remains the read-only oracle and immediate
+  rollback path during migration.
+- Confirmed `pyarrow` is available. DuckDB remains optional and may be added
+  only if measured Arrow performance justifies another dependency.
+- No data migration, cache rebuild, training, Registry mutation or lifecycle
+  transition was started.
+
+## 2026-07-30 - NT6 MD0 And MD1
+
+- Added a read-only market-data profiler and froze the MD0 report under
+  `reports/non_training_closure_20260719/nt6_market_data_baseline_20260730`.
+  The full 2026 Forward CSV scan read 0.945 GiB across 5,332 files in
+  22.91 seconds; the existing 0.954 GiB matrix ends at 2026-06-30 and is stale.
+- Added the MD1 content-addressed Parquet store with strict one-date schema
+  validation, immutable manifests, hash-verified CURRENT pointers, explicit
+  revision permission, writer locking and failure-safe staging cleanup.
+- Added ADR 0010 and retained CSV as the default parity/rollback backend.
+- Focused MD0, MD1 and compatibility tests passed 23/23; the full suite passed
+  576 tests with one pre-existing pandas FutureWarning. No full migration,
+  matrix rebuild, ledger replay, training or lifecycle transition ran.

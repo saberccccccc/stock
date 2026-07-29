@@ -52,3 +52,18 @@
   fixed cells with correct role-specific dates and data roots. The formal replay
   was not launched because available RAM was 2.66 GiB, below the predeclared
   3 GiB stop threshold.
+- Daily market storage remains the main NT6 architecture debt: `data/raw` and
+  `data/forward_raw` together hold about 3.0 GiB across more than 10,000 files,
+  while the 0.95 GiB global OHLC cache is invalidated by any source-file change.
+- The accepted NT6 direction is one partitioned Parquet authority with logical
+  selection/Forward DataViews, a storage-neutral MarketDailyProvider and
+  month-sharded incremental execution caches. CSV remains the parity oracle and
+  rollback path until all 24 ledger cells are behaviorally identical.
+- `pyarrow` is already available in the Torch environment. DuckDB is absent and
+  is optional rather than a Phase-1 dependency.
+- MD0 measured a 5,332-file, 0.945 GiB Forward CSV streamed range scan at
+  22.91 seconds / 42.22 MiB/s. The 0.954 GiB global matrix ends at 2026-06-30
+  and no longer matches the verified Forward source through 2026-07-29.
+- MD1 uses content-addressed Parquet payloads, immutable hash-verified manifests
+  and one atomic CURRENT pointer. Ingestion timestamps remain outside canonical
+  rows so identical market data is a stable no-op.

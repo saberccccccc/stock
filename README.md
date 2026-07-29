@@ -86,6 +86,12 @@ python run/audit_data_boundary.py --dataset-role research --effective-end-date 2
 `data/update_daily.py` 仍禁止选择数据写过 `2025-12-31`；当前 Forward 更新
 继续使用兼容目录 `data/forward_raw`，后续由统一 Provider 消除双目录依赖。
 
+NT6 正在按
+`NT6_MARKET_DATA_PARQUET_INCREMENTAL_CACHE_PLAN_20260730.md` 迁移到单一、
+按交易日分区的 Parquet 权威行情库。MD1 只建立 schema、不可变 manifest、
+`CURRENT` 指针和事务写入契约；正式读取仍默认使用 CSV，直到 CSV/Parquet、
+月度缓存和完整 24-cell realistic ledger 全部严格等价。
+
 ## 每日推荐
 
 ```bash
