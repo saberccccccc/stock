@@ -1084,3 +1084,18 @@ Append-only record of material engineering and governance changes. Experiment me
   active legacy policy exited 1 and preserved its SHA-256 byte-for-byte.
 - Thirteen focused policy/contract tests passed. The formal active backend
   remains legacy and no positive promotion ran.
+
+## 2026-07-31 - NT6 Resumable Closure Controller
+
+- Added SHA-256 provenance for every MD8 acceptance input: matrix status, four
+  Test/Forward backend performance reports and the incremental benchmark.
+- Tightened promotion audit to require all MD8 gates and all six source hashes,
+  then re-hash the current source files; a manually asserted `passed` status,
+  missing provenance or later source replacement is rejected.
+- Added a read-only closure inspector and
+  `run/close_nt6_market_backend.py`. The controller resumes incremental
+  benchmark, clean matrix, clean acceptance and full dual-read in fixed order.
+- The controller enforces the 3.75 GiB heavy-phase launch gate and stops at
+  `ready_for_manual_promotion`; it has no automatic promotion code path.
+- The live run stopped before `clean_matrix` at 0.674 GiB available without
+  spawning a child. Fifteen focused tests passed and no Python worker remained.

@@ -65,6 +65,8 @@ def _read_status(
     *,
     expected_schema: str,
     expected_fields: Mapping[str, Any] | None = None,
+    required_passed_gates: tuple[str, ...] = (),
+    required_hash_keys: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     path = root / relative
     if not path.is_file():
@@ -76,13 +78,71 @@ def _read_status(
         value.get(key) == expected
         for key, expected in (expected_fields or {}).items()
     )
+    gates = value.get("gates", {})
+    gates_match = all(gates.get(key) is True for key in required_passed_gates)
+    evidence_hashes = value.get("evidence_sha256", {})
+    hashes_match = all(
+        isinstance(evidence_hashes.get(key), str)
+        and len(evidence_hashes[key]) == 64
+        and all(
+            character in "0123456789abcdefABCDEF"
+            for character in evidence_hashes[key]
+        )
+        for key in required_hash_keys
+    )
     return {
         "status": status,
         "path": str(path),
         "schema": value.get("schema"),
         "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-        "passed": status == "passed" and schema_matches and fields_match,
+        "required_gates_passed": gates_match,
+        "required_hashes_present": hashes_match,
+        "passed": (
+            status == "passed"
+            and schema_matches
+            and fields_match
+            and gates_match
+            and hashes_match
+        ),
     }
+
+
+def _performance_sources_match(
+    project_root: Path,
+    acceptance_path: Path,
+) -> bool:
+    try:
+        value = json.loads(acceptance_path.read_text(encoding="utf-8-sig"))
+        evidence_root = Path(value["evidence_root"]).resolve()
+        incremental_path = Path(value["incremental"]["path"]).resolve()
+        expected = value["evidence_sha256"]
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+    if project_root not in evidence_root.parents:
+        return False
+    if project_root not in incremental_path.parents:
+        return False
+    sources = {
+        "matrix_status": evidence_root / "matrix_status.json",
+        "csv_test_2025_performance": (
+            evidence_root / "csv" / "test_2025" / "performance.json"
+        ),
+        "monthly_test_2025_performance": (
+            evidence_root / "monthly" / "test_2025" / "performance.json"
+        ),
+        "csv_forward_2026_performance": (
+            evidence_root / "csv" / "forward_2026" / "performance.json"
+        ),
+        "monthly_forward_2026_performance": (
+            evidence_root / "monthly" / "forward_2026" / "performance.json"
+        ),
+        "incremental_benchmark": incremental_path,
+    }
+    return all(
+        path.is_file()
+        and hashlib.sha256(path.read_bytes()).hexdigest() == expected.get(key)
+        for key, path in sources.items()
+    )
 
 
 def audit_promotion(project_root: str | Path, policy: Mapping[str, Any]) -> dict[str, Any]:
@@ -95,11 +155,41 @@ def audit_promotion(project_root: str | Path, policy: Mapping[str, Any]) -> dict
         "call_site_audit": "market_data_call_site_audit_v1",
     }
     for name, schema in schemas.items():
+        performance_gates = (
+            "parity_passed",
+            "runtime_passed",
+            "memory_passed",
+            "process_io_recorded",
+            "incremental_passed",
+        )
+        performance_hashes = (
+            "matrix_status",
+            "csv_test_2025_performance",
+            "monthly_test_2025_performance",
+            "csv_forward_2026_performance",
+            "monthly_forward_2026_performance",
+            "incremental_benchmark",
+        )
         checks[name] = _read_status(
             root,
             evidence[name],
             expected_schema=schema,
+            required_passed_gates=(
+                performance_gates if name == "performance_acceptance" else ()
+            ),
+            required_hash_keys=(
+                performance_hashes if name == "performance_acceptance" else ()
+            ),
         )
+    performance = checks["performance_acceptance"]
+    performance_path = root / evidence["performance_acceptance"]
+    performance["source_hashes_match"] = (
+        performance["passed"]
+        and _performance_sources_match(root, performance_path)
+    )
+    performance["passed"] = (
+        performance["passed"] and performance["source_hashes_match"]
+    )
     dual = {}
     for split in policy["required_dual_read_splits"]:
         dual[split] = _read_status(

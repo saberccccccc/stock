@@ -228,3 +228,17 @@
 - Thirteen focused promotion, rollback and market-data-contract tests passed.
 - Full regression after MD9 transition hardening passed 639 tests with the same
   single pre-existing Pandas FutureWarning.
+- Bound MD8 acceptance to SHA-256 identities for its matrix, four performance
+  reports and incremental benchmark. Promotion now rejects missing source
+  hashes even when an acceptance file claims `passed`.
+- Added `run/close_nt6_market_backend.py` and a read-only closure inspector. The
+  controller is resumable, enforces phase order and the 3.75 GiB launch gate,
+  writes one status artifact and deliberately has no automatic promotion.
+- The first source-rehash test run exposed an obsolete closure fixture that used
+  placeholder hashes without source files. The fixture was upgraded to real
+  files and SHA-256 identities; the rerun passed all 15 focused tests.
+- Fifteen focused closure/acceptance/policy tests passed. The live controller
+  stopped at `clean_matrix` without launching a subprocess because only
+  0.674 GiB was available; no Python process remained afterward.
+- Full regression after closure orchestration and source re-hashing passed 643
+  tests with the same single pre-existing Pandas FutureWarning.

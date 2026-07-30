@@ -99,6 +99,15 @@ def test_acceptance_passes_with_io_and_fixed_gates(tmp_path):
         "incremental_evidence_recorded": True,
         "incremental_passed": True,
     }
+    assert set(result["evidence_sha256"]) == {
+        "matrix_status",
+        "csv_test_2025_performance",
+        "monthly_test_2025_performance",
+        "csv_forward_2026_performance",
+        "monthly_forward_2026_performance",
+        "incremental_benchmark",
+    }
+    assert len(result["incremental"]["sha256"]) == 64
 
 
 def test_acceptance_is_provisional_for_old_evidence_without_io(tmp_path):

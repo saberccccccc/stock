@@ -172,3 +172,16 @@
 - Policy loading now rejects malformed transition paths or a last-transition
   pointer that disagrees with history. A real negative rollback drill exited 1
   and preserved the active policy SHA-256 exactly.
+- MD8 acceptance previously recorded source paths without source hashes. It now
+  freezes the matrix status, four Test/Forward performance reports and
+  incremental benchmark SHA-256 values. The promotion audit requires all five
+  passing gates and all six source hashes, so replacing an input cannot silently
+  reuse an old acceptance decision.
+- Added one resumable MD8-MD9 closure controller. It runs incremental evidence,
+  clean matrix, clean acceptance and full dual-read in order, then stops at
+  `ready_for_manual_promotion`; it contains no promote action. On the live
+  machine it correctly stopped before spawning a child at 0.674 GiB available.
+- The MD9 prose still described an obsolete CSV default/rollback. The governed
+  implementation uses legacy as active/rollback, monthly as candidate and CSV
+  only as the six-field shadow oracle. The technical plan now matches that
+  actual contract.

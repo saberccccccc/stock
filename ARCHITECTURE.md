@@ -181,7 +181,8 @@ Use single-run ledger scripts for diagnosis only. Official evidence uses registr
   three-split, four-stress, two-capital 24-cell contract and resumes only
   incomplete sweep roots. `run/audit_open_ledger_backend_parity.py` compares
   summary economics and equity, diagnostics, positions, orders, rejections and
-  costs by sweep key. A 3 GiB free-memory gate runs before every subprocess.
+  costs by sweep key. Launch requires a 3 GiB in-run reserve plus 0.75 GiB
+  measured task headroom.
 - MD7 centralizes that choice in
   `backtest/market_data_contract.py`. Registry backtests, declarative workflows,
   standalone experiment evidence and Daily Shadow all freeze and propagate the
@@ -199,7 +200,15 @@ Use single-run ledger scripts for diagnosis only. Official evidence uses registr
 - `configs/execution_market_backend_policy.json` is the atomic default/rollback
   pointer. Promotion requires schema- and hash-verified MD6 parity, MD7
   call-site audit, MD8 clean performance evidence and all three full dual-read
-  reports. Formal workflows still freeze an explicit backend.
+  reports. MD8 acceptance freezes the SHA-256 of every source performance
+  report and the incremental benchmark; promotion re-hashes the current source
+  files before accepting it. Promotion/rollback transitions preserve append-only
+  from/to/actor/reason/time history. Formal workflows still freeze an explicit
+  backend.
+- `run/close_nt6_market_backend.py` is the resumable MD8-MD9 controller. It
+  advances incremental evidence, clean replay, acceptance and full dual-read in
+  fixed order, honors the 3.75 GiB launch gate and stops at manual promotion;
+  it never changes the active backend itself.
 - ADR 0010 requires one physical market store with separate logical DataViews.
   CSV remains the default parity oracle until Provider, monthly-cache and full
   24-cell ledger equivalence gates pass.

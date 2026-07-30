@@ -460,14 +460,16 @@ Arrow 分区裁剪
 
 切换顺序：
 
-1. 默认 backend 仍为 CSV；
-2. Parquet 进入双读观察；
-3. 通过完整 parity 后，正式 backend 切为 Parquet；
-4. CSV 冻结为只读兼容备份至少一个完整月；
-5. 观察期无问题后，取消每日 CSV 镜像；
-6. 是否归档 CSV 另做非破坏性空间审计。
+1. 默认和回退 backend 仍为 `legacy`；
+2. `monthly` 作为主读、`csv` 作为六字段 shadow oracle 进入双读观察；
+3. MD8 clean acceptance 和三段 full dual-read 全部通过后，控制器停在人工批准门；
+4. 人工批准后，正式 backend 原子切为 `monthly`；
+5. `legacy` 保留为回退后端，CSV 保留为只读逐字段 oracle；
+6. 至少观察一个完整月后，是否取消每日 CSV 镜像或归档旧缓存另做非破坏性空间审计。
 
-回退只需把 backend 改回 `csv`，不修改 Registry、Alpha 或 ledger 参数。
+回退只允许从 `monthly` 改回 `legacy`，不修改 Registry、Alpha 或 ledger 参数。
+晋级和回退都记录追加式 from/to/actor/reason/time 历史；晋级额外冻结所有准入
+证据 SHA-256。`run/close_nt6_market_backend.py` 只生成和审计证据，永不自动晋级。
 
 ## 10. 测试矩阵
 

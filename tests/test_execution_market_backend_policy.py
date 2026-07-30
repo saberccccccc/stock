@@ -1,4 +1,5 @@
 import json
+import hashlib
 
 import pytest
 
@@ -51,6 +52,43 @@ SCHEMAS = {
 def _write_status(root, relative, status):
     path = root / relative
     value = {"status": status, "schema": SCHEMAS[relative]}
+    if relative == "performance.json":
+        evidence_root = root / "performance_sources"
+        source_paths = {
+            "matrix_status": evidence_root / "matrix_status.json",
+            "csv_test_2025_performance": (
+                evidence_root / "csv" / "test_2025" / "performance.json"
+            ),
+            "monthly_test_2025_performance": (
+                evidence_root / "monthly" / "test_2025" / "performance.json"
+            ),
+            "csv_forward_2026_performance": (
+                evidence_root / "csv" / "forward_2026" / "performance.json"
+            ),
+            "monthly_forward_2026_performance": (
+                evidence_root / "monthly" / "forward_2026" / "performance.json"
+            ),
+            "incremental_benchmark": root / "incremental.json",
+        }
+        for key, source_path in source_paths.items():
+            source_path.parent.mkdir(parents=True, exist_ok=True)
+            source_path.write_text(key, encoding="utf-8")
+        value["gates"] = {
+            key: True
+            for key in (
+                "parity_passed",
+                "runtime_passed",
+                "memory_passed",
+                "process_io_recorded",
+                "incremental_passed",
+            )
+        }
+        value["evidence_sha256"] = {
+            key: hashlib.sha256(source_path.read_bytes()).hexdigest()
+            for key, source_path in source_paths.items()
+        }
+        value["evidence_root"] = str(evidence_root)
+        value["incremental"] = {"path": str(root / "incremental.json")}
     if relative.startswith("dual."):
         value.update({"primary_backend": "monthly", "shadow_backend": "csv"})
     path.write_text(json.dumps(value), encoding="utf-8")
@@ -88,6 +126,44 @@ def test_promotion_blocks_missing_forward_dual_read(tmp_path):
 
     assert audit["status"] == "blocked"
     assert audit["checks"]["dual_read"]["forward_2026"]["status"] == "missing"
+
+
+def test_promotion_rejects_performance_without_frozen_source_hashes(tmp_path):
+    policy = _policy()
+    for relative in SCHEMAS:
+        _write_status(tmp_path, relative, "passed")
+    performance = tmp_path / "performance.json"
+    value = json.loads(performance.read_text())
+    del value["evidence_sha256"]["incremental_benchmark"]
+    performance.write_text(json.dumps(value), encoding="utf-8")
+
+    audit = audit_promotion(tmp_path, policy)
+
+    assert audit["status"] == "blocked"
+    assert audit["checks"]["performance_acceptance"][
+        "required_hashes_present"
+    ] is False
+
+
+def test_promotion_rejects_tampered_performance_source(tmp_path):
+    policy = _policy()
+    for relative in SCHEMAS:
+        _write_status(tmp_path, relative, "passed")
+    source = (
+        tmp_path
+        / "performance_sources"
+        / "monthly"
+        / "test_2025"
+        / "performance.json"
+    )
+    source.write_text("tampered", encoding="utf-8")
+
+    audit = audit_promotion(tmp_path, policy)
+
+    assert audit["status"] == "blocked"
+    assert audit["checks"]["performance_acceptance"][
+        "source_hashes_match"
+    ] is False
 
 
 def test_policy_atomic_write_round_trips(tmp_path):

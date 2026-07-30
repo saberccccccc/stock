@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -12,6 +13,10 @@ MEASURED_SPLITS = ("test_2025", "forward_2026")
 
 def _load(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8-sig"))
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def evaluate_market_data_performance(
@@ -27,7 +32,9 @@ def evaluate_market_data_performance(
     max_daily_commit_read_count: int = 4999,
 ) -> dict[str, Any]:
     root = Path(evidence_root).resolve()
-    matrix = _load(root / "matrix_status.json")
+    matrix_path = root / "matrix_status.json"
+    matrix = _load(matrix_path)
+    evidence_sha256 = {"matrix_status": _sha256(matrix_path)}
     comparisons = {item["split"]: item["status"] for item in matrix["comparisons"]}
     parity_passed = all(
         comparisons.get(split) == "passed"
@@ -38,6 +45,12 @@ def evaluate_market_data_performance(
     for split in MEASURED_SPLITS:
         csv = _load(root / "csv" / split / "performance.json")
         monthly = _load(root / "monthly" / split / "performance.json")
+        evidence_sha256[f"csv_{split}_performance"] = _sha256(
+            root / "csv" / split / "performance.json"
+        )
+        evidence_sha256[f"monthly_{split}_performance"] = _sha256(
+            root / "monthly" / split / "performance.json"
+        )
         total_speedup = csv["total_seconds"] / monthly["total_seconds"]
         ohlc_speedup = csv["ohlc_load_seconds"] / monthly["ohlc_load_seconds"]
         monthly_data_fraction = monthly["ohlc_load_seconds"] / monthly["total_seconds"]
@@ -120,6 +133,7 @@ def evaluate_market_data_performance(
         incremental_passed = all(incremental_gates.values())
         incremental = {
             "path": str(incremental_path),
+            "sha256": _sha256(incremental_path),
             "gates": incremental_gates,
             "daily_commit_seconds": commit["elapsed_seconds"],
             "daily_commit_rows": commit["rows"],
@@ -132,6 +146,7 @@ def evaluate_market_data_performance(
             ),
             "network_acquisition": benchmark["network_acquisition"],
         }
+        evidence_sha256["incremental_benchmark"] = incremental["sha256"]
     status = (
         "passed"
         if (
@@ -173,4 +188,5 @@ def evaluate_market_data_performance(
         },
         "splits": rows,
         "incremental": incremental,
+        "evidence_sha256": evidence_sha256,
     }
