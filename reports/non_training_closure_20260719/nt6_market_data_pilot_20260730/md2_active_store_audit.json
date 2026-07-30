@@ -1,0 +1,20 @@
+{
+  "active_bytes": 398301688,
+  "active_months": 199,
+  "active_partitions": 4023,
+  "active_rows": 13313700,
+  "coverage": {
+    "equity": {
+      "date_end": "2026-07-29",
+      "date_start": "2010-01-04",
+      "months": 199,
+      "partitions": 4023,
+      "rows": 13313700
+    }
+  },
+  "generation": 4023,
+  "manifest": "manifests/manifest-b9596fda3b803cd639d4bfd6ead9fd458cf8c7dc4ef67e9c454b2a25e9ee692a.json",
+  "manifest_sha256": "b9596fda3b803cd639d4bfd6ead9fd458cf8c7dc4ef67e9c454b2a25e9ee692a",
+  "physical_hashes_verified": true,
+  "status": "passed"
+}

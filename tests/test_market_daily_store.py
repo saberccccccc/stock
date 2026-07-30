@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -58,9 +59,11 @@ def test_commit_is_content_addressed_and_idempotent(tmp_path):
     assert manifest["coverage"]["equity"] == {
         "date_start": "2026-07-29",
         "date_end": "2026-07-29",
+        "months": 1,
         "partitions": 1,
         "rows": 2,
     }
+    assert list(manifest["monthly_indexes"]) == ["equity:202607"]
 
 
 def test_revision_requires_explicit_permission_and_preserves_old_file(tmp_path):
@@ -168,6 +171,23 @@ def test_load_deduplicates_key_fields(tmp_path):
     assert loaded.columns.tolist() == ["trade_date", "code", "close"]
 
 
+def test_root_manifest_stays_month_sharded(tmp_path):
+    store = MarketDailyStore(tmp_path)
+    store.commit_partition(
+        _frame("2026-07-29"), instrument_type="equity", source="tushare_daily"
+    )
+    store.commit_partition(
+        _frame("2026-07-30"), instrument_type="equity", source="tushare_daily"
+    )
+
+    manifest, _ = store.load_manifest()
+    assert list(manifest["monthly_indexes"]) == ["equity:202607"]
+    month_record = manifest["monthly_indexes"]["equity:202607"]
+    assert month_record["partitions"] == 2
+    assert month_record["row_count"] == 4
+    assert len(list((tmp_path / "indexes").rglob("index-*.json"))) == 2
+
+
 def test_writer_lock_rejects_a_second_writer(tmp_path):
     lock_path = tmp_path / "locks" / "writer.lock"
 
@@ -175,3 +195,47 @@ def test_writer_lock_rejects_a_second_writer(tmp_path):
         with pytest.raises(RuntimeError, match="already active"):
             with _writer_lock(lock_path):
                 raise AssertionError("second writer unexpectedly acquired the lock")
+
+
+def test_audit_validates_active_manifest_graph(tmp_path):
+    store = MarketDailyStore(tmp_path)
+    store.commit_partition(
+        _frame("2026-07-29"), instrument_type="equity", source="tushare_daily"
+    )
+    store.commit_partition(
+        _frame("2026-07-30"), instrument_type="equity", source="tushare_daily"
+    )
+
+    result = store.audit()
+
+    assert result["status"] == "passed"
+    assert result["active_months"] == 1
+    assert result["active_partitions"] == 2
+    assert result["active_rows"] == 4
+    assert result["physical_hashes_verified"] is True
+
+
+def test_audit_rejects_corrupt_active_partition(tmp_path):
+    store = MarketDailyStore(tmp_path)
+    committed = store.commit_partition(
+        _frame(), instrument_type="equity", source="tushare_daily"
+    )
+    path = Path(committed.partition_path)
+    path.write_bytes(path.read_bytes() + b"corrupt")
+
+    with pytest.raises(ValueError, match="partition hash mismatch"):
+        store.audit()
+
+
+def test_audit_rejects_corrupt_month_index(tmp_path):
+    store = MarketDailyStore(tmp_path)
+    store.commit_partition(
+        _frame(), instrument_type="equity", source="tushare_daily"
+    )
+    manifest, _ = store.load_manifest()
+    record = manifest["monthly_indexes"]["equity:202607"]
+    path = tmp_path / record["path"]
+    path.write_text("{}", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="month index hash mismatch"):
+        store.audit()

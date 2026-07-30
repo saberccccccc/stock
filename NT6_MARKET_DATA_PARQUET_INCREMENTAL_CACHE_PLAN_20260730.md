@@ -10,7 +10,8 @@
 |---|---|---|
 | MD0 | complete | `reports/non_training_closure_20260719/nt6_market_data_baseline_20260730` |
 | MD1 | complete | ADR 0010、`data/market_daily_store.py`、事务/锁/回滚测试 |
-| MD2-MD9 | pending | 不得在前一阶段门禁未通过时抢跑 |
+| MD2 | complete | 17 个年度精确审计、全局活动链审计、`md2_migration_summary_20260730.md` |
+| MD3-MD9 | pending | 不得在前一阶段门禁未通过时抢跑 |
 
 ## 1. 目标
 

@@ -19,7 +19,8 @@ import pyarrow.parquet as pq
 
 
 STORE_SCHEMA = "market_daily_store_v1"
-MANIFEST_SCHEMA = "market_daily_manifest_v1"
+MANIFEST_SCHEMA = "market_daily_manifest_v2"
+MONTH_INDEX_SCHEMA = "market_daily_month_index_v1"
 DAILY_FIELDS = (
     "trade_date",
     "code",
@@ -93,17 +94,19 @@ def _logical_hash(frame: pd.DataFrame, instrument_type: str) -> str:
     return digest.hexdigest()
 
 
-def _coverage(partitions: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+def _coverage(monthly_indexes: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
     grouped: dict[str, list[dict[str, Any]]] = {}
-    for partition in partitions.values():
-        grouped.setdefault(partition["instrument_type"], []).append(partition)
+    for index in monthly_indexes.values():
+        grouped.setdefault(index["instrument_type"], []).append(index)
     result = {}
     for instrument_type, values in grouped.items():
-        dates = sorted(item["trade_date"] for item in values)
+        starts = sorted(item["date_start"] for item in values)
+        ends = sorted(item["date_end"] for item in values)
         result[instrument_type] = {
-            "date_start": dates[0],
-            "date_end": dates[-1],
-            "partitions": len(values),
+            "date_start": starts[0],
+            "date_end": ends[-1],
+            "months": len(values),
+            "partitions": sum(int(item["partitions"]) for item in values),
             "rows": sum(int(item["row_count"]) for item in values),
         }
     return result
@@ -186,6 +189,7 @@ class MarketDailyStore:
     def __init__(self, root: str | Path):
         self.root = Path(root).resolve()
         self.manifest_dir = self.root / "manifests"
+        self.index_dir = self.root / "indexes"
         self.staging_dir = self.root / "staging"
         self.current_path = self.root / "CURRENT"
         self.event_path = self.root / "update_events.jsonl"
@@ -225,23 +229,197 @@ class MarketDailyStore:
         finally:
             temp.unlink(missing_ok=True)
 
-    def _write_manifest(self, payload: dict[str, Any]) -> tuple[Path, str]:
+    def _write_immutable_json(
+        self,
+        payload: dict[str, Any],
+        *,
+        directory: Path,
+        prefix: str,
+    ) -> tuple[Path, str]:
+        directory.mkdir(parents=True, exist_ok=True)
         content = _canonical_json(payload)
         sha256 = hashlib.sha256(content).hexdigest()
-        path = self.manifest_dir / f"manifest-{sha256}.json"
+        path = directory / f"{prefix}-{sha256}.json"
         if path.exists():
             if _sha256_file(path) != sha256:
-                raise ValueError(f"immutable manifest hash mismatch: {path}")
+                raise ValueError(f"immutable JSON hash mismatch: {path}")
             return path, sha256
-        temp = self.manifest_dir / f".manifest-{uuid.uuid4().hex}.tmp"
+        temp = directory / f".{prefix}-{uuid.uuid4().hex}.tmp"
         try:
             temp.write_bytes(content)
             if _sha256_file(temp) != sha256:
-                raise ValueError("staged manifest hash mismatch")
+                raise ValueError("staged immutable JSON hash mismatch")
             temp.replace(path)
         finally:
             temp.unlink(missing_ok=True)
         return path, sha256
+
+    def _write_manifest(self, payload: dict[str, Any]) -> tuple[Path, str]:
+        return self._write_immutable_json(
+            payload,
+            directory=self.manifest_dir,
+            prefix="manifest",
+        )
+
+    def _write_month_index(
+        self,
+        payload: dict[str, Any],
+        *,
+        instrument_type: str,
+        month_key: str,
+    ) -> tuple[Path, str]:
+        directory = (
+            self.index_dir
+            / instrument_type
+            / f"year={month_key[:4]}"
+            / f"month={month_key[4:]}"
+        )
+        return self._write_immutable_json(
+            payload,
+            directory=directory,
+            prefix="index",
+        )
+
+    def _load_month_index(self, record: dict[str, Any]) -> dict[str, Any]:
+        path = (self.root / record["path"]).resolve()
+        if self.index_dir.resolve() not in path.parents:
+            raise ValueError("manifest points outside the index directory")
+        if not path.is_file():
+            raise FileNotFoundError(path)
+        if _sha256_file(path) != record["sha256"]:
+            raise ValueError(f"month index hash mismatch: {path}")
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        if payload.get("schema") != MONTH_INDEX_SCHEMA:
+            raise ValueError("unsupported market-daily month-index schema")
+        return payload
+
+    def get_partition(
+        self,
+        instrument_type: str,
+        trade_date: Any,
+    ) -> dict[str, Any] | None:
+        manifest, _ = self.load_manifest()
+        date = pd.Timestamp(trade_date).normalize()
+        month_key = f"{instrument_type}:{date.strftime('%Y%m')}"
+        index_record = (manifest or {}).get("monthly_indexes", {}).get(month_key)
+        if index_record is None:
+            return None
+        index = self._load_month_index(index_record)
+        return index.get("partitions", {}).get(date.strftime("%Y%m%d"))
+
+    def audit(self, *, verify_physical_hashes: bool = True) -> dict[str, Any]:
+        """Validate the complete active manifest graph without loading bar values."""
+        manifest, manifest_path = self.load_manifest()
+        if manifest is None or manifest_path is None:
+            raise ValueError("market-daily store has no active manifest")
+
+        monthly_indexes = manifest.get("monthly_indexes", {})
+        audited_months: dict[str, dict[str, Any]] = {}
+        seen_partitions: set[tuple[str, str]] = set()
+        active_bytes = 0
+        active_rows = 0
+        active_partitions = 0
+
+        for month_key, record in sorted(monthly_indexes.items()):
+            instrument_type = record.get("instrument_type")
+            month = str(record.get("month", ""))
+            expected_key = f"{instrument_type}:{month.replace('-', '')}"
+            if month_key != expected_key:
+                raise ValueError(f"month-index key mismatch: {month_key}")
+
+            month_index = self._load_month_index(record)
+            if month_index.get("instrument_type") != instrument_type:
+                raise ValueError(f"month-index instrument mismatch: {month_key}")
+            if month_index.get("month") != month:
+                raise ValueError(f"month-index month mismatch: {month_key}")
+
+            partitions = month_index.get("partitions", {})
+            if not partitions:
+                raise ValueError(f"month index contains no partitions: {month_key}")
+            month_rows = 0
+            month_bytes = 0
+            month_dates = []
+            for date_key, partition in sorted(partitions.items()):
+                trade_date = pd.Timestamp(partition.get("trade_date")).normalize()
+                expected_date_key = trade_date.strftime("%Y%m%d")
+                if date_key != expected_date_key:
+                    raise ValueError(f"partition date-key mismatch: {month_key}:{date_key}")
+                if trade_date.strftime("%Y-%m") != month:
+                    raise ValueError(f"partition lies outside month: {month_key}:{date_key}")
+                if partition.get("instrument_type") != instrument_type:
+                    raise ValueError(f"partition instrument mismatch: {month_key}:{date_key}")
+                identity = (str(instrument_type), date_key)
+                if identity in seen_partitions:
+                    raise ValueError(f"duplicate active partition: {instrument_type}:{date_key}")
+                seen_partitions.add(identity)
+
+                path = (self.root / partition["path"]).resolve()
+                expected_parent = (
+                    self.root
+                    / str(instrument_type)
+                    / f"year={trade_date.year:04d}"
+                    / f"month={trade_date.month:02d}"
+                    / f"day={trade_date.day:02d}"
+                ).resolve()
+                if path.parent != expected_parent:
+                    raise ValueError(f"partition path mismatch: {month_key}:{date_key}")
+                if not path.is_file():
+                    raise FileNotFoundError(path)
+                if verify_physical_hashes:
+                    physical_sha256 = _sha256_file(path)
+                    if physical_sha256 != partition.get("physical_sha256"):
+                        raise ValueError(f"partition hash mismatch: {path}")
+
+                metadata = pq.read_metadata(path)
+                if metadata.num_rows != int(partition.get("row_count", -1)):
+                    raise ValueError(f"partition row-count mismatch: {path}")
+                field_names = tuple(metadata.schema.to_arrow_schema().names)
+                if field_names != DAILY_FIELDS:
+                    raise ValueError(f"partition schema mismatch: {path}")
+
+                size = path.stat().st_size
+                rows = int(partition["row_count"])
+                month_rows += rows
+                month_bytes += size
+                month_dates.append(str(trade_date.date()))
+
+            summary = {
+                "instrument_type": instrument_type,
+                "month": month,
+                "date_start": min(month_dates),
+                "date_end": max(month_dates),
+                "partitions": len(partitions),
+                "row_count": month_rows,
+                "active_bytes": month_bytes,
+            }
+            for field in ("instrument_type", "month", "date_start", "date_end", "partitions", "row_count"):
+                if record.get(field) != summary[field]:
+                    raise ValueError(f"root/month summary mismatch for {month_key}: {field}")
+            audited_months[month_key] = summary
+            active_rows += month_rows
+            active_partitions += len(partitions)
+            active_bytes += month_bytes
+
+        expected_coverage = _coverage(monthly_indexes)
+        if manifest.get("coverage") != expected_coverage:
+            raise ValueError("root manifest coverage mismatch")
+        if active_rows != sum(int(item["rows"]) for item in expected_coverage.values()):
+            raise ValueError("active row total does not match coverage")
+        if active_partitions != sum(int(item["partitions"]) for item in expected_coverage.values()):
+            raise ValueError("active partition total does not match coverage")
+
+        return {
+            "status": "passed",
+            "manifest": manifest_path.relative_to(self.root).as_posix(),
+            "manifest_sha256": _sha256_file(manifest_path),
+            "generation": int(manifest["generation"]),
+            "coverage": expected_coverage,
+            "active_months": len(audited_months),
+            "active_partitions": active_partitions,
+            "active_rows": active_rows,
+            "active_bytes": active_bytes,
+            "physical_hashes_verified": bool(verify_physical_hashes),
+        }
 
     def _append_event(self, payload: dict[str, Any]) -> None:
         with self.event_path.open("a", encoding="utf-8", newline="") as handle:
@@ -263,6 +441,7 @@ class MarketDailyStore:
         trade_date = pd.Timestamp(canonical["trade_date"].iloc[0]).normalize()
         date_key = trade_date.strftime("%Y%m%d")
         partition_key = f"{instrument_type}:{date_key}"
+        month_key = f"{instrument_type}:{trade_date.strftime('%Y%m')}"
         logical_sha256 = _logical_hash(canonical, instrument_type)
 
         self.root.mkdir(parents=True, exist_ok=True)
@@ -270,8 +449,15 @@ class MarketDailyStore:
         self.staging_dir.mkdir(parents=True, exist_ok=True)
         with _writer_lock(self.lock_path):
             current, current_path = self.load_manifest()
-            partitions = dict((current or {}).get("partitions", {}))
-            previous = partitions.get(partition_key)
+            monthly_indexes = dict((current or {}).get("monthly_indexes", {}))
+            current_month_record = monthly_indexes.get(month_key)
+            current_month = (
+                self._load_month_index(current_month_record)
+                if current_month_record is not None
+                else None
+            )
+            partitions = dict((current_month or {}).get("partitions", {}))
+            previous = partitions.get(date_key)
             if previous and previous["logical_sha256"] == logical_sha256:
                 return CommitResult(
                     "already_present",
@@ -330,7 +516,35 @@ class MarketDailyStore:
                     "source": str(source).strip(),
                     "schema": STORE_SCHEMA,
                 }
-                partitions[partition_key] = partition
+                partitions[date_key] = partition
+                month_index = {
+                    "schema": MONTH_INDEX_SCHEMA,
+                    "instrument_type": instrument_type,
+                    "month": trade_date.strftime("%Y-%m"),
+                    "parent_index_sha256": (
+                        current_month_record.get("sha256")
+                        if current_month_record is not None
+                        else None
+                    ),
+                    "created_at_utc": pd.Timestamp.now(tz="UTC").isoformat(),
+                    "partitions": dict(sorted(partitions.items())),
+                }
+                index_path, index_sha256 = self._write_month_index(
+                    month_index,
+                    instrument_type=instrument_type,
+                    month_key=trade_date.strftime("%Y%m"),
+                )
+                partition_values = list(partitions.values())
+                monthly_indexes[month_key] = {
+                    "instrument_type": instrument_type,
+                    "month": trade_date.strftime("%Y-%m"),
+                    "path": index_path.relative_to(self.root).as_posix(),
+                    "sha256": index_sha256,
+                    "date_start": min(item["trade_date"] for item in partition_values),
+                    "date_end": max(item["trade_date"] for item in partition_values),
+                    "partitions": len(partition_values),
+                    "row_count": sum(int(item["row_count"]) for item in partition_values),
+                }
                 manifest = {
                     "schema": MANIFEST_SCHEMA,
                     "generation": int((current or {}).get("generation", 0)) + 1,
@@ -338,8 +552,8 @@ class MarketDailyStore:
                         _sha256_file(current_path) if current_path is not None else None
                     ),
                     "created_at_utc": pd.Timestamp.now(tz="UTC").isoformat(),
-                    "partitions": dict(sorted(partitions.items())),
-                    "coverage": _coverage(partitions),
+                    "monthly_indexes": dict(sorted(monthly_indexes.items())),
+                    "coverage": _coverage(monthly_indexes),
                 }
                 manifest_path, manifest_sha256 = self._write_manifest(manifest)
                 self._write_current(manifest_path, manifest_sha256)
@@ -351,6 +565,7 @@ class MarketDailyStore:
                         "logical_sha256": logical_sha256,
                         "physical_sha256": physical_sha256,
                         "manifest_sha256": manifest_sha256,
+                        "month_index_sha256": index_sha256,
                         "previous_logical_sha256": (
                             previous.get("logical_sha256") if previous else None
                         ),
@@ -391,14 +606,23 @@ class MarketDailyStore:
         if unknown:
             raise ValueError(f"unknown market-daily fields: {unknown}")
         paths = []
-        for partition in (manifest or {}).get("partitions", {}).values():
-            date = pd.Timestamp(partition["trade_date"]).normalize()
-            if partition["instrument_type"] == instrument_type and start <= date <= end:
-                paths.append(self.root / partition["path"])
+        for index_record in (manifest or {}).get("monthly_indexes", {}).values():
+            if index_record["instrument_type"] != instrument_type:
+                continue
+            if pd.Timestamp(index_record["date_end"]) < start:
+                continue
+            if pd.Timestamp(index_record["date_start"]) > end:
+                continue
+            month_index = self._load_month_index(index_record)
+            for partition in month_index["partitions"].values():
+                date = pd.Timestamp(partition["trade_date"]).normalize()
+                if start <= date <= end:
+                    paths.append(self.root / partition["path"])
         if not paths:
             return pd.DataFrame(columns=requested)
         tables = [pq.read_table(path, columns=requested) for path in sorted(paths)]
         frame = pa.concat_tables(tables).to_pandas()
+        frame["trade_date"] = pd.to_datetime(frame["trade_date"]).dt.normalize()
         if codes is not None:
             selected = {str(code).strip().upper() for code in codes}
             frame = frame.loc[frame["code"].isin(selected)]

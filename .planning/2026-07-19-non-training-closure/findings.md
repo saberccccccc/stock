@@ -67,3 +67,12 @@
 - MD1 uses content-addressed Parquet payloads, immutable hash-verified manifests
   and one atomic CURRENT pointer. Ingestion timestamps remain outside canonical
   rows so identical market data is a stable no-op.
+- MD2 proves full-history storage parity against `data/forward_raw`: all 17
+  annual comparisons were exact for keys, values and dtypes, covering
+  13,313,700 rows and 4,023 trading dates from 2010-01-04 through 2026-07-29.
+- Active Parquet payloads occupy 398,301,688 bytes versus about 0.945 GiB for
+  the Forward CSV stock files. Immutable manifest/index history raises the full
+  candidate footprint to 561,081,706 bytes but is not on the normal query path.
+- One-time migration produced one immutable generation per trading day. This is
+  acceptable evidence history for the candidate; normal daily ingestion creates
+  only one new generation, and query cost follows the 199 active month indexes.

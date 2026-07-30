@@ -23,6 +23,8 @@ data/raw/
 data/tracking_raw/
 data/forward_raw/
 data/global/
+data/market_daily/
+data/market_daily_candidate_v2/
 recommendations/
 
 # Backtest results

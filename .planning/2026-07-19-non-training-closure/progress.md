@@ -68,3 +68,22 @@
   rejection and concurrent-writer exclusion.
 - Focused MD0/MD1/compatibility tests passed 23/23. The full regression suite
   passed 576 tests with one pre-existing pandas FutureWarning.
+- MD2's first pilot exposed O(N^2) root-manifest growth because every daily
+  generation copied all historical partition entries. Before full migration,
+  the store was upgraded to a small root manifest referencing immutable monthly
+  indexes.
+- A verified recursive removal of the unregistered 3.3 MiB v1 pilot store was
+  blocked by the command safety policy before execution. It remains untouched
+  and is superseded by the separate `data/market_daily_candidate_v2` pilot;
+  cleanup is deferred to the planned non-destructive archive review.
+- Completed MD2 without changing the formal CSV backend. The resumable
+  migration scanned the 5,332 stock CSVs once per year and migrated 2010-01-04
+  through 2026-07-29 into 4,023 content-addressed daily Parquet partitions.
+- All 17 annual audits passed exact key, value and dtype comparison: 13,313,700
+  rows in total. Peak observed process RSS was 370,483,200 bytes.
+- The active-store audit verified CURRENT, the immutable root manifest, 199
+  immutable month indexes, all 4,023 Parquet physical hashes, schemas and row
+  counts. Active Parquet is 398,301,688 bytes; the complete candidate store,
+  including immutable history and migration progress, is 561,081,706 bytes.
+- Added corruption tests for active partitions and month indexes. CSV remains
+  the parity oracle and rollback path; MD3 is the next implementation unit.
