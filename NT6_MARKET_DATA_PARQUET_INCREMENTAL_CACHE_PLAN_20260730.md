@@ -14,7 +14,8 @@
 | MD3 | complete | Tushare 股票 + AkShare 宽基真实试跑、真实重放 no-op、全量哈希审计 |
 | MD4 | complete | 48 只固定样本 + 5,332 只全量，Val/Test/Forward 七字段精确 parity |
 | MD5 | complete | 月索引绑定、按月失效、跨月派生、基础执行 mask、真实 2026-07 全量 parity |
-| MD6-MD9 | pending | 不得在前一阶段门禁未通过时抢跑 |
+| MD6 | complete | 24 CSV + 24 monthly cells；Val/Test/Forward 共 144 个逐路径工件精确值与字节哈希零差异 |
+| MD7-MD9 | pending | 下一阶段按调用方收敛、性能验收、观察与回滚顺序推进 |
 
 ## 1. 目标
 

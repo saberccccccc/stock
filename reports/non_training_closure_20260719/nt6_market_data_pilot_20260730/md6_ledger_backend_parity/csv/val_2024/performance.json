@@ -1,0 +1,21 @@
+{
+  "alpha_load_seconds": 0.493,
+  "ohlc_load_seconds": 29.13,
+  "constraint_prepare_seconds": 0.272,
+  "context_prepare_seconds": 0.049,
+  "grid_execute_seconds": 7.049,
+  "total_seconds": 37.027,
+  "rss_mb": 460.7,
+  "alpha_count": 1,
+  "signal_rows": 242,
+  "ohlc_days": 349,
+  "ohlc_codes": 5108,
+  "completed_grid_rows": 8,
+  "execution_mode": "realistic",
+  "stresses": [
+    "normal",
+    "lag1",
+    "cost2x",
+    "capacity_3pct"
+  ]
+}

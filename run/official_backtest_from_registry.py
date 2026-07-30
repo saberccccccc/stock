@@ -77,6 +77,19 @@ def parse_args(argv=None):
     parser.add_argument("--exit-hold-fracs", default="0")
     parser.add_argument("--switch-gap-fracs", default="0")
     parser.add_argument("--execution-mode", default="realistic", choices=("proxy", "realistic"))
+    parser.add_argument(
+        "--ohlc-backend",
+        default="legacy",
+        choices=("legacy", "csv", "monthly"),
+    )
+    parser.add_argument(
+        "--market-daily-store-root",
+        default="data/market_daily_candidate_v2",
+    )
+    parser.add_argument(
+        "--ohlc-monthly-cache-dir",
+        default="cache/ohlcv_monthly_v3_candidate",
+    )
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--append-registry", action="store_true")
@@ -149,6 +162,12 @@ def build_command(args, split, alpha_spec_text, out_dir):
         args.switch_gap_fracs,
         "--execution-constraint-mode",
         args.execution_mode,
+        "--ohlc-backend",
+        getattr(args, "ohlc_backend", "legacy"),
+        "--market-daily-store-root",
+        getattr(args, "market_daily_store_root", "data/market_daily_candidate_v2"),
+        "--ohlc-monthly-cache-dir",
+        getattr(args, "ohlc_monthly_cache_dir", "cache/ohlcv_monthly_v3_candidate"),
         "--start-date",
         start,
         "--end-date",

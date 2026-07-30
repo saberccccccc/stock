@@ -137,3 +137,39 @@
   13.965 seconds for direct Parquet. Active field data occupy 5,355,504 bytes.
 - The legacy global cache and formal CSV backend are unchanged. MD6 ledger
   behavioral parity is the next gate.
+- Began MD6 by adding an explicit execution-data backend contract to the direct
+  ledger CLI, sweep CLI and Registry-driven wrapper. `legacy` remains default;
+  `csv` is the direct audit oracle and `monthly` is the non-authoritative
+  candidate.
+- Monthly execution now loads all six raw fields once and passes them into the
+  realistic-mask builder. Mask cache identity includes the active immutable
+  monthly generations, preventing accidental reuse of global-matrix masks.
+- Added `run/audit_open_ledger_backend_parity.py` to compare summary economics
+  and six path artifacts by sweep key: equity, diagnostics, positions, orders,
+  rejections and costs.
+- The first focused run used the base Python by mistake and failed three exact
+  datetime-dtype assertions (`datetime64[s]` versus `[us]`). Re-running with the
+  project Torch interpreter passed 77 focused tests; this was environment drift,
+  not a market-value or execution difference.
+- Did not start the 5,000-stock 10-day dual replay because available memory fell
+  from 2.85 GiB to 0.39 GiB. The largest process was a user application at about
+  5.62 GiB; it was not terminated. The fixed 3 GiB resource gate remains active.
+- Added the resumable fixed-matrix runner and compiled all six backend/split
+  commands in dry-run: CSV and monthly over Val, Test and Forward, with four
+  stresses and two capital sizes (24 cells per backend).
+- The first real matrix invocation enforced its own resource gate and persisted
+  `blocked_low_memory` at 0.429 GiB before launching CSV/Val. No partial result
+  was accepted. Architecture, technical-plan and MD6 status documentation now
+  describe the implemented harness and the remaining machine gate.
+- Resumed MD6 after available memory recovered above 3 GiB. The first attached
+  run lost its stdout pipe at the outer tool timeout and returned 120; the
+  resumable ledger correctly retained partial rows without declaring completion.
+- Completed all six backend/split sweeps. CSV and monthly each produced the
+  fixed 24 cells. Val, Test and Forward parity reports passed all summary checks
+  and all 144 equity/diagnostic/position/order/rejection/cost comparisons with
+  exact values and identical file hashes.
+- Clean Test total runtime improved 61.053s to 34.629s; clean Forward improved
+  108.114s to 22.937s. MD6 is complete. MD7 call-site consolidation is the next
+  NT6 unit; no default switch occurs yet.
+- Final regression under the Torch environment passed 609 tests with one
+  pre-existing Pandas FutureWarning.

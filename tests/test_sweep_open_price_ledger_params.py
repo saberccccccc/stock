@@ -84,6 +84,31 @@ def test_parse_args_accepts_performance_report(monkeypatch):
     assert args.performance_report == "timing.json"
 
 
+def test_parse_args_accepts_monthly_execution_backend(monkeypatch):
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "sweep_open_price_ledger_params.py",
+            "--alpha-specs",
+            "alpha=reports/example.jsonl",
+            "--output-dir",
+            "reports/example_sweep",
+            "--ohlc-backend",
+            "monthly",
+            "--market-daily-store-root",
+            "data/store",
+            "--ohlc-monthly-cache-dir",
+            "cache/monthly",
+        ],
+    )
+
+    args = parse_args()
+
+    assert args.ohlc_backend == "monthly"
+    assert args.market_daily_store_root == "data/store"
+    assert args.ohlc_monthly_cache_dir == "cache/monthly"
+
+
 def test_parse_args_accepts_path_details(monkeypatch):
     monkeypatch.setattr(
         "sys.argv",

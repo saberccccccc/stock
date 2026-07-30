@@ -100,3 +100,24 @@
 - Cache invalidation is based on the active month-index hash, not the root
   manifest hash. Therefore adding August does not invalidate July, while a July
   revision necessarily creates a new July cache generation.
+- MD6 now has three explicit execution-data modes: unchanged `legacy`, audit
+  oracle `csv`, and candidate `monthly`. The formal default remains `legacy`;
+  no existing command silently changes backend.
+- Realistic execution masks for `monthly` are built from the same monthly
+  high/low/volume/money frames as open/close/ADV. Their cache key binds every
+  requested month's immutable generation and source month-index hash.
+- The canonical Val/Test workflow contains summary evidence, while a later
+  frozen-baseline acceptance run contains detailed path artifacts. Forward does
+  not have an equivalent full-year detailed oracle, so MD6 uses direct CSV as a
+  uniform audit oracle for all three splits.
+- Project validation must use
+  `C:\Users\x\miniconda3\envs\torch\python.exe`. The base interpreter currently
+  has Pandas 3.0.3 and produces different datetime units than the formal Torch
+  environment's Pandas 2.3.3, which can create false exact-parity failures.
+- MD6 completed all 24 CSV oracle cells and all 24 monthly candidate cells.
+  Val, Test and Forward each passed summary parity plus 48 detailed artifact
+  comparisons; all 144 frames and their serialized file hashes are identical.
+- Clean Test runtime fell from 61.053 seconds to 34.629 seconds and clean Forward
+  runtime from 108.114 seconds to 22.937 seconds. Val timing is not comparable
+  because a stdout interruption was resumed, though its behavioral parity is
+  valid. Recorded subprocess RSS remained below 527 MiB.

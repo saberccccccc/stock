@@ -173,6 +173,15 @@ Use single-run ledger scripts for diagnosis only. Official evidence uses registr
   content-addressed generation and selected by an atomic CURRENT pointer.
   Cross-month derived fields are computed after stitching. Basic OHLC/volume
   masks remain distinct from full ST, listing-age and price-limit eligibility.
+- MD6 keeps execution storage selection explicit: `legacy` is the unchanged
+  formal default, `csv` is the direct parity oracle, and `monthly` is the
+  candidate. Both ledger CLIs record the selected backend; monthly realistic
+  masks bind their cache key to each active immutable monthly generation.
+- `run/run_open_ledger_backend_parity_matrix.py` freezes the one-candidate,
+  three-split, four-stress, two-capital 24-cell contract and resumes only
+  incomplete sweep roots. `run/audit_open_ledger_backend_parity.py` compares
+  summary economics and equity, diagnostics, positions, orders, rejections and
+  costs by sweep key. A 3 GiB free-memory gate runs before every subprocess.
 - ADR 0010 requires one physical market store with separate logical DataViews.
   CSV remains the default parity oracle until Provider, monthly-cache and full
   24-cell ledger equivalence gates pass.

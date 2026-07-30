@@ -198,6 +198,12 @@ def test_open_ledger_parser_accepts_arbitrary_range_and_cache_knobs():
             "cache/custom_ohlc",
             "--ohlc-matrix-cache-dir",
             "cache/custom_matrix",
+            "--ohlc-backend",
+            "monthly",
+            "--market-daily-store-root",
+            "data/custom_market_daily",
+            "--ohlc-monthly-cache-dir",
+            "cache/custom_monthly",
             "--load-lookback-days",
             "120",
         ]
@@ -208,6 +214,9 @@ def test_open_ledger_parser_accepts_arbitrary_range_and_cache_knobs():
     assert args.max_data_date == "2026-06-18"
     assert args.ohlc_cache_dir == "cache/custom_ohlc"
     assert args.ohlc_matrix_cache_dir == "cache/custom_matrix"
+    assert args.ohlc_backend == "monthly"
+    assert args.market_daily_store_root == "data/custom_market_daily"
+    assert args.ohlc_monthly_cache_dir == "cache/custom_monthly"
     assert args.load_lookback_days == 120
     assert args.no_ohlc_cache is False
     assert args.no_ohlc_matrix_cache is False

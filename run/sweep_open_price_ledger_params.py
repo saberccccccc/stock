@@ -22,7 +22,7 @@ from backtest.open_ledger import (
     load_alpha_rows,
     load_global_risk_features,
     load_index_returns,
-    load_ohlc_money,
+    load_execution_market_frames,
     prepare_open_ledger_context,
     parse_float_list,
     prepare_execution_constraint_masks,
@@ -565,6 +565,20 @@ def parse_args():
     parser.add_argument("--no-ohlc-cache", action="store_true")
     parser.add_argument("--ohlc-matrix-cache-dir", default="cache/open_ledger_ohlc_matrix")
     parser.add_argument("--no-ohlc-matrix-cache", action="store_true")
+    parser.add_argument(
+        "--ohlc-backend",
+        choices=("legacy", "csv", "monthly"),
+        default="legacy",
+        help="Explicit execution-data backend. legacy remains the formal default.",
+    )
+    parser.add_argument(
+        "--market-daily-store-root",
+        default="data/market_daily_candidate_v2",
+    )
+    parser.add_argument(
+        "--ohlc-monthly-cache-dir",
+        default="cache/ohlcv_monthly_v3_candidate",
+    )
     parser.add_argument("--execution-mask-cache-dir", default="cache/open_ledger_execution_masks")
     parser.add_argument("--no-execution-mask-cache", action="store_true")
     parser.add_argument("--rebuild-ohlc-matrix-cache", action="store_true")
@@ -634,24 +648,21 @@ def main():
     print(
         f"loading shared OHLC: codes={len(all_codes)} window="
         f"{load_start.date() if load_start is not None else 'all'}.."
-        f"{load_end.date() if load_end is not None else 'all'} matrix_cache="
+        f"{load_end.date() if load_end is not None else 'all'} backend={args.ohlc_backend} "
+        f"matrix_cache="
         f"{'off' if args.no_ohlc_matrix_cache else args.ohlc_matrix_cache_dir} "
         f"window_cache={'off' if args.no_ohlc_cache else args.ohlc_cache_dir}",
         flush=True,
     )
-    open_df, close_df, money_df = load_ohlc_money(
-        args.data_dir,
+    market_frames = load_execution_market_frames(
+        args,
         all_codes,
-        args.money_scale,
-        args.progress_every,
         start_date=load_start,
         end_date=load_end,
-        cache_dir=args.ohlc_cache_dir,
-        use_cache=not args.no_ohlc_cache,
-        matrix_cache_dir=args.ohlc_matrix_cache_dir,
-        use_matrix_cache=not args.no_ohlc_matrix_cache,
-        rebuild_matrix_cache=args.rebuild_ohlc_matrix_cache,
     )
+    open_df = market_frames["open"]
+    close_df = market_frames["close"]
+    money_df = market_frames["money"]
     ohlc_loaded_at = time.perf_counter()
     adv_df = recompute_adv(money_df, args.adv_window)
     execution_masks = prepare_execution_constraint_masks(
@@ -662,6 +673,7 @@ def main():
         money_df,
         load_start=load_start,
         load_end=load_end,
+        ohlcv_frames=market_frames if args.ohlc_backend != "legacy" else None,
     )
     constraints_ready_at = time.perf_counter()
     if execution_masks is not None:
@@ -864,6 +876,17 @@ def main():
                                                                     "limit_threshold": float(run_args.limit_threshold),
                                                                     "max_new_names_mode": run_args.max_new_names_mode,
                                                                     "execution_constraint_mode": args.execution_constraint_mode,
+                                                                    "ohlc_backend": args.ohlc_backend,
+                                                                    "market_daily_store_root": (
+                                                                        str(Path(args.market_daily_store_root).resolve())
+                                                                        if args.ohlc_backend == "monthly"
+                                                                        else ""
+                                                                    ),
+                                                                    "ohlc_monthly_cache_dir": (
+                                                                        str(Path(args.ohlc_monthly_cache_dir).resolve())
+                                                                        if args.ohlc_backend == "monthly"
+                                                                        else ""
+                                                                    ),
                                                                     "block_intraday_limit_touch": bool(args.block_intraday_limit_touch),
                                                                     "min_buy_listing_days": int(args.min_buy_listing_days),
                                                                     "no_limit_first_trading_days": int(args.no_limit_first_trading_days),

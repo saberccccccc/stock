@@ -1,6 +1,7 @@
 """Reusable helpers for open-price share-ledger backtests."""
 
 import hashlib
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -13,12 +14,14 @@ from backtest.ohlc_matrix_cache import (
     load_ohlc_money_from_matrix_cache,
     load_ohlcv_fields_from_matrix_cache,
 )
+from backtest.monthly_ohlcv_cache import MonthlyOhlcvCache
 from backtest.reports import (
     calc_active_management_metrics,
     calc_extended_metrics,
     calc_metrics,
 )
 from backtest.strategy import retention_target, select_target_policy
+from data.providers import CsvMarketDailyBackend
 from data.st_status import (
     find_st_status_events_path,
     load_st_status_events as load_historical_st_status_events,
@@ -188,6 +191,83 @@ def load_ohlc_money(
        _save_ohlc_cache(cache_path, open_df, close_df, money_df)
        print(f"saved OHLC cache: {cache_path}", flush=True)
     return open_df, close_df, money_df
+
+
+def load_execution_market_frames(
+    args,
+    codes,
+    *,
+    start_date,
+    end_date,
+):
+    """Load execution inputs through the explicitly selected storage backend."""
+    backend = str(getattr(args, "ohlc_backend", "legacy")).strip().lower()
+    if backend == "legacy":
+        open_df, close_df, money_df = load_ohlc_money(
+            args.data_dir,
+            codes,
+            args.money_scale,
+            args.progress_every,
+            start_date=start_date,
+            end_date=end_date,
+            cache_dir=args.ohlc_cache_dir,
+            use_cache=not args.no_ohlc_cache,
+            matrix_cache_dir=args.ohlc_matrix_cache_dir,
+            use_matrix_cache=not args.no_ohlc_matrix_cache,
+            rebuild_matrix_cache=args.rebuild_ohlc_matrix_cache,
+        )
+        return {
+            "open": open_df,
+            "close": close_df,
+            "money": money_df,
+        }
+    if backend == "csv":
+        requested_fields = ("open", "high", "low", "close", "volume", "money")
+        normalized_codes = list(
+            dict.fromkeys(
+                str(code).strip().upper()
+                for code in codes
+                if str(code).strip()
+            )
+        )
+        long = CsvMarketDailyBackend(args.data_dir).load_long(
+            codes=normalized_codes,
+            fields=requested_fields,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        if long.empty:
+            empty = pd.DataFrame(
+                index=pd.DatetimeIndex([], name="trade_date"),
+                dtype=float,
+            )
+            return {field: empty.copy() for field in requested_fields}
+        present = set(long["code"].astype(str))
+        ordered_codes = [code for code in normalized_codes if code in present]
+        wide = long.pivot(
+            index="trade_date",
+            columns="code",
+            values=list(requested_fields),
+        ).sort_index()
+        frames = {
+            field: wide[field].reindex(columns=ordered_codes).astype(float)
+            for field in requested_fields
+        }
+        frames["money"] = frames["money"] * float(args.money_scale)
+        return frames
+    if backend != "monthly":
+        raise ValueError(f"unknown OHLC backend: {backend}")
+    cache = MonthlyOhlcvCache(
+        store_root=args.market_daily_store_root,
+        cache_root=args.ohlc_monthly_cache_dir,
+    )
+    return cache.load(
+        codes=codes,
+        fields=("open", "high", "low", "close", "volume", "money"),
+        start_date=start_date,
+        end_date=end_date,
+        money_scale=args.money_scale,
+    )
 
 
 def recompute_adv(money, adv_window):
@@ -468,13 +548,15 @@ def prepare_execution_constraint_masks(
     money_df,
     load_start=None,
     load_end=None,
+    ohlcv_frames=None,
 ):
     mode = getattr(args, "execution_constraint_mode", "proxy")
     if mode == "proxy":
         return None
     if mode != "realistic":
         raise ValueError(f"Unknown execution_constraint_mode: {mode}")
-    if getattr(args, "no_ohlc_matrix_cache", False):
+    backend = str(getattr(args, "ohlc_backend", "legacy")).strip().lower()
+    if backend == "legacy" and getattr(args, "no_ohlc_matrix_cache", False):
         raise RuntimeError("realistic execution constraints require OHLC matrix cache")
     cache_path = _execution_mask_cache_path(args, all_codes, open_df.index)
     if not getattr(args, "no_execution_mask_cache", False):
@@ -482,17 +564,20 @@ def prepare_execution_constraint_masks(
         if cached is not None:
             print(f"loaded execution mask cache: {cache_path}", flush=True)
             return cached
-    frames = load_ohlcv_fields_from_matrix_cache(
-        args.data_dir,
-        args.ohlc_matrix_cache_dir,
-        all_codes,
-        money_scale=args.money_scale,
-        start_date=load_start,
-        end_date=load_end,
-        fields=("high", "low", "volume", "money"),
-        progress_every=args.progress_every,
-        rebuild=getattr(args, "rebuild_ohlc_matrix_cache", False),
-    )
+    if ohlcv_frames is not None:
+        frames = ohlcv_frames
+    else:
+        frames = load_ohlcv_fields_from_matrix_cache(
+            args.data_dir,
+            args.ohlc_matrix_cache_dir,
+            all_codes,
+            money_scale=args.money_scale,
+            start_date=load_start,
+            end_date=load_end,
+            fields=("high", "low", "volume", "money"),
+            progress_every=args.progress_every,
+            rebuild=getattr(args, "rebuild_ohlc_matrix_cache", False),
+        )
     matrix_money_df = frames["money"].reindex(index=open_df.index, columns=open_df.columns)
     if matrix_money_df.isna().all().all():
         matrix_money_df = money_df
@@ -518,12 +603,39 @@ def prepare_execution_constraint_masks(
 def _execution_mask_cache_path(args, codes, index):
     """Build a cache key from immutable execution inputs and mask settings."""
     digest = hashlib.sha256()
-    digest.update(b"open_ledger_execution_masks_v1")
+    digest.update(b"open_ledger_execution_masks_v2")
     digest.update(str(Path(args.data_dir).resolve()).encode("utf-8", errors="ignore"))
-    matrix_meta = Path(args.ohlc_matrix_cache_dir) / "ohlc_matrix_meta.json"
-    if matrix_meta.exists():
-        stat = matrix_meta.stat()
-        digest.update(f"|matrix={stat.st_size}:{stat.st_mtime_ns}".encode("ascii"))
+    backend = str(getattr(args, "ohlc_backend", "legacy")).strip().lower()
+    digest.update(f"|backend={backend}".encode("ascii"))
+    if backend == "monthly" and len(index):
+        identity = MonthlyOhlcvCache(
+            store_root=args.market_daily_store_root,
+            cache_root=args.ohlc_monthly_cache_dir,
+        ).active_identity(
+            start_date=index[0],
+            end_date=index[-1],
+            ensure_current=False,
+        )
+        digest.update(
+            json.dumps(identity, sort_keys=True, separators=(",", ":")).encode(
+                "utf-8"
+            )
+        )
+    elif backend == "csv":
+        for code in codes:
+            source = Path(args.data_dir) / f"{code}.csv"
+            if source.is_file():
+                stat = source.stat()
+                digest.update(
+                    f"|csv={code}:{stat.st_size}:{stat.st_mtime_ns}".encode(
+                        "utf-8"
+                    )
+                )
+    else:
+        matrix_meta = Path(args.ohlc_matrix_cache_dir) / "ohlc_matrix_meta.json"
+        if matrix_meta.exists():
+            stat = matrix_meta.stat()
+            digest.update(f"|matrix={stat.st_size}:{stat.st_mtime_ns}".encode("ascii"))
     for relative in (
         "stable_stocks.csv",
         "../stock_industry.csv",

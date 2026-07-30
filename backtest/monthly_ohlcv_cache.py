@@ -155,6 +155,50 @@ class MonthlyOhlcvCache:
             "file_hashes_verified": bool(verify_file_hashes),
         }
 
+    def active_identity(
+        self,
+        *,
+        start_date: Any,
+        end_date: Any,
+        ensure_current: bool = False,
+    ) -> dict[str, Any]:
+        """Return immutable active-generation identity for a requested range."""
+        start = pd.Timestamp(start_date).normalize()
+        end = pd.Timestamp(end_date).normalize()
+        if end < start:
+            raise ValueError("end_date precedes start_date")
+        months = []
+        for period in pd.period_range(start, end, freq="M"):
+            if ensure_current:
+                self.ensure_month(period)
+            current = self._read_current(self._month_root(period))
+            if current is None:
+                raise FileNotFoundError(self._month_root(period) / "CURRENT")
+            meta, generation = current
+            source = self.store.month_snapshot(
+                instrument_type="equity",
+                month=period,
+            )
+            if not self._is_current(meta, source["record"]["sha256"]):
+                raise ValueError(f"monthly cache is stale: {period}")
+            months.append(
+                {
+                    "month": str(period),
+                    "generation": generation.name,
+                    "source_month_index_sha256": meta[
+                        "source_month_index_sha256"
+                    ],
+                }
+            )
+        return {
+            "schema": "monthly_ohlcv_active_identity_v1",
+            "store_root": str(self.store.root),
+            "cache_root": str(self.cache_root),
+            "start_date": str(start.date()),
+            "end_date": str(end.date()),
+            "months": months,
+        }
+
     def ensure_month(self, month: Any) -> dict[str, Any]:
         period = pd.Period(month, freq="M")
         source = self.store.month_snapshot(instrument_type="equity", month=period)

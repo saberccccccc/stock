@@ -969,3 +969,30 @@ Append-only record of material engineering and governance changes. Experiment me
   13.965 seconds for direct Parquet; six dense fields occupy 5,355,504 bytes.
 - The formal CSV/global-cache ledger path remains unchanged pending MD6 order,
   fill, rejection, cost, holding and NAV parity.
+
+## 2026-07-30 - NT6 MD6 Ledger Backend Parity Harness
+
+- Added explicit `legacy`, `csv` and `monthly` execution-data modes to the
+  direct ledger, shared sweep and Registry-driven wrapper. Existing commands
+  retain `legacy`; no default or Registry state changed.
+- Monthly execution loads six raw fields once and reuses them for open-ledger,
+  ADV and realistic masks. Mask cache lineage now includes backend identity and
+  immutable monthly generations; the direct CSV oracle binds source file stats.
+- Added an exact parity auditor for summary economics and six detailed path
+  artifacts, plus a resumable fixed 24-cell CSV/monthly matrix runner.
+- Fixed the runtime interpreter in evidence to the Torch environment. A base
+  Pandas 3.0.3 test run produced false datetime-unit differences; the formal
+  Pandas 2.3.3 environment passed 79 focused tests.
+- The matrix dry-run compiled all six backend/split jobs. The real replay
+  stopped before loading data because only 0.43 GiB was free versus the fixed
+  3 GiB minimum. No partial ledger result, backend promotion, training,
+  Registry mutation or lifecycle transition occurred.
+- After memory recovered, the resumable matrix completed 24 CSV and 24 monthly
+  cells. All three split reports passed: 144 detailed equity/diagnostic/
+  position/order/rejection/cost files matched exactly in values and bytes.
+- Clean Test runtime improved from 61.053s to 34.629s and clean Forward runtime
+  from 108.114s to 22.937s. Val timing is intentionally excluded because an
+  outer stdout interruption caused a resumed run. MD6 is complete; no default
+  backend switch occurs before MD7-MD9.
+- Final full regression passed 609 tests with one pre-existing Pandas
+  FutureWarning.
