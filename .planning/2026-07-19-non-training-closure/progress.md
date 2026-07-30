@@ -204,3 +204,18 @@
 - Corrected the resource gate to preserve 3 GiB during execution: launch now
   requires 3.75 GiB free (3 GiB reserve plus 0.75 GiB task headroom). The
   full dual-read runner correctly remained blocked at 2.10 GiB.
+- Added and tested an isolated full-scale daily incremental benchmark. It
+  replays one source month into a temporary store, excludes setup time, measures
+  the final partition commit and cache refresh, verifies warm hits and hashes,
+  and removes its workspace afterward.
+- The first real attempt failed safely on a 303-character Windows path. Added
+  short-temp fallback with a regression test, then reran successfully against
+  the real 2026-07 candidate month.
+- Extended MD8 acceptance so a final pass now requires both clean ledger I/O
+  evidence and passing incremental evidence. The current combined result stays
+  `provisional_pass` solely because old MD6 reports have no process I/O.
+- Focused regression passed 7 acceptance/benchmark tests and 19 related
+  storage/cache tests.
+- Full repository regression passed 636 tests with one pre-existing Pandas
+  FutureWarning. Available memory remained 2.284 GiB, so the 3.75 GiB clean
+  matrix launch gate correctly remains closed.

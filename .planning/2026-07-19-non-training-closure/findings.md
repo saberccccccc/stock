@@ -151,3 +151,16 @@
 - The old pre-launch check could start a roughly 0.5 GiB task when exactly
   3 GiB was free, violating the intended in-run reserve. MD8/MD9 launchers now
   require 3 GiB reserve plus 0.75 GiB measured task headroom.
+- MD8's original evaluator covered ledger replay performance but not every
+  acceptance item in the technical plan. A new isolated benchmark now records
+  source first/warm reads, partition coverage, one-day local commit, affected
+  month refresh, warm-cache hits, process I/O, RSS/system memory and physical
+  integrity without mutating the formal candidate store.
+- The real July 2026 replay loaded 111,369 rows over 21 sessions. Its latest
+  5,299-row day committed in 0.066 seconds and the six-field 21-by-5,313 cache
+  rebuilt in 0.161 seconds. Both are far below the fixed 10-second and
+  30-second gates. The commit used 24 process reads, not a 5,000-file scan.
+- A report-nested temp workspace produced a 303-character destination and hit
+  Win32 MAX_PATH during the first attempt. Cleanup completed and the candidate
+  source identity was unchanged. The benchmark now preflights path depth and
+  automatically uses the system temp root when necessary.

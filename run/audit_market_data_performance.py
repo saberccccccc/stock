@@ -18,13 +18,17 @@ from data.market_data_performance_acceptance import evaluate_market_data_perform
 def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--evidence-root", required=True)
+    parser.add_argument("--incremental-evidence")
     parser.add_argument("--output", required=True)
     return parser.parse_args(argv)
 
 
 def main(argv=None):
     args = parse_args(argv)
-    result = evaluate_market_data_performance(args.evidence_root)
+    result = evaluate_market_data_performance(
+        args.evidence_root,
+        incremental_evidence=args.incremental_evidence,
+    )
     output = Path(args.output)
     if not output.is_absolute():
         output = ROOT / output

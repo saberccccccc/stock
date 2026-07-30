@@ -22,10 +22,13 @@ resuming, or tuning any model training job.
 - [ ] NT8: close Registry, reports, documentation, archive, and tests.
 - [ ] NT9: issue one GO/HOLD/STOP decision and a pre-registered next-study draft.
 
-Current implementation unit: NT6 MD8 performance acceptance. MD0-MD7 are
+Current implementation unit: NT6 MD8 clean ledger evidence. MD0-MD7 are
 complete, including exact 24-cell CSV/monthly ledger equivalence and governed
-Workflow/Shadow call-site consolidation. The migrated Parquet store remains a
-non-authoritative candidate until MD8-MD9 complete.
+Workflow/Shadow call-site consolidation. The isolated full-scale incremental
+benchmark now passes daily commit, affected-month refresh, warm-cache,
+partition-coverage, I/O and integrity gates. The migrated Parquet store remains
+a non-authoritative candidate until the clean 24-cell I/O matrix and MD9
+Val/Test/Forward dual-read evidence complete.
 NT3 dry-run remains the parity oracle and resumes only after NT6 performance
 work passes its behavior-equivalence gate.
 

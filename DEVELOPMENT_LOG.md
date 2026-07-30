@@ -1048,3 +1048,23 @@ Append-only record of material engineering and governance changes. Experiment me
   byte-for-byte.
 - Corrected the pre-launch resource gate to require 3.75 GiB: 3 GiB must remain
   available while a measured 0.75 GiB task budget is active.
+
+## 2026-07-31 - NT6 MD8 Incremental Performance Evidence
+
+- Added an isolated benchmark for first/warm arbitrary Parquet reads, one-day
+  local commit, affected-month cache refresh, cache hits, process I/O, RSS and
+  physical integrity. It never writes the formal candidate store.
+- The real 2026-07 replay covered 111,369 rows and 21 sessions. The final
+  5,299-row partition committed in 0.066 seconds; the six-field 21-by-5,313
+  monthly cache refreshed in 0.161 seconds. Partition/cache hit rates were
+  100%, 5 ms sampling observed a 195.4 MiB peak RSS, and both hash audits
+  passed.
+- The first run exposed a Win32 path-length failure when a temporary workspace
+  was nested under the report tree. Cleanup succeeded and no formal data
+  changed. Unsafe requested parents now fall back to the short system temp
+  directory and record the reason.
+- Extended the MD8 acceptance evaluator to require incremental scale, commit
+  and refresh time, no per-stock scan, warm-cache, partition coverage,
+  integrity and isolation gates in addition to ledger parity/performance/I/O.
+- The combined old-MD6 plus new-incremental report remains
+  `provisional_pass`, because old ledger reports still lack process I/O.

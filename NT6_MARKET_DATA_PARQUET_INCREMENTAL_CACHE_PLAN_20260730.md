@@ -16,7 +16,7 @@
 | MD5 | complete | 月索引绑定、按月失效、跨月派生、基础执行 mask、真实 2026-07 全量 parity |
 | MD6 | complete | 24 CSV + 24 monthly cells；Val/Test/Forward 共 144 个逐路径工件精确值与字节哈希零差异 |
 | MD7 | complete | 统一后端契约、Workflow/Shadow 透传、静态调用点治理 |
-| MD8 | in progress | 验收器已完成；clean matrix 等待 3 GiB 资源门 |
+| MD8 | in progress | 真实 5,299 行增量提交/单月刷新已通过；clean matrix 等待 3.75 GiB 启动门 |
 | MD9 | in progress | 双读、晋升门和原子回退已实现；全量观察未完成 |
 
 ## 1. 目标
