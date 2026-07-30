@@ -183,3 +183,11 @@
   full suite passed 614 tests with one pre-existing Pandas FutureWarning.
 - MD8 fixed performance acceptance is next. No training, long replay, Registry
   mutation, lifecycle transition or backend default switch occurred in MD7.
+- Began MD8 with process I/O and available-memory instrumentation plus a fixed
+  acceptance evaluator. Existing MD6 evidence is `provisional_pass`: parity,
+  speed/profile and RSS pass, while process I/O evidence is absent.
+- The clean MD8 matrix correctly stopped before `csv/val_2024` because free
+  memory was 2.96 GiB versus the fixed 3.00 GiB minimum. It remains resumable;
+  no resource threshold was weakened.
+- MD8 instrumentation and acceptance regression passed the full 618-test suite
+  with one pre-existing Pandas FutureWarning.

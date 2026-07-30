@@ -4,6 +4,7 @@ import pandas as pd
 import pytest
 
 from run.sweep_open_price_ledger_params import (
+    io_delta,
     append_summary_rows,
     apply_stress_overrides,
     completed_keys_from_summary,
@@ -15,6 +16,30 @@ from run.sweep_open_price_ledger_params import (
     sweep_key,
     write_path_artifacts,
 )
+
+
+def test_io_delta_reports_process_counter_changes():
+    start = {
+        "read_count": 10,
+        "write_count": 20,
+        "read_bytes": 30,
+        "write_bytes": 40,
+        "available_memory_gib": 4.0,
+    }
+    end = {
+        "read_count": 15,
+        "write_count": 27,
+        "read_bytes": 130,
+        "write_bytes": 240,
+        "available_memory_gib": 3.5,
+    }
+
+    assert io_delta(start, end) == {
+        "read_count": 5,
+        "write_count": 7,
+        "read_bytes": 100,
+        "write_bytes": 200,
+    }
 
 
 def test_append_summary_rows_preserves_prior_chunks(tmp_path):

@@ -130,3 +130,12 @@
   allowlist now rejects any new unregistered import of the legacy global-matrix
   or per-stock CSV internals. The repository audit passes with no unregistered
   imports and no stale allowlist entries.
+- MD8 provisional acceptance passes parity, runtime-profile and RSS gates.
+  Test OHLC loading is 6.44x faster and Forward is 31.99x faster. Test total
+  runtime improves 1.76x because monthly OHLC is only 13.0% of elapsed time;
+  realistic constraints and ledger execution are now the dominant work.
+  Forward total runtime improves 4.71x.
+- Old MD6 reports do not contain process I/O counters. The clean MD8 matrix was
+  blocked before its first subprocess at 2.96 GiB free versus the immutable
+  3.00 GiB gate. This is an evidence-completeness gap, not a failed performance
+  result.

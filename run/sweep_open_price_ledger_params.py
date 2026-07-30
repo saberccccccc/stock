@@ -368,6 +368,32 @@ def process_rss_mb():
             return None
 
 
+def process_io_snapshot():
+    try:
+        import psutil
+
+        process = psutil.Process()
+        counters = process.io_counters()
+        return {
+            "read_count": int(getattr(counters, "read_count", 0)),
+            "write_count": int(getattr(counters, "write_count", 0)),
+            "read_bytes": int(getattr(counters, "read_bytes", 0)),
+            "write_bytes": int(getattr(counters, "write_bytes", 0)),
+            "available_memory_gib": round(psutil.virtual_memory().available / (1024 ** 3), 3),
+        }
+    except Exception:
+        return None
+
+
+def io_delta(start, end):
+    if not start or not end:
+        return None
+    return {
+        key: end[key] - start[key]
+        for key in ("read_count", "write_count", "read_bytes", "write_bytes")
+    }
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Sweep open-price share-ledger params")
     parser.add_argument("--alpha-specs", required=True, help="Comma list like max090=path,max095=path")
@@ -600,6 +626,7 @@ def parse_args():
 
 def main():
     started = time.perf_counter()
+    io_started = process_io_snapshot()
     args = parse_args()
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -978,6 +1005,7 @@ def main():
         if not report_path.is_absolute():
             report_path = output_dir / report_path
         report_path.parent.mkdir(parents=True, exist_ok=True)
+        io_completed = process_io_snapshot()
         report = {
             "alpha_load_seconds": round(alpha_loaded_at - started, 3),
             "ohlc_load_seconds": round(ohlc_loaded_at - alpha_loaded_at, 3),
@@ -986,6 +1014,13 @@ def main():
             "grid_execute_seconds": round(grid_completed_at - grid_started_at, 3),
             "total_seconds": round(time.perf_counter() - started, 3),
             "rss_mb": process_rss_mb(),
+            "process_io": io_delta(io_started, io_completed),
+            "available_memory_gib_start": (
+                io_started["available_memory_gib"] if io_started else None
+            ),
+            "available_memory_gib_end": (
+                io_completed["available_memory_gib"] if io_completed else None
+            ),
             "alpha_count": len(alpha_specs),
             "signal_rows": sum(len(rows) for _, _, rows in loaded_alpha_specs),
             "ohlc_days": len(open_df.index),

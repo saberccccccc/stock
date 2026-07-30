@@ -1012,3 +1012,19 @@ Append-only record of material engineering and governance changes. Experiment me
 - Static audit, 74 focused tests and all 614 repository tests passed; one
   pre-existing Pandas FutureWarning remains. No training, Registry mutation,
   lifecycle transition, long replay or backend switch ran.
+
+## 2026-07-30 - NT6 MD8 Performance Acceptance Started
+
+- Added process I/O counters and start/end available-memory evidence to the
+  shared ledger sweep performance report.
+- Added a fixed acceptance evaluator for exact parity, OHLC and total speedup,
+  ledger-bottleneck attribution, RSS and I/O evidence completeness.
+- Existing MD6 evidence is `provisional_pass`: Test OHLC is 6.44x faster and
+  Forward OHLC is 31.99x faster; total speedups are 1.76x and 4.71x. Test
+  monthly OHLC is only 13.0% of elapsed time, proving execution is now the
+  dominant bottleneck.
+- The clean evidence run was blocked before its first subprocess at 2.96 GiB
+  free memory versus the 3.00 GiB gate. The run is resumable and the gate was
+  not reduced.
+- Full regression after the MD8 instrumentation passed 618 tests with one
+  pre-existing Pandas FutureWarning.
