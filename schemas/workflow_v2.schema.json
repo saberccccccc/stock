@@ -156,7 +156,9 @@
         "stresses": {"type": "array", "minItems": 4, "uniqueItems": true, "items": {"enum": ["normal", "lag1", "cost2x", "capacity_3pct"]}},
         "ohlc_backend": {"enum": ["legacy", "csv", "monthly"], "default": "legacy"},
         "market_daily_store_root": {"type": "string", "minLength": 1},
-        "ohlc_monthly_cache_dir": {"type": "string", "minLength": 1}
+        "ohlc_monthly_cache_dir": {"type": "string", "minLength": 1},
+        "ohlc_shadow_backend": {"enum": ["csv", "monthly"]},
+        "ohlc_shadow_report": {"type": "string", "minLength": 1}
       }
     },
     "records": {

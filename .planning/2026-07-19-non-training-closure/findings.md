@@ -139,3 +139,15 @@
   blocked before its first subprocess at 2.96 GiB free versus the immutable
   3.00 GiB gate. This is an evidence-completeness gap, not a failed performance
   result.
+- MD9 supports only monthly/CSV dual-read because both expose the same six
+  execution fields. Legacy is intentionally excluded from dual-read; its
+  three-field facade cannot prove full execution-input parity.
+- A real 48-code, 21-session July 2026 dual-read passed all six fields exactly.
+  Full Val/Test/Forward observation remains required before promotion.
+- Backend promotion is now fail-closed and versioned. It verifies report
+  schemas, backend identities and SHA-256 hashes, and records actor/reason/time.
+  Current audit remains blocked on MD8 clean I/O evidence and three full
+  dual-read reports; active backend remains legacy.
+- The old pre-launch check could start a roughly 0.5 GiB task when exactly
+  3 GiB was free, violating the intended in-run reserve. MD8/MD9 launchers now
+  require 3 GiB reserve plus 0.75 GiB measured task headroom.

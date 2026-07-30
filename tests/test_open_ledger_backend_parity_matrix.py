@@ -8,6 +8,7 @@ from run.audit_open_ledger_backend_parity import ARTIFACT_COLUMNS
 from run.run_open_ledger_backend_parity_matrix import (
     CANDIDATE_ID,
     build_sweep_command,
+    parse_args,
     sweep_is_complete,
 )
 
@@ -19,6 +20,13 @@ def _args():
         market_daily_store_root="data/market_daily_candidate_v2",
         ohlc_monthly_cache_dir="cache/ohlcv_monthly_v3_candidate",
     )
+
+
+def test_matrix_resource_gate_reserves_task_headroom():
+    args = parse_args([])
+
+    assert args.min_free_memory_gib == 3.0
+    assert args.estimated_peak_memory_gib == 0.75
 
 
 def test_matrix_command_freezes_fixed_cells_and_monthly_backend(tmp_path):

@@ -404,6 +404,8 @@ def compile_workflow(
             monthly_cache_root=ledger.get(
                 "ohlc_monthly_cache_dir", "cache/ohlcv_monthly_v3_candidate"
             ),
+            shadow_backend=ledger.get("ohlc_shadow_backend"),
+            shadow_report=ledger.get("ohlc_shadow_report"),
         )
         ledger_command.extend(market_data.cli_args())
         for candidate_id in candidate_ids:

@@ -478,6 +478,8 @@ def replay_daily_shadow_run(
                 "monthly_cache_root", "cache/ohlcv_monthly_v3_candidate"
             )
             or "cache/ohlcv_monthly_v3_candidate",
+            shadow_backend=source.get("market_data", {}).get("shadow_backend") or None,
+            shadow_report=source.get("market_data", {}).get("shadow_report") or None,
         ),
         mode="historical_replay",
         python_executable=python_executable,

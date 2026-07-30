@@ -167,6 +167,7 @@ def parse_args(argv=None):
         default="cache/ohlcv_monthly_v3_candidate",
     )
     parser.add_argument("--min-free-memory-gib", type=float, default=3.0)
+    parser.add_argument("--estimated-peak-memory-gib", type=float, default=0.75)
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args(argv)
 
@@ -211,16 +212,24 @@ def main(argv=None):
             else:
                 free_gib = available_memory_gib()
                 run_record["available_memory_gib_before"] = round(free_gib, 3)
-                if free_gib < args.min_free_memory_gib:
+                required_before = (
+                    args.min_free_memory_gib + args.estimated_peak_memory_gib
+                )
+                if free_gib < required_before:
                     run_record["status"] = "blocked_low_memory"
-                    run_record["required_memory_gib"] = args.min_free_memory_gib
+                    run_record["required_memory_gib_before"] = required_before
+                    run_record["reserved_memory_gib"] = args.min_free_memory_gib
+                    run_record["estimated_peak_memory_gib"] = (
+                        args.estimated_peak_memory_gib
+                    )
                     status["runs"].append(run_record)
                     status["status"] = "blocked_low_memory"
                     status["updated_at"] = _utc_now()
                     _atomic_json(status_path, status)
                     print(
                         f"blocked: free_memory={free_gib:.2f} GiB "
-                        f"required={args.min_free_memory_gib:.2f} GiB "
+                        f"required_before={required_before:.2f} GiB "
+                        f"reserve={args.min_free_memory_gib:.2f} GiB "
                         f"next={backend}/{split}",
                         flush=True,
                     )

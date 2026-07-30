@@ -193,14 +193,13 @@ def load_ohlc_money(
     return open_df, close_df, money_df
 
 
-def load_execution_market_frames(
+def _load_execution_market_frames_once(
     args,
     codes,
     *,
     start_date,
     end_date,
 ):
-    """Load execution inputs through the explicitly selected storage backend."""
     backend = str(getattr(args, "ohlc_backend", "legacy")).strip().lower()
     if backend == "legacy":
         open_df, close_df, money_df = load_ohlc_money(
@@ -268,6 +267,92 @@ def load_execution_market_frames(
         end_date=end_date,
         money_scale=args.money_scale,
     )
+
+
+def _frame_identity(frame):
+    values_hash = hashlib.sha256(
+        pd.util.hash_pandas_object(frame, index=True).to_numpy().tobytes()
+    ).hexdigest()
+    return {
+        "rows": int(len(frame.index)),
+        "columns": int(len(frame.columns)),
+        "dtype": str(frame.dtypes.iloc[0]) if len(frame.columns) else "",
+        "missing": int(frame.isna().to_numpy().sum()),
+        "values_sha256": values_hash,
+    }
+
+
+def _write_dual_read_report(path, report):
+    target = Path(path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_suffix(target.suffix + ".tmp")
+    temporary.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    temporary.replace(target)
+
+
+def load_execution_market_frames(
+    args,
+    codes,
+    *,
+    start_date,
+    end_date,
+):
+    """Load one backend and optionally require exact CSV/monthly dual-read parity."""
+    primary = _load_execution_market_frames_once(
+        args,
+        codes,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    shadow_backend = str(getattr(args, "ohlc_shadow_backend", "") or "").strip().lower()
+    if not shadow_backend:
+        return primary
+    report_path = getattr(args, "ohlc_shadow_report", None)
+    if not report_path:
+        raise ValueError("OHLC dual-read requires --ohlc-shadow-report")
+    backend = str(getattr(args, "ohlc_backend", "legacy")).strip().lower()
+    if {backend, shadow_backend} != {"csv", "monthly"}:
+        raise ValueError("OHLC dual-read requires one csv and one monthly backend")
+    shadow_args = SimpleNamespace(**vars(args))
+    shadow_args.ohlc_backend = shadow_backend
+    shadow_args.ohlc_shadow_backend = None
+    shadow_args.ohlc_shadow_report = None
+    shadow = _load_execution_market_frames_once(
+        shadow_args,
+        codes,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    report = {
+        "schema": "execution_market_dual_read_v1",
+        "status": "passed",
+        "primary_backend": backend,
+        "shadow_backend": shadow_backend,
+        "start_date": str(pd.Timestamp(start_date).date()),
+        "end_date": str(pd.Timestamp(end_date).date()),
+        "requested_codes": len(codes),
+        "fields": {},
+    }
+    try:
+        for field in ("open", "high", "low", "close", "volume", "money"):
+            pd.testing.assert_frame_equal(
+                primary[field],
+                shadow[field],
+                check_exact=True,
+                check_dtype=True,
+                check_names=True,
+            )
+            report["fields"][field] = _frame_identity(primary[field])
+    except Exception as exc:
+        report["status"] = "failed"
+        report["error"] = f"{type(exc).__name__}: {exc}"
+        _write_dual_read_report(report_path, report)
+        raise ValueError(f"OHLC dual-read parity failed; see {report_path}") from exc
+    _write_dual_read_report(report_path, report)
+    return primary
 
 
 def recompute_adv(money, adv_window):

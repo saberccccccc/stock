@@ -24,7 +24,11 @@ if root_path in sys.path:
 # the project backtest package.
 sys.path.insert(0, root_path)
 
-from backtest.market_data_contract import add_execution_market_data_args
+from backtest.market_data_contract import (
+    ExecutionMarketDataContract,
+    add_execution_market_data_args,
+    contract_from_args,
+)
 from core.research_protocol import (
     RESEARCH_END_DATE,
     SPLIT_SPECS,
@@ -124,6 +128,17 @@ def build_command(args, split, alpha_spec_text, out_dir):
     spec = get_split_spec(split)
     start, end, max_date = spec.command_dates()
     data_dir = args.forward_data_dir if spec.is_forward else args.research_data_dir
+    market_data = contract_from_args(args)
+    if market_data.shadow_backend is not None:
+        report = Path(market_data.shadow_report)
+        report = report.with_name(f"{report.stem}.{split}{report.suffix or '.json'}")
+        market_data = ExecutionMarketDataContract(
+            backend=market_data.backend,
+            market_daily_store_root=market_data.market_daily_store_root,
+            monthly_cache_root=market_data.monthly_cache_root,
+            shadow_backend=market_data.shadow_backend,
+            shadow_report=report,
+        )
     cmd = [
         PYTHON,
         "run/sweep_open_price_ledger_params.py",
@@ -151,12 +166,6 @@ def build_command(args, split, alpha_spec_text, out_dir):
         args.switch_gap_fracs,
         "--execution-constraint-mode",
         args.execution_mode,
-        "--ohlc-backend",
-        getattr(args, "ohlc_backend", "legacy"),
-        "--market-daily-store-root",
-        getattr(args, "market_daily_store_root", "data/market_daily_candidate_v2"),
-        "--ohlc-monthly-cache-dir",
-        getattr(args, "ohlc_monthly_cache_dir", "cache/ohlcv_monthly_v3_candidate"),
         "--start-date",
         start,
         "--end-date",
@@ -165,6 +174,7 @@ def build_command(args, split, alpha_spec_text, out_dir):
         max_date,
         "--save-path-details",
     ]
+    cmd.extend(market_data.cli_args())
     if args.resume:
         cmd.append("--resume")
     return cmd

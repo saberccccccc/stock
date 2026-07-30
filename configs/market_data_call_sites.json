@@ -7,7 +7,8 @@
     "experiments/workflow.py",
     "experiments/ledger_evidence.py",
     "experiments/shadow_daily.py",
-    "run/run_daily_shadow.py"
+    "run/run_daily_shadow.py",
+    "run/run_market_data_dual_read_matrix.py"
   ],
   "artifact_only_consumers": [
     "run/attribution_from_registry.py",

@@ -1,0 +1,23 @@
+{
+  "schema": "execution_market_backend_policy_v1",
+  "state": "legacy_active",
+  "active_backend": "legacy",
+  "candidate_backend": "monthly",
+  "rollback_backend": "legacy",
+  "shadow_backend": "csv",
+  "required_dual_read_splits": [
+    "val_2024",
+    "test_2025",
+    "forward_2026"
+  ],
+  "evidence": {
+    "behavior_parity": "reports/non_training_closure_20260719/nt6_market_data_pilot_20260730/md6_ledger_backend_parity/matrix_status.json",
+    "performance_acceptance": "reports/non_training_closure_20260719/nt6_market_data_pilot_20260730/md8_performance_acceptance/clean_acceptance.json",
+    "call_site_audit": "reports/non_training_closure_20260719/nt6_market_data_pilot_20260730/md7_call_site_consolidation/call_site_audit.json",
+    "dual_read_reports": {
+      "val_2024": "reports/non_training_closure_20260719/nt6_market_data_pilot_20260730/md9_dual_read_observation/dual_read.val_2024.json",
+      "test_2025": "reports/non_training_closure_20260719/nt6_market_data_pilot_20260730/md9_dual_read_observation/dual_read.test_2025.json",
+      "forward_2026": "reports/non_training_closure_20260719/nt6_market_data_pilot_20260730/md9_dual_read_observation/dual_read.forward_2026.json"
+    }
+  }
+}

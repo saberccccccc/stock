@@ -1028,3 +1028,23 @@ Append-only record of material engineering and governance changes. Experiment me
   not reduced.
 - Full regression after the MD8 instrumentation passed 618 tests with one
   pre-existing Pandas FutureWarning.
+
+## 2026-07-31 - NT6 MD9 Dual-Read And Rollback Preparation
+
+- Added fail-closed monthly/CSV dual-read over six execution fields with atomic
+  pass/fail reports. Differences stop ledger execution.
+- Propagated optional shadow backend/report fields through the shared contract,
+  official Registry wrapper, Workflow v2 and Daily Shadow replay.
+- A real 48-code, 21-session July 2026 pilot matched exactly.
+- Added a resumable Val/Test/Forward full-universe dual-read runner with the
+  fixed 3 GiB resource gate.
+- Added a versioned active/candidate/rollback policy and a promotion manager
+  that verifies evidence schemas, backend identities and SHA-256 hashes.
+  Promotion and rollback require actor/reason and record UTC transition data.
+- Promotion audit is currently blocked on MD8 clean I/O evidence and the three
+  full dual-read reports. Active/default backend remains legacy.
+- Full regression passed 632 tests with one pre-existing Pandas FutureWarning.
+  A negative promotion attempt exited nonzero and preserved the policy file
+  byte-for-byte.
+- Corrected the pre-launch resource gate to require 3.75 GiB: 3 GiB must remain
+  available while a measured 0.75 GiB task budget is active.

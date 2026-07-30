@@ -117,6 +117,22 @@ def validate_workflow_v2(config: Mapping[str, Any]) -> dict[str, Any]:
                 "in model.config.candidate_ids"
             )
 
+    ledger = config["ledger"]
+    shadow_backend = ledger.get("ohlc_shadow_backend")
+    shadow_report = ledger.get("ohlc_shadow_report")
+    if bool(shadow_backend) != bool(shadow_report):
+        raise ValueError(
+            "workflow v2 ledger dual-read requires both ohlc_shadow_backend "
+            "and ohlc_shadow_report"
+        )
+    if shadow_backend and {
+        str(ledger.get("ohlc_backend", "legacy")),
+        str(shadow_backend),
+    } != {"csv", "monthly"}:
+        raise ValueError(
+            "workflow v2 ledger dual-read requires one csv and one monthly backend"
+        )
+
     return {
         "experiment_id": str(config["experiment_id"]),
         "model_adapter": adapter,

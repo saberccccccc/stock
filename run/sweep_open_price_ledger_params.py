@@ -902,6 +902,12 @@ def main():
                                                                         if args.ohlc_backend == "monthly"
                                                                         else ""
                                                                     ),
+                                                                    "ohlc_shadow_backend": args.ohlc_shadow_backend or "",
+                                                                    "ohlc_shadow_report": (
+                                                                        str(Path(args.ohlc_shadow_report).resolve())
+                                                                        if args.ohlc_shadow_backend
+                                                                        else ""
+                                                                    ),
                                                                     "block_intraday_limit_touch": bool(args.block_intraday_limit_touch),
                                                                     "min_buy_listing_days": int(args.min_buy_listing_days),
                                                                     "no_limit_first_trading_days": int(args.no_limit_first_trading_days),

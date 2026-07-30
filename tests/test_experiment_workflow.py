@@ -259,6 +259,39 @@ def test_workflow_v2_propagates_monthly_execution_backend(tmp_path):
     assert command[command.index("--ohlc-monthly-cache-dir") + 1] == "cache/monthly"
 
 
+def test_workflow_v2_propagates_dual_read_observation(tmp_path):
+    data = tmp_path / "data"
+    data.mkdir()
+    model_config = tmp_path / "rolling.json"
+    model_config.write_text("{}", encoding="utf-8")
+    config = _v2_config(data, model_config)
+    config["ledger"].update(
+        {
+            "ohlc_backend": "monthly",
+            "ohlc_shadow_backend": "csv",
+            "ohlc_shadow_report": "reports/dual_read.json",
+        }
+    )
+
+    compiled = compile_workflow(
+        config, project_root=tmp_path, output_dir=tmp_path / "out", python="python"
+    )
+    command = compiled["stages"][2]["command"]
+
+    assert command[command.index("--ohlc-shadow-backend") + 1] == "csv"
+    assert command[command.index("--ohlc-shadow-report") + 1] == "reports/dual_read.json"
+
+
+def test_workflow_v2_rejects_incomplete_dual_read_contract(tmp_path):
+    model_config = tmp_path / "rolling.json"
+    model_config.write_text("{}", encoding="utf-8")
+    config = _v2_config(tmp_path, model_config)
+    config["ledger"]["ohlc_shadow_backend"] = "csv"
+
+    with pytest.raises(ValueError, match="requires both"):
+        validate_workflow_config(config)
+
+
 def test_workflow_v2_rejects_forward_as_selection(tmp_path):
     model_config = tmp_path / "rolling.json"
     model_config.write_text("{}", encoding="utf-8")

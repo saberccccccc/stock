@@ -190,6 +190,16 @@ Use single-run ledger scripts for diagnosis only. Official evidence uses registr
   market-reader internals. `run/audit_market_data_call_sites.py` blocks new
   unregistered imports and verifies that attribution/scorecard remain
   artifact-only consumers.
+- MD9 dual-read observation is fail-closed. A monthly primary and CSV shadow
+  must match all six execution fields exactly before ledger execution
+  continues. `run/run_market_data_dual_read_matrix.py` applies this to the
+  frozen Val/Test/Forward baseline universes with the same 3 GiB resource gate.
+  The launcher also reserves a measured 0.75 GiB task budget, so it requires
+  3.75 GiB before launch rather than consuming the 3 GiB system reserve.
+- `configs/execution_market_backend_policy.json` is the atomic default/rollback
+  pointer. Promotion requires schema- and hash-verified MD6 parity, MD7
+  call-site audit, MD8 clean performance evidence and all three full dual-read
+  reports. Formal workflows still freeze an explicit backend.
 - ADR 0010 requires one physical market store with separate logical DataViews.
   CSV remains the default parity oracle until Provider, monthly-cache and full
   24-cell ledger equivalence gates pass.

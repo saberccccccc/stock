@@ -191,3 +191,16 @@
   no resource threshold was weakened.
 - MD8 instrumentation and acceptance regression passed the full 618-test suite
   with one pre-existing Pandas FutureWarning.
+- Implemented MD9 exact monthly/CSV dual-read, atomic pass/fail evidence and
+  Workflow/Shadow/Registry propagation. A real 48-code July 2026 pilot passed.
+- Added a resumable Val/Test/Forward full-universe observation runner with the
+  fixed 3 GiB memory gate.
+- Added a versioned backend policy and fail-closed promotion/rollback manager.
+  Promotion checks evidence schemas and hashes and requires actor/reason.
+  Current audit correctly remains blocked; default is still legacy.
+- Full regression passed 632 tests with one pre-existing Pandas FutureWarning.
+  A real negative promotion attempt returned nonzero and left the policy
+  SHA-256 unchanged.
+- Corrected the resource gate to preserve 3 GiB during execution: launch now
+  requires 3.75 GiB free (3 GiB reserve plus 0.75 GiB task headroom). The
+  full dual-read runner correctly remained blocked at 2.10 GiB.

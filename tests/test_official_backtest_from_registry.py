@@ -49,6 +49,21 @@ def test_official_backtest_uses_forward_data_for_forward_split(tmp_path):
     assert command_value(command, "--max-data-date") == "2026-06-30"
 
 
+def test_official_backtest_names_dual_read_report_by_split(tmp_path):
+    args = make_args()
+    args.ohlc_backend = "monthly"
+    args.ohlc_shadow_backend = "csv"
+    args.ohlc_shadow_report = str(tmp_path / "dual.json")
+
+    command = build_command(args, "test_2025", "candidate=alpha.jsonl", tmp_path)
+
+    assert command_value(command, "--ohlc-backend") == "monthly"
+    assert command_value(command, "--ohlc-shadow-backend") == "csv"
+    assert command_value(command, "--ohlc-shadow-report").endswith(
+        "dual.test_2025.json"
+    )
+
+
 def test_split_alpha_path_resolves_rolling_manifest_window(tmp_path, monkeypatch):
     monkeypatch.setattr(official, "ROOT", tmp_path)
     alpha = tmp_path / "alpha.jsonl"
