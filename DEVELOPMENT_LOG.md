@@ -953,3 +953,19 @@ Append-only record of material engineering and governance changes. Experiment me
 - Full-universe runtime was still 418.36 seconds for CSV and 395.83 seconds for
   direct Parquet. MD5 monthly dense caches are therefore required before any
   formal runtime switch. Registry, training and lifecycle remain unchanged.
+
+## 2026-07-30 - NT6 MD5 Monthly Execution Cache
+
+- Added atomic, content-addressed month-sharded OHLCV/money matrices whose
+  validity is tied to the active source month-index hash rather than the whole
+  market-store generation.
+- Added explicit metadata/file hash audits, writer locking, automatic stale
+  month rebuild, cross-month stitching, return derivation and three basic
+  market-data execution masks. ST, listing age and board-specific limits remain
+  separate execution inputs.
+- Revision tests prove January changes do not modify February CURRENT. Real
+  2026-07 parity passed for 21 dates, 5,313 codes and 11 raw/derived/mask fields.
+- Initial build took 0.155 seconds. Warm monthly read took 0.027 seconds versus
+  13.965 seconds for direct Parquet; six dense fields occupy 5,355,504 bytes.
+- The formal CSV/global-cache ledger path remains unchanged pending MD6 order,
+  fill, rejection, cost, holding and NAV parity.

@@ -12,6 +12,7 @@ from data.providers import (
     FundamentalPITProvider,
     CsvMarketDailyBackend,
     MarketDailyProvider,
+    MonthlyCachedOhlcvProvider,
     OhlcvMatrixProvider,
     ParquetMarketDailyBackend,
     ProcessorContract,
@@ -136,7 +137,16 @@ def test_market_daily_csv_and_parquet_backends_are_exact(tmp_path):
         )
 
     codes = ["600000.SH", "missing", "000001.SZ", "600000.SH"]
-    fields = ["open", "close", "money", "pre_close", "pct_chg"]
+    fields = [
+        "open",
+        "close",
+        "money",
+        "pre_close",
+        "pct_chg",
+        "valid_ohlc_mask",
+        "zero_volume_mask",
+        "basic_open_tradable_mask",
+    ]
     csv = MarketDailyProvider(
         data_view=view(csv_root), backend=CsvMarketDailyBackend(csv_root)
     ).load(
@@ -217,6 +227,61 @@ def test_provider_parity_report_uses_physical_end_for_forward(tmp_path):
     assert report["status"] == "passed"
     assert report["physical_end"] == "2026-01-05"
     assert report["splits"][0]["end_date"] == "2026-01-05"
+
+
+def test_monthly_cached_provider_matches_parquet_provider(tmp_path):
+    store_root = tmp_path / "store"
+    cache_root = tmp_path / "cache"
+    frame = pd.DataFrame(
+        {
+            "trade_date": ["2026-01-30"],
+            "code": ["000001.SZ"],
+            "open": [10.0],
+            "high": [11.0],
+            "low": [9.0],
+            "close": [10.5],
+            "volume": [100.0],
+            "money": [1000.0],
+            "factor": [1.0],
+        }
+    )
+    MarketDailyStore(store_root).commit_partition(
+        frame, instrument_type="equity", source="csv"
+    )
+    view = DataView.create(
+        name="cache",
+        physical_root=store_root,
+        feature_warmup_start="2026-01-01",
+        feature_warmup_end="2026-01-29",
+        task_start="2026-01-30",
+        task_end="2026-01-30",
+        evaluation_start="2026-01-30",
+        evaluation_end="2026-01-30",
+        max_data_date="2026-01-30",
+    )
+    fields = ["open", "close", "money", "pre_close", "pct_chg"]
+    parquet = MarketDailyProvider(
+        data_view=view,
+        backend=ParquetMarketDailyBackend(store_root),
+    ).load(
+        codes=["000001.SZ"],
+        fields=fields,
+        start_date="2026-01-30",
+        end_date="2026-01-30",
+    )
+    cached = MonthlyCachedOhlcvProvider(
+        data_view=view,
+        store_root=store_root,
+        cache_root=cache_root,
+    ).load(
+        codes=["000001.SZ"],
+        fields=fields,
+        start_date="2026-01-30",
+        end_date="2026-01-30",
+    )
+
+    for field in fields:
+        pd.testing.assert_frame_equal(parquet[field], cached[field], check_exact=True)
 
 
 def test_data_view_manifest_separates_physical_and_logical_ranges(tmp_path):

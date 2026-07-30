@@ -15,6 +15,7 @@ from backtest.ohlc_matrix_cache import (
     load_ohlc_matrix_meta,
     matrix_cache_is_current,
 )
+from backtest.monthly_ohlcv_cache import CACHE_MASK_FIELDS, MonthlyOhlcvCache
 from backtest.execution_coverage import audit_execution_coverage
 from data.fundamental_factors import merge_to_daily_akshare
 from data.market_daily_store import NUMERIC_FIELDS, MarketDailyStore
@@ -292,6 +293,7 @@ class MarketDailyProvider:
 
     RAW_FIELDS = tuple(NUMERIC_FIELDS)
     DERIVED_FIELDS = ("pre_close", "pct_chg")
+    MASK_FIELDS = CACHE_MASK_FIELDS
 
     def __init__(self, *, data_view: DataView, backend: Any):
         self.data_view = data_view
@@ -317,12 +319,21 @@ class MarketDailyProvider:
             dict.fromkeys(str(code).strip().upper() for code in codes if str(code).strip())
         )
         requested = tuple(dict.fromkeys(str(field).strip().lower() for field in fields))
-        unknown = sorted(set(requested) - set(self.RAW_FIELDS) - set(self.DERIVED_FIELDS))
+        unknown = sorted(
+            set(requested)
+            - set(self.RAW_FIELDS)
+            - set(self.DERIVED_FIELDS)
+            - set(self.MASK_FIELDS)
+        )
         if unknown:
             raise ValueError(f"unknown market-daily fields: {unknown}")
         raw_needed = set(requested) & set(self.RAW_FIELDS)
         if set(requested) & set(self.DERIVED_FIELDS):
             raw_needed.add("close")
+        if "zero_volume_mask" in requested or "basic_open_tradable_mask" in requested:
+            raw_needed.add("volume")
+        if "valid_ohlc_mask" in requested or "basic_open_tradable_mask" in requested:
+            raw_needed.update(("open", "high", "low", "close"))
         long = self.backend.load_long(
             codes=normalized_codes,
             fields=sorted(raw_needed),
@@ -359,6 +370,23 @@ class MarketDailyProvider:
             frames["pct_chg"] = (
                 frames["close"] / frames["pre_close"] - 1.0
             ).replace([float("inf"), float("-inf")], float("nan"))
+        if "valid_ohlc_mask" in requested or "basic_open_tradable_mask" in requested:
+            valid_ohlc = (
+                frames["open"].notna()
+                & frames["high"].notna()
+                & frames["low"].notna()
+                & frames["close"].notna()
+                & (frames["open"] > 0)
+                & (frames["high"] > 0)
+                & (frames["low"] > 0)
+                & (frames["close"] > 0)
+            )
+            frames["valid_ohlc_mask"] = valid_ohlc
+        if "zero_volume_mask" in requested or "basic_open_tradable_mask" in requested:
+            zero_volume = frames["volume"].isna() | (frames["volume"] <= 0)
+            frames["zero_volume_mask"] = zero_volume
+        if "basic_open_tradable_mask" in requested:
+            frames["basic_open_tradable_mask"] = valid_ohlc & ~zero_volume
         return {field: frames[field] for field in requested}
 
     def manifest(self) -> dict[str, Any]:
@@ -367,6 +395,58 @@ class MarketDailyProvider:
             "provider": "market_daily_v1",
             "data_view": self.data_view.manifest(),
             "backend": self.backend.manifest(),
+        }
+
+
+class MonthlyCachedOhlcvProvider:
+    """DataView-bounded facade over month-sharded dense execution matrices."""
+
+    def __init__(
+        self,
+        *,
+        data_view: DataView,
+        store_root: str | Path,
+        cache_root: str | Path,
+    ):
+        self.data_view = data_view
+        self.store_root = Path(store_root).resolve()
+        self.cache_root = Path(cache_root).resolve()
+        if self.store_root != self.data_view.physical_root:
+            raise ValueError("monthly cache store root does not match DataView physical_root")
+        self.cache = MonthlyOhlcvCache(
+            store_root=self.store_root,
+            cache_root=self.cache_root,
+        )
+
+    def load(
+        self,
+        *,
+        codes: Sequence[str],
+        fields: Sequence[str],
+        start_date: Any,
+        end_date: Any,
+        money_scale: float = 1.0,
+    ) -> dict[str, pd.DataFrame]:
+        requested = DateRange.create(start_date, end_date, field="monthly_cache_request")
+        if requested.start < self.data_view.feature_warmup.start:
+            raise ValueError("monthly cache request starts before declared feature warm-up")
+        if requested.end > self.data_view.max_data_date:
+            raise ValueError("monthly cache request exceeds data view max_data_date")
+        return self.cache.load(
+            codes=codes,
+            fields=fields,
+            start_date=requested.start,
+            end_date=requested.end,
+            money_scale=money_scale,
+        )
+
+    def manifest(self) -> dict[str, Any]:
+        return {
+            "schema_version": 1,
+            "provider": "monthly_ohlcv_cache_v3",
+            "data_view": self.data_view.manifest(),
+            "store": self.cache.store.active_state(),
+            "cache_root": str(self.cache_root),
         }
 
 

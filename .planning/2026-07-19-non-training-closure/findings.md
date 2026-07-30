@@ -91,3 +91,12 @@
   full-universe backtests: the full MD4 read took about 396 seconds versus 418
   seconds for CSV. Month-sharded dense matrices remain the correct MD5 runtime
   layer; Parquet remains the updateable authority and arbitrary-query layer.
+- MD5 confirms the intended three-layer split is necessary: Parquet authority
+  for safe updates and arbitrary queries, month-sharded dense matrices for
+  repeated full-universe execution, and DataView for logical date boundaries.
+- A 2026-07 monthly shard stores six dense fields in 5,355,504 bytes and reads
+  the 21x5,313 universe in about 0.027 seconds after warm-up, versus about 14
+  seconds through direct Parquet. This is the first material runtime gain in NT6.
+- Cache invalidation is based on the active month-index hash, not the root
+  manifest hash. Therefore adding August does not invalidate July, while a July
+  revision necessarily creates a new July cache generation.

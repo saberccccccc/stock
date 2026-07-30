@@ -13,7 +13,8 @@
 | MD2 | complete | 17 个年度精确审计、全局活动链审计、`md2_migration_summary_20260730.md` |
 | MD3 | complete | Tushare 股票 + AkShare 宽基真实试跑、真实重放 no-op、全量哈希审计 |
 | MD4 | complete | 48 只固定样本 + 5,332 只全量，Val/Test/Forward 七字段精确 parity |
-| MD5-MD9 | pending | 不得在前一阶段门禁未通过时抢跑 |
+| MD5 | complete | 月索引绑定、按月失效、跨月派生、基础执行 mask、真实 2026-07 全量 parity |
+| MD6-MD9 | pending | 不得在前一阶段门禁未通过时抢跑 |
 
 ## 1. 目标
 

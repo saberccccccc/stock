@@ -321,6 +321,21 @@ class MarketDailyStore:
             "active_months": len(manifest.get("monthly_indexes", {})),
         }
 
+    def month_snapshot(self, *, instrument_type: str, month: Any) -> dict[str, Any]:
+        """Return the hash-verified active source contract for one month."""
+        period = pd.Period(month, freq="M")
+        key = f"{instrument_type}:{period.strftime('%Y%m')}"
+        manifest, _ = self.load_manifest()
+        record = (manifest or {}).get("monthly_indexes", {}).get(key)
+        if record is None:
+            raise KeyError(f"market-daily month is not available: {key}")
+        month_index = self._load_month_index(record)
+        return {
+            "key": key,
+            "record": record,
+            "index": month_index,
+        }
+
     def audit(self, *, verify_physical_hashes: bool = True) -> dict[str, Any]:
         """Validate the complete active manifest graph without loading bar values."""
         manifest, manifest_path = self.load_manifest()

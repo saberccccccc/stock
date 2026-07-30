@@ -1,0 +1,84 @@
+{
+  "build_seconds": 0.003401099999791768,
+  "build_status": "already_current",
+  "cache_seconds": 0.027059099999860337,
+  "codes": 5313,
+  "comparison": "exact_index_columns_values_dtypes_missing",
+  "dates": 21,
+  "end_date": "2026-07-29",
+  "fields": {
+    "basic_open_tradable_mask": {
+      "missing": 0,
+      "sha256": "bef79a8a2a4e334ffffb686a5e95883b75cafd7b9f1b7d9a2cf1cb724f7d60a0"
+    },
+    "close": {
+      "missing": 204,
+      "sha256": "1ecdfbce6ec2445844c45ead20a31114a4824e7dc7501b7bdb70478659ed8249"
+    },
+    "high": {
+      "missing": 204,
+      "sha256": "f8c3d52e1cade08d84cf1cd37dde13be8a499fe371f45989e9f747bf313166cc"
+    },
+    "low": {
+      "missing": 204,
+      "sha256": "45c00247618a490e84fe59a721f4d697ab888911373f270849f8867b30c9a2ef"
+    },
+    "money": {
+      "missing": 204,
+      "sha256": "4b2e3803f639c52ed8fbf3feaf6c1151cdc6279dd8fd3ab9713655759c149816"
+    },
+    "open": {
+      "missing": 204,
+      "sha256": "bf0d70b5d7f276361cb4acf24b55abe462cbfb9e81a1aa7cd11a28560448aa99"
+    },
+    "pct_chg": {
+      "missing": 5531,
+      "sha256": "e57079411da79d02c6b79799c6662c036d9d2f0fca79842223565b5bd3b88e22"
+    },
+    "pre_close": {
+      "missing": 5503,
+      "sha256": "2352842f41eadf8f14d24154cecf442eba3fa9148ff0f7f773ace74f34abd2fd"
+    },
+    "valid_ohlc_mask": {
+      "missing": 0,
+      "sha256": "bef79a8a2a4e334ffffb686a5e95883b75cafd7b9f1b7d9a2cf1cb724f7d60a0"
+    },
+    "volume": {
+      "missing": 204,
+      "sha256": "c9395542a8f3356979f39e6a34a3528a81dbb05f5571edad109bc5ac9fc18ee9"
+    },
+    "zero_volume_mask": {
+      "missing": 0,
+      "sha256": "849977b2d1b0396905c2857425d52a708944d605ebe92e2bd900e6f8455d76cb"
+    }
+  },
+  "integrity": {
+    "active_bytes": 5355504,
+    "fields": [
+      "open",
+      "high",
+      "low",
+      "close",
+      "volume",
+      "money"
+    ],
+    "file_hashes_verified": true,
+    "generation": "generation-982fce7f445b1ab9d5f1d99ded71c572ddcc1fc7684630a5f0a025e983c85325",
+    "month": "2026-07",
+    "shape": [
+      21,
+      5313
+    ],
+    "source_month_index_sha256": "134160e0eba57541d7fd30634afb8ddc2829e15db884783ee3647b1f8de4d31f",
+    "status": "passed"
+  },
+  "month": "2026-07",
+  "parquet_seconds": 13.96528760000001,
+  "schema": "monthly_ohlcv_cache_audit_v1",
+  "shape": [
+    21,
+    5313
+  ],
+  "start_date": "2026-07-01",
+  "status": "passed"
+}

@@ -121,3 +121,19 @@
 - Direct Parquet is an authority/query backend, not yet a full-market backtest
   acceleration layer. MD5 month-sharded matrices are required before runtime
   promotion; the formal backend remains CSV.
+- Completed MD5 with month-sharded raw OHLCV/money matrices bound to the active
+  month-index SHA-256. A new day or revision invalidates only its source month;
+  unaffected month CURRENT pointers and generations remain unchanged.
+- Cache generations are staged, content-addressed and atomically activated.
+  Explicit audits verify metadata, shape, file sizes and all field hashes;
+  concurrent second writers are rejected.
+- Cross-month reads preserve requested code order and derive `pre_close` and
+  `pct_chg` only after stitching, matching the existing request-range semantics.
+  Three basic market-data masks are also parity-tested: valid OHLC, zero volume
+  and basic open tradability. They do not replace ST/listing/limit Providers.
+- The real 2026-07 cache covers 21 dates by 5,313 codes. Six stored fields,
+  two return fields and three basic masks exactly match direct Parquet. Initial
+  build took 0.155 seconds; final warm cache read took 0.027 seconds versus
+  13.965 seconds for direct Parquet. Active field data occupy 5,355,504 bytes.
+- The legacy global cache and formal CSV backend are unchanged. MD6 ledger
+  behavioral parity is the next gate.

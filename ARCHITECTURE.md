@@ -168,6 +168,11 @@ Use single-run ledger scripts for diagnosis only. Official evidence uses registr
   DataView bounds and returns field-keyed date-by-code matrices compatible with
   the existing OHLC facade. CSV remains the configured oracle until monthly
   cache and ledger parity are complete.
+- `backtest/monthly_ohlcv_cache.py` is the MD5 execution-read layer. Each month
+  is bound to one immutable source month-index hash, written through a staged
+  content-addressed generation and selected by an atomic CURRENT pointer.
+  Cross-month derived fields are computed after stitching. Basic OHLC/volume
+  masks remain distinct from full ST, listing-age and price-limit eligibility.
 - ADR 0010 requires one physical market store with separate logical DataViews.
   CSV remains the default parity oracle until Provider, monthly-cache and full
   24-cell ledger equivalence gates pass.
