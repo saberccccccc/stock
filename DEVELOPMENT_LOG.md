@@ -1068,3 +1068,19 @@ Append-only record of material engineering and governance changes. Experiment me
   integrity and isolation gates in addition to ledger parity/performance/I/O.
 - The combined old-MD6 plus new-incremental report remains
   `provisional_pass`, because old ledger reports still lack process I/O.
+
+## 2026-07-31 - NT6 MD9 Transition-History Hardening
+
+- Moved backend promotion and rollback mutations into tested pure policy
+  transitions. Promotion now requires legacy active; rollback requires monthly
+  active.
+- Each transition freezes actor, reason, UTC time and from/to backend. Promotion
+  also freezes all acceptance and dual-read evidence hashes.
+- Added append-only `transition_history`; rollback no longer destroys the
+  promotion record. Policy loading rejects malformed paths and a mismatched
+  `last_transition`.
+- A temporary-policy drill resolved the configured default as monthly after
+  promotion and legacy after rollback. A real negative rollback against the
+  active legacy policy exited 1 and preserved its SHA-256 byte-for-byte.
+- Thirteen focused policy/contract tests passed. The formal active backend
+  remains legacy and no positive promotion ran.

@@ -1,8 +1,13 @@
 import json
 
+import pytest
+
+import backtest.market_data_contract as market_data_contract
 from data.execution_market_backend_policy import (
     audit_promotion,
     load_policy,
+    promote_policy,
+    rollback_policy,
     write_policy_atomic,
 )
 
@@ -91,3 +96,89 @@ def test_policy_atomic_write_round_trips(tmp_path):
 
     assert load_policy(path)["active_backend"] == "legacy"
     assert not path.with_suffix(".json.tmp").exists()
+
+
+def test_promote_then_rollback_preserves_append_only_transition_history(
+    tmp_path,
+    monkeypatch,
+):
+    policy = _policy()
+    for relative in SCHEMAS:
+        _write_status(tmp_path, relative, "passed")
+    audit = audit_promotion(tmp_path, policy)
+
+    promoted = promote_policy(
+        policy,
+        audit,
+        actor="tester",
+        reason="complete evidence",
+        changed_at="2026-07-31T01:00:00+00:00",
+    )
+    policy_path = tmp_path / "policy.json"
+    write_policy_atomic(policy_path, promoted)
+    monkeypatch.setattr(
+        market_data_contract,
+        "BACKEND_POLICY_PATH",
+        policy_path,
+    )
+
+    assert policy["active_backend"] == "legacy"
+    assert promoted["active_backend"] == "monthly"
+    assert market_data_contract.configured_default_backend() == "monthly"
+    assert promoted["last_transition"]["from_backend"] == "legacy"
+    assert promoted["last_transition"]["to_backend"] == "monthly"
+    assert set(promoted["last_transition"]["evidence_sha256"]) == {
+        "behavior_parity",
+        "performance_acceptance",
+        "call_site_audit",
+    }
+
+    rolled_back = rollback_policy(
+        promoted,
+        actor="tester",
+        reason="drill",
+        changed_at="2026-07-31T01:05:00+00:00",
+    )
+    write_policy_atomic(policy_path, rolled_back)
+
+    assert market_data_contract.configured_default_backend() == "legacy"
+    assert [item["action"] for item in rolled_back["transition_history"]] == [
+        "promote",
+        "rollback",
+    ]
+    assert rolled_back["transition_history"][0] == promoted["last_transition"]
+    assert rolled_back["last_transition"]["from_backend"] == "monthly"
+    assert rolled_back["last_transition"]["to_backend"] == "legacy"
+
+
+def test_rollback_rejects_fake_transition_while_legacy_is_active():
+    with pytest.raises(
+        ValueError,
+        match="monthly backend to be active",
+    ):
+        rollback_policy(
+            _policy(),
+            actor="tester",
+            reason="invalid drill",
+            changed_at="2026-07-31T01:00:00+00:00",
+        )
+
+
+def test_policy_rejects_broken_transition_history(tmp_path):
+    policy = _policy()
+    policy["transition_history"] = [
+        {
+            "action": "rollback",
+            "actor": "tester",
+            "reason": "broken",
+            "changed_at": "2026-07-31T01:00:00+00:00",
+            "from_backend": "legacy",
+            "to_backend": "monthly",
+        }
+    ]
+    policy["last_transition"] = policy["transition_history"][0]
+    path = tmp_path / "policy.json"
+    path.write_text(json.dumps(policy), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="invalid backend path"):
+        load_policy(path)

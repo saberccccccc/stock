@@ -16,6 +16,8 @@ if str(ROOT) not in sys.path:
 from data.execution_market_backend_policy import (
     audit_promotion,
     load_policy,
+    promote_policy,
+    rollback_policy,
     write_policy_atomic,
 )
 
@@ -48,32 +50,26 @@ def main(argv=None):
         if audit["status"] != "passed":
             print(json.dumps(audit, ensure_ascii=False, indent=2, sort_keys=True))
             raise SystemExit("promotion blocked by incomplete evidence")
-        policy["state"] = "monthly_active"
-        policy["active_backend"] = "monthly"
-        policy["last_transition"] = {
-            "action": "promote",
-            "actor": args.actor.strip(),
-            "reason": args.reason.strip(),
-            "changed_at": changed_at,
-            "evidence_sha256": {
-                name: item["sha256"]
-                for name, item in audit["checks"].items()
-                if name != "dual_read"
-            },
-            "dual_read_sha256": {
-                split: item["sha256"]
-                for split, item in audit["checks"]["dual_read"].items()
-            },
-        }
+        try:
+            policy = promote_policy(
+                policy,
+                audit,
+                actor=args.actor,
+                reason=args.reason,
+                changed_at=changed_at,
+            )
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
     else:
-        policy["state"] = "rolled_back"
-        policy["active_backend"] = policy["rollback_backend"]
-        policy["last_transition"] = {
-            "action": "rollback",
-            "actor": args.actor.strip(),
-            "reason": args.reason.strip(),
-            "changed_at": changed_at,
-        }
+        try:
+            policy = rollback_policy(
+                policy,
+                actor=args.actor,
+                reason=args.reason,
+                changed_at=changed_at,
+            )
+        except ValueError as exc:
+            raise SystemExit(str(exc)) from exc
     write_policy_atomic(policy_path, policy)
     print(json.dumps(policy, ensure_ascii=False, indent=2, sort_keys=True))
 

@@ -164,3 +164,11 @@
   Win32 MAX_PATH during the first attempt. Cleanup completed and the candidate
   source identity was unchanged. The benchmark now preflights path depth and
   automatically uses the system temp root when necessary.
+- The first MD9 manager overwrote `last_transition` on rollback and allowed a
+  rollback while legacy was already active. The transition logic is now a pure
+  tested state machine: promotion requires legacy, rollback requires monthly,
+  each record freezes from/to, actor, reason and time, and history is appended
+  rather than discarded.
+- Policy loading now rejects malformed transition paths or a last-transition
+  pointer that disagrees with history. A real negative rollback drill exited 1
+  and preserved the active policy SHA-256 exactly.

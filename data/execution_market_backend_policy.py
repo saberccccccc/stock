@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from copy import deepcopy
 import json
 import hashlib
 from pathlib import Path
@@ -30,6 +31,31 @@ def load_policy(path: str | Path) -> dict[str, Any]:
     required = list(value.get("required_dual_read_splits", []))
     if required != ["val_2024", "test_2025", "forward_2026"]:
         raise ValueError("policy requires Val, Test and Forward dual-read evidence")
+    history = value.get("transition_history", [])
+    if not isinstance(history, list):
+        raise ValueError("policy transition_history must be a list")
+    expected_backends = {
+        "promote": ("legacy", "monthly"),
+        "rollback": ("monthly", "legacy"),
+    }
+    for transition in history:
+        if not isinstance(transition, dict):
+            raise ValueError("policy transition history contains a non-object")
+        action = transition.get("action")
+        if action not in expected_backends:
+            raise ValueError("policy transition has an invalid action")
+        if (
+            transition.get("from_backend"),
+            transition.get("to_backend"),
+        ) != expected_backends[action]:
+            raise ValueError("policy transition has an invalid backend path")
+        if not all(
+            str(transition.get(field, "")).strip()
+            for field in ("actor", "reason", "changed_at")
+        ):
+            raise ValueError("policy transition is missing audit metadata")
+    if history and value.get("last_transition") != history[-1]:
+        raise ValueError("policy last_transition does not match transition history")
     return value
 
 
@@ -98,6 +124,89 @@ def audit_promotion(project_root: str | Path, policy: Mapping[str, Any]) -> dict
         "candidate_backend": policy["candidate_backend"],
         "checks": checks,
     }
+
+
+def _append_transition(
+    policy: Mapping[str, Any],
+    transition: Mapping[str, Any],
+) -> dict[str, Any]:
+    result = deepcopy(dict(policy))
+    history = list(result.get("transition_history", []))
+    previous = result.get("last_transition")
+    if previous is not None and (not history or history[-1] != previous):
+        history.append(deepcopy(previous))
+    record = deepcopy(dict(transition))
+    history.append(record)
+    result["transition_history"] = history
+    result["last_transition"] = record
+    return result
+
+
+def promote_policy(
+    policy: Mapping[str, Any],
+    audit: Mapping[str, Any],
+    *,
+    actor: str,
+    reason: str,
+    changed_at: str,
+) -> dict[str, Any]:
+    if audit.get("status") != "passed":
+        raise ValueError("promotion blocked by incomplete evidence")
+    actor = str(actor).strip()
+    reason = str(reason).strip()
+    if not actor or not reason:
+        raise ValueError("promotion requires actor and reason")
+    if policy.get("active_backend") != "legacy":
+        raise ValueError("promotion requires the legacy backend to be active")
+    checks = audit["checks"]
+    transition = {
+        "action": "promote",
+        "actor": actor,
+        "reason": reason,
+        "changed_at": str(changed_at),
+        "from_backend": "legacy",
+        "to_backend": "monthly",
+        "evidence_sha256": {
+            name: item["sha256"]
+            for name, item in checks.items()
+            if name != "dual_read"
+        },
+        "dual_read_sha256": {
+            split: item["sha256"]
+            for split, item in checks["dual_read"].items()
+        },
+    }
+    result = _append_transition(policy, transition)
+    result["state"] = "monthly_active"
+    result["active_backend"] = "monthly"
+    return result
+
+
+def rollback_policy(
+    policy: Mapping[str, Any],
+    *,
+    actor: str,
+    reason: str,
+    changed_at: str,
+) -> dict[str, Any]:
+    actor = str(actor).strip()
+    reason = str(reason).strip()
+    if not actor or not reason:
+        raise ValueError("rollback requires actor and reason")
+    if policy.get("active_backend") != "monthly":
+        raise ValueError("rollback requires the monthly backend to be active")
+    transition = {
+        "action": "rollback",
+        "actor": actor,
+        "reason": reason,
+        "changed_at": str(changed_at),
+        "from_backend": "monthly",
+        "to_backend": str(policy["rollback_backend"]),
+    }
+    result = _append_transition(policy, transition)
+    result["state"] = "rolled_back"
+    result["active_backend"] = str(policy["rollback_backend"])
+    return result
 
 
 def write_policy_atomic(path: str | Path, policy: Mapping[str, Any]) -> Path:

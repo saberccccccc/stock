@@ -219,3 +219,12 @@
 - Full repository regression passed 636 tests with one pre-existing Pandas
   FutureWarning. Available memory remained 2.284 GiB, so the 3.75 GiB clean
   matrix launch gate correctly remains closed.
+- Hardened MD9 promotion/rollback into tested pure policy transitions with
+  append-only history and strict backend-path validation. A temporary-policy
+  drill proved default resolution changes monthly then returns to legacy.
+- A real rollback attempt against the active legacy policy exited 1 with
+  `rollback requires the monthly backend to be active`; policy SHA-256 remained
+  `ABFB10B10CA892729FD700B8846B42E3ED02EE121DDDE2C8105739D88E2AE1D4`.
+- Thirteen focused promotion, rollback and market-data-contract tests passed.
+- Full regression after MD9 transition hardening passed 639 tests with the same
+  single pre-existing Pandas FutureWarning.
