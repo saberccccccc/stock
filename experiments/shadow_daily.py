@@ -56,6 +56,24 @@ def _filter_date(frame: pd.DataFrame, date: str) -> pd.DataFrame:
     return frame.loc[dates == date].copy()
 
 
+def _replay_market_data_contract(source: Mapping[str, Any]) -> ExecutionMarketDataContract:
+    market_data = source.get("market_data", {})
+    backend = str(market_data.get("backend", "legacy"))
+    store_root = market_data.get("market_daily_store_root") or None
+    cache_root = market_data.get("monthly_cache_root") or None
+    if backend == "monthly" and (store_root is None or cache_root is None):
+        raise ValueError(
+            "historical monthly replay requires frozen store and cache roots"
+        )
+    return ExecutionMarketDataContract(
+        backend=backend,
+        market_daily_store_root=store_root,
+        monthly_cache_root=cache_root,
+        shadow_backend=market_data.get("shadow_backend") or None,
+        shadow_report=market_data.get("shadow_report") or None,
+    )
+
+
 def _finite(value: Any, default: float = 0.0) -> float:
     try:
         result = float(value)
@@ -468,19 +486,7 @@ def replay_daily_shadow_run(
         end_date=source["end_date"],
         max_data_date=source["max_data_date"],
         portfolio_value=float(source["portfolio_value"]),
-        market_data=ExecutionMarketDataContract(
-            backend=source.get("market_data", {}).get("backend", "legacy"),
-            market_daily_store_root=source.get("market_data", {}).get(
-                "market_daily_store_root", "data/market_daily_candidate_v2"
-            )
-            or "data/market_daily_candidate_v2",
-            monthly_cache_root=source.get("market_data", {}).get(
-                "monthly_cache_root", "cache/ohlcv_monthly_v3_candidate"
-            )
-            or "cache/ohlcv_monthly_v3_candidate",
-            shadow_backend=source.get("market_data", {}).get("shadow_backend") or None,
-            shadow_report=source.get("market_data", {}).get("shadow_report") or None,
-        ),
+        market_data=_replay_market_data_contract(source),
         mode="historical_replay",
         python_executable=python_executable,
     )

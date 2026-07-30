@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 
+import backtest.market_data_contract as market_data_contract
 from experiments.recording import validate_manifest_for_formal_use
 from experiments.workflow import compile_workflow, validate_workflow_config
 from run.compile_experiment_workflow import main as compile_main
@@ -55,6 +56,55 @@ def test_compile_workflow_builds_project_native_stage_graph(tmp_path):
     assert "--reports-csv" in ledger["command"]
     assert "--append-registry" in ledger["command"]
     assert ledger["command"][ledger["command"].index("--ohlc-backend") + 1] == "legacy"
+
+
+def test_workflow_monthly_defaults_follow_backend_policy(tmp_path, monkeypatch):
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "sample.csv").write_text(
+        "date,close\n2024-01-01,1\n",
+        encoding="utf-8",
+    )
+    policy = {
+        "schema": "execution_market_backend_policy_v2",
+        "state": "legacy_active",
+        "active_backend": "legacy",
+        "candidate_backend": "monthly",
+        "candidate_store_root": "data/policy_store",
+        "candidate_monthly_cache_root": "cache/policy_cache",
+        "rollback_backend": "legacy",
+        "shadow_backend": "csv",
+        "required_dual_read_splits": [
+            "val_2024",
+            "test_2025",
+            "forward_2026",
+        ],
+        "evidence": {},
+    }
+    policy_path = tmp_path / "policy.json"
+    policy_path.write_text(json.dumps(policy), encoding="utf-8")
+    monkeypatch.setattr(
+        market_data_contract,
+        "BACKEND_POLICY_PATH",
+        policy_path,
+    )
+    config = _config(data)
+    config["ledger"]["ohlc_backend"] = "monthly"
+
+    compiled = compile_workflow(
+        config,
+        project_root=tmp_path,
+        output_dir=tmp_path / "out",
+        python="python",
+    )
+    command = compiled["stages"][1]["command"]
+
+    assert command[command.index("--market-daily-store-root") + 1] == (
+        "data/policy_store"
+    )
+    assert command[command.index("--ohlc-monthly-cache-dir") + 1] == (
+        "cache/policy_cache"
+    )
     assert "--candidate-id" in compiled["stages"][-1]["command"]
     assert compiled["stages"][-1]["command"].count("--expected-split") == 2
 

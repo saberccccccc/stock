@@ -255,3 +255,10 @@
   expected candidate paths.
 - Full regression after the v2 candidate-identity contract passed 646 tests
   with the same single pre-existing Pandas FutureWarning.
+- Removed the final candidate-path fallback literals from Workflow and
+  historical Shadow replay. Added fail-closed replay validation plus a policy
+  default propagation test.
+- Twenty-nine Workflow/Shadow/Contract tests passed and the real call-site
+  audit passed again.
+- Full regression after formal-entrypoint fallback removal passed 648 tests
+  with the same single pre-existing Pandas FutureWarning.

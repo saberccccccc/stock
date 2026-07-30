@@ -398,12 +398,8 @@ def compile_workflow(
                 ledger_command.extend([flag, str(value)])
         market_data = ExecutionMarketDataContract(
             backend=ledger.get("ohlc_backend", "legacy"),
-            market_daily_store_root=ledger.get(
-                "market_daily_store_root", "data/market_daily_candidate_v2"
-            ),
-            monthly_cache_root=ledger.get(
-                "ohlc_monthly_cache_dir", "cache/ohlcv_monthly_v3_candidate"
-            ),
+            market_daily_store_root=ledger.get("market_daily_store_root"),
+            monthly_cache_root=ledger.get("ohlc_monthly_cache_dir"),
             shadow_backend=ledger.get("ohlc_shadow_backend"),
             shadow_report=ledger.get("ohlc_shadow_report"),
         )

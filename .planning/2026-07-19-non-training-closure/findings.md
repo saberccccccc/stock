@@ -196,3 +196,8 @@
 - The completion definition had stale requirements for a literal
   `data/market_daily` directory and CSV rollback. It now defines authority via
   policy v2 plus manifest and requires a `monthly -> legacy -> monthly` drill.
+- Workflow and historical Shadow replay still carried candidate-path fallback
+  literals. Workflow now delegates missing paths to policy v2. Historical
+  monthly replay instead requires its original frozen store/cache roots and
+  fails closed if an old manifest omitted them; it never substitutes today's
+  candidate silently.

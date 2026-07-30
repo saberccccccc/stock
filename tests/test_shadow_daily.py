@@ -7,6 +7,7 @@ import pytest
 from backtest.market_data_contract import ExecutionMarketDataContract
 from experiments.recording import sha256_file
 from experiments.shadow_daily import (
+    _replay_market_data_contract,
     build_sweep_command,
     materialize_daily_packets,
     run_daily_shadow,
@@ -182,3 +183,23 @@ def test_prepared_lifecycle_rejects_formal_observation_but_allows_replay(tmp_pat
     assert manifest.is_file()
     assert validated["recorded_to_lifecycle"] is False
     assert validated["market_data"]["backend"] == "legacy"
+
+
+def test_historical_monthly_replay_requires_frozen_candidate_paths():
+    with pytest.raises(ValueError, match="frozen store and cache roots"):
+        _replay_market_data_contract(
+            {"market_data": {"backend": "monthly"}}
+        )
+
+    contract = _replay_market_data_contract(
+        {
+            "market_data": {
+                "backend": "monthly",
+                "market_daily_store_root": "data/frozen_store",
+                "monthly_cache_root": "cache/frozen_cache",
+            }
+        }
+    )
+
+    assert contract.market_daily_store_root == "data/frozen_store"
+    assert contract.monthly_cache_root == "cache/frozen_cache"

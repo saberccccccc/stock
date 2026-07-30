@@ -1114,3 +1114,8 @@ Append-only record of material engineering and governance changes. Experiment me
   manifest, and the required recovery drill is monthly to legacy to monthly.
 - The current real manifest matches incremental evidence exactly. Twenty-eight
   focused tests and the real market-data call-site audit passed.
+- Removed the last formal-entrypoint candidate-path fallback literals.
+  Workflow resolves missing paths through policy v2; historical monthly Shadow
+  replay requires its source manifest to contain frozen paths and fails closed
+  otherwise.
+- Twenty-nine Workflow/Shadow/Contract tests and the call-site audit passed.
