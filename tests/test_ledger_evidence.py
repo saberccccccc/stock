@@ -1,6 +1,7 @@
 import json
 
 from alpha.io import write_alpha_rows
+from backtest.market_data_contract import ExecutionMarketDataContract
 from experiments.ledger_evidence import build_ledger_command, validate_experiment_alpha
 from experiments.recording import (
     append_event,
@@ -19,12 +20,20 @@ def test_research_evidence_uses_frozen_realistic_ledger_contract(tmp_path):
     write_alpha_rows(alpha, [{"date": "2024-01-02", "codes": ["000001.SZ"], "alpha": [1.0]}])
 
     info = validate_experiment_alpha(alpha, "val_2024")
-    command = build_ledger_command(alpha_path=alpha, experiment_id="demo", split="val_2024", output_dir=tmp_path / "ledger", python="python")
+    command = build_ledger_command(
+        alpha_path=alpha,
+        experiment_id="demo",
+        split="val_2024",
+        output_dir=tmp_path / "ledger",
+        python="python",
+        market_data=ExecutionMarketDataContract(backend="csv"),
+    )
 
     assert info["days"] == 1
     assert "--execution-constraint-mode" in command
     assert command[command.index("--execution-constraint-mode") + 1] == "realistic"
     assert command[command.index("--max-data-date") + 1] == "2024-12-31"
+    assert command[command.index("--ohlc-backend") + 1] == "csv"
 
 
 def test_experiment_adapter_records_a_dry_run(tmp_path):

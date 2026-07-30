@@ -173,3 +173,13 @@
   NT6 unit; no default switch occurs yet.
 - Final regression under the Torch environment passed 609 tests with one
   pre-existing Pandas FutureWarning.
+- Completed MD7 call-site consolidation. Added one shared execution-market
+  backend contract and propagated it through Registry backtests, Workflow,
+  standalone ledger evidence and Daily Shadow/replay while keeping `legacy`
+  as the explicit default.
+- Added a machine-readable call-site policy and static audit. Formal entrypoints
+  are contract-aware, attribution/scorecard remain artifact-only, and all
+  legacy internal imports are classified. Focused tests passed 74/74 and the
+  full suite passed 614 tests with one pre-existing Pandas FutureWarning.
+- MD8 fixed performance acceptance is next. No training, long replay, Registry
+  mutation, lifecycle transition or backend default switch occurred in MD7.

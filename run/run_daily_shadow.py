@@ -13,6 +13,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from experiments.shadow_daily import replay_daily_shadow_run, run_daily_shadow, validate_daily_shadow_run
+from backtest.market_data_contract import (
+    add_execution_market_data_args,
+    contract_from_args,
+)
 
 
 def parse_args(argv=None):
@@ -35,6 +39,7 @@ def parse_args(argv=None):
     )
     run.add_argument("--actor", default="")
     run.add_argument("--reason", default="")
+    add_execution_market_data_args(run)
     validate = sub.add_parser("validate")
     validate.add_argument("--run-dir", required=True)
     replay = sub.add_parser("replay")
@@ -71,6 +76,7 @@ def main(argv=None):
         mode=args.mode,
         actor=args.actor,
         reason=args.reason,
+        market_data=contract_from_args(args),
     )
     print(manifest, flush=True)
 

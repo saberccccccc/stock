@@ -121,3 +121,12 @@
   runtime from 108.114 seconds to 22.937 seconds. Val timing is not comparable
   because a stdout interruption was resumed, though its behavioral parity is
   valid. Recorded subprocess RSS remained below 527 MiB.
+- MD7 exposes one `ExecutionMarketDataContract` across Registry, Workflow,
+  standalone experiment evidence and Daily Shadow. Every active caller can
+  declare `legacy`, `csv` or `monthly`; the formal default is still `legacy`.
+- Shadow manifests now freeze the backend and deterministic replay inherits it.
+  Workflow v2 freezes the same fields in schema-valid configuration.
+- Registry attribution and scorecard are artifact-only consumers. A static
+  allowlist now rejects any new unregistered import of the legacy global-matrix
+  or per-stock CSV internals. The repository audit passes with no unregistered
+  imports and no stale allowlist entries.

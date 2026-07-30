@@ -153,7 +153,10 @@
         "execution_mode": {"const": "realistic"},
         "fill_price": {"const": "open"},
         "capitals": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"enum": [500000, 1000000]}},
-        "stresses": {"type": "array", "minItems": 4, "uniqueItems": true, "items": {"enum": ["normal", "lag1", "cost2x", "capacity_3pct"]}}
+        "stresses": {"type": "array", "minItems": 4, "uniqueItems": true, "items": {"enum": ["normal", "lag1", "cost2x", "capacity_3pct"]}},
+        "ohlc_backend": {"enum": ["legacy", "csv", "monthly"], "default": "legacy"},
+        "market_daily_store_root": {"type": "string", "minLength": 1},
+        "ohlc_monthly_cache_dir": {"type": "string", "minLength": 1}
       }
     },
     "records": {

@@ -182,6 +182,14 @@ Use single-run ledger scripts for diagnosis only. Official evidence uses registr
   incomplete sweep roots. `run/audit_open_ledger_backend_parity.py` compares
   summary economics and equity, diagnostics, positions, orders, rejections and
   costs by sweep key. A 3 GiB free-memory gate runs before every subprocess.
+- MD7 centralizes that choice in
+  `backtest/market_data_contract.py`. Registry backtests, declarative workflows,
+  standalone experiment evidence and Daily Shadow all freeze and propagate the
+  same backend contract. Shadow replay inherits the source run's backend.
+- `configs/market_data_call_sites.json` is the governed allowlist for legacy
+  market-reader internals. `run/audit_market_data_call_sites.py` blocks new
+  unregistered imports and verifies that attribution/scorecard remain
+  artifact-only consumers.
 - ADR 0010 requires one physical market store with separate logical DataViews.
   CSV remains the default parity oracle until Provider, monthly-cache and full
   24-cell ledger equivalence gates pass.

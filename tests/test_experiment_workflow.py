@@ -54,6 +54,7 @@ def test_compile_workflow_builds_project_native_stage_graph(tmp_path):
     assert "--research-data-dir" in ledger["command"]
     assert "--reports-csv" in ledger["command"]
     assert "--append-registry" in ledger["command"]
+    assert ledger["command"][ledger["command"].index("--ohlc-backend") + 1] == "legacy"
     assert "--candidate-id" in compiled["stages"][-1]["command"]
     assert compiled["stages"][-1]["command"].count("--expected-split") == 2
 
@@ -233,6 +234,29 @@ def test_workflow_v2_compiles_to_existing_safe_stage_graph(tmp_path):
     assert compiled["stages"][-1]["depends_on"] == ["scorecard"]
     assert compiled["stages"][-1]["command"][1] == "run/materialize_workflow_records.py"
     assert compiled["config_sha256"]
+
+
+def test_workflow_v2_propagates_monthly_execution_backend(tmp_path):
+    data = tmp_path / "data"
+    data.mkdir()
+    model_config = tmp_path / "rolling.json"
+    model_config.write_text("{}", encoding="utf-8")
+    config = _v2_config(data, model_config)
+    config["ledger"].update(
+        {
+            "ohlc_backend": "monthly",
+            "market_daily_store_root": "data/market_daily_candidate_v2",
+            "ohlc_monthly_cache_dir": "cache/monthly",
+        }
+    )
+
+    compiled = compile_workflow(
+        config, project_root=tmp_path, output_dir=tmp_path / "out", python="python"
+    )
+    command = compiled["stages"][2]["command"]
+
+    assert command[command.index("--ohlc-backend") + 1] == "monthly"
+    assert command[command.index("--ohlc-monthly-cache-dir") + 1] == "cache/monthly"
 
 
 def test_workflow_v2_rejects_forward_as_selection(tmp_path):

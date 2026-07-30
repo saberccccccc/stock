@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
+from backtest.market_data_contract import ExecutionMarketDataContract
 from experiments.recording import sha256_file
 from experiments.shadow_daily import (
     build_sweep_command,
@@ -89,12 +90,19 @@ def test_build_sweep_command_fixes_realistic_single_path_contract(tmp_path):
         end_date="2026-01-30",
         max_data_date="2026-01-30",
         portfolio_value=500000,
+        market_data=ExecutionMarketDataContract(
+            backend="monthly",
+            market_daily_store_root=tmp_path / "store",
+            monthly_cache_root=tmp_path / "monthly",
+        ),
         python_executable="python",
     )
     assert command[command.index("--execution-constraint-mode") + 1] == "realistic"
     assert command[command.index("--stresses") + 1] == "normal"
     assert command[command.index("--portfolio-values") + 1] == "500000.0"
     assert "--save-path-details" in command
+    assert command[command.index("--ohlc-backend") + 1] == "monthly"
+    assert command[command.index("--ohlc-monthly-cache-dir") + 1] == str(tmp_path / "monthly")
 
 
 def test_materialize_and_validate_daily_shadow_packet(tmp_path):
@@ -173,3 +181,4 @@ def test_prepared_lifecycle_rejects_formal_observation_but_allows_replay(tmp_pat
     validated = validate_daily_shadow_run(run_dir)
     assert manifest.is_file()
     assert validated["recorded_to_lifecycle"] is False
+    assert validated["market_data"]["backend"] == "legacy"

@@ -77,7 +77,10 @@
     "execution_mode": "realistic",
     "fill_price": "open",
     "capitals": [500000, 1000000],
-    "stresses": ["normal", "lag1", "cost2x", "capacity_3pct"]
+    "stresses": ["normal", "lag1", "cost2x", "capacity_3pct"],
+    "ohlc_backend": "legacy",
+    "market_daily_store_root": "data/market_daily_candidate_v2",
+    "ohlc_monthly_cache_dir": "cache/ohlcv_monthly_v3_candidate"
   },
   "records": ["signal", "signal_analysis", "portfolio", "risk_attribution", "stress", "decision"],
   "evaluation": {

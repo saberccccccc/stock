@@ -996,3 +996,19 @@ Append-only record of material engineering and governance changes. Experiment me
   backend switch occurs before MD7-MD9.
 - Final full regression passed 609 tests with one pre-existing Pandas
   FutureWarning.
+
+## 2026-07-30 - NT6 MD7 Call-Site Consolidation
+
+- Added one shared execution-market backend contract for `legacy`, `csv` and
+  `monthly`; the default remains `legacy` until MD9.
+- Propagated the contract through Registry backtests, declarative Workflow,
+  standalone experiment ledger evidence and Daily Shadow. Shadow manifests
+  freeze the backend and deterministic replay inherits it.
+- Extended Workflow v2 schema and the golden config with explicit backend and
+  monthly-store paths.
+- Added a machine-readable call-site policy and static audit that rejects new
+  unregistered legacy matrix/CSV internal imports. Attribution and scorecard
+  remain artifact-only consumers.
+- Static audit, 74 focused tests and all 614 repository tests passed; one
+  pre-existing Pandas FutureWarning remains. No training, Registry mutation,
+  lifecycle transition, long replay or backend switch ran.

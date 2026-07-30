@@ -8,6 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 from alpha.io import load_alpha_dates
+from backtest.market_data_contract import ExecutionMarketDataContract
 from core.research_protocol import RESEARCH_END_DATE, SELECTION_SPLITS, get_split_spec
 
 
@@ -25,9 +26,17 @@ def validate_experiment_alpha(alpha_path, split):
     return {"signal_start": str(min(observed).date()), "signal_end": str(max(observed).date()), "days": len(observed)}
 
 
-def build_ledger_command(*, alpha_path, experiment_id, split, output_dir, python=None):
+def build_ledger_command(
+    *,
+    alpha_path,
+    experiment_id,
+    split,
+    output_dir,
+    python=None,
+    market_data: ExecutionMarketDataContract | None = None,
+):
     start, end, _ = get_split_spec(split).command_dates()
-    return [
+    command = [
         python or sys.executable,
         "run/sweep_open_price_ledger_params.py",
         "--alpha-specs", f"{experiment_id}={Path(alpha_path).resolve()}",
@@ -44,3 +53,5 @@ def build_ledger_command(*, alpha_path, experiment_id, split, output_dir, python
         "--end-date", end,
         "--max-data-date", end,
     ]
+    command.extend((market_data or ExecutionMarketDataContract()).cli_args())
+    return command

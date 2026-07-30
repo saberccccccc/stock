@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from core.research_protocol import SPLIT_SPECS, assert_forward_parent_frozen, get_split_spec
+from backtest.market_data_contract import ExecutionMarketDataContract
 from experiments.recording import canonical_json_hash, declared_range, fingerprint_path
 from experiments.workflow_schema import normalize_workflow_v2, validate_workflow_v2
 
@@ -395,6 +396,16 @@ def compile_workflow(
                 if isinstance(value, list):
                     value = ",".join(map(str, value))
                 ledger_command.extend([flag, str(value)])
+        market_data = ExecutionMarketDataContract(
+            backend=ledger.get("ohlc_backend", "legacy"),
+            market_daily_store_root=ledger.get(
+                "market_daily_store_root", "data/market_daily_candidate_v2"
+            ),
+            monthly_cache_root=ledger.get(
+                "ohlc_monthly_cache_dir", "cache/ohlcv_monthly_v3_candidate"
+            ),
+        )
+        ledger_command.extend(market_data.cli_args())
         for candidate_id in candidate_ids:
             ledger_command.extend(["--candidate-id", str(candidate_id)])
         for split in validation["splits"]:

@@ -12,6 +12,7 @@ from typing import Any, Mapping
 import pandas as pd
 
 from alpha.io import load_alpha_rows, resolve_row_scores
+from backtest.market_data_contract import ExecutionMarketDataContract
 from experiments.recording import canonical_json_hash, sha256_file, utc_now
 from experiments.shadow_lifecycle import record_shadow_observation, validate_shadow_lifecycle
 
@@ -102,11 +103,13 @@ def build_sweep_command(
     end_date: str,
     max_data_date: str,
     portfolio_value: float,
+    market_data: ExecutionMarketDataContract | None = None,
     python_executable: str | Path | None = None,
 ) -> list[str]:
     root = Path(project_root).resolve()
     python = str(python_executable or sys.executable)
-    return [
+    contract = market_data or ExecutionMarketDataContract()
+    command = [
         python,
         str(root / "run" / "sweep_open_price_ledger_params.py"),
         "--alpha-specs",
@@ -141,6 +144,8 @@ def build_sweep_command(
         _iso_date(max_data_date),
         "--save-path-details",
     ]
+    command.extend(contract.cli_args())
+    return command
 
 
 def _load_ledger_artifacts(execution_dir: Path, candidate_id: str, portfolio_value: float):
@@ -333,6 +338,7 @@ def run_daily_shadow(
     end_date: str,
     max_data_date: str,
     portfolio_value: float,
+    market_data: ExecutionMarketDataContract | None = None,
     mode: str = "historical_replay",
     actor: str = "",
     reason: str = "",
@@ -354,6 +360,7 @@ def run_daily_shadow(
         raise ValueError("formal daily observations require actor and reason")
     target.mkdir(parents=True, exist_ok=True)
     execution_dir = target / "execution"
+    market_data = market_data or ExecutionMarketDataContract()
     command = build_sweep_command(
         project_root=root,
         alpha_path=alpha_path,
@@ -364,6 +371,7 @@ def run_daily_shadow(
         end_date=end_date,
         max_data_date=max_data_date,
         portfolio_value=portfolio_value,
+        market_data=market_data,
         python_executable=python_executable,
     )
     if execute:
@@ -395,6 +403,7 @@ def run_daily_shadow(
         "portfolio_value": float(portfolio_value),
         "alpha_source": _artifact(alpha_path),
         "data_dir": str(Path(data_dir).resolve()),
+        "market_data": market_data.manifest(project_root=root),
         "command": command,
         "daily_count": len(daily),
         "daily": daily,
@@ -459,6 +468,17 @@ def replay_daily_shadow_run(
         end_date=source["end_date"],
         max_data_date=source["max_data_date"],
         portfolio_value=float(source["portfolio_value"]),
+        market_data=ExecutionMarketDataContract(
+            backend=source.get("market_data", {}).get("backend", "legacy"),
+            market_daily_store_root=source.get("market_data", {}).get(
+                "market_daily_store_root", "data/market_daily_candidate_v2"
+            )
+            or "data/market_daily_candidate_v2",
+            monthly_cache_root=source.get("market_data", {}).get(
+                "monthly_cache_root", "cache/ohlcv_monthly_v3_candidate"
+            )
+            or "cache/ohlcv_monthly_v3_candidate",
+        ),
         mode="historical_replay",
         python_executable=python_executable,
     )

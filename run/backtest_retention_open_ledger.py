@@ -32,6 +32,7 @@ from backtest.open_ledger import (
     run_open_ledger,
     save_stage_breakdown,
 )
+from backtest.market_data_contract import add_execution_market_data_args
 from backtest.stress import STRESSES, get_stress
 
 def parse_args(argv=None):
@@ -182,20 +183,7 @@ def parse_args(argv=None):
     parser.add_argument("--no-ohlc-cache", action="store_true")
     parser.add_argument("--ohlc-matrix-cache-dir", default="cache/open_ledger_ohlc_matrix")
     parser.add_argument("--no-ohlc-matrix-cache", action="store_true")
-    parser.add_argument(
-        "--ohlc-backend",
-        choices=("legacy", "csv", "monthly"),
-        default="legacy",
-        help="Explicit execution-data backend. legacy remains the formal default.",
-    )
-    parser.add_argument(
-        "--market-daily-store-root",
-        default="data/market_daily_candidate_v2",
-    )
-    parser.add_argument(
-        "--ohlc-monthly-cache-dir",
-        default="cache/ohlcv_monthly_v3_candidate",
-    )
+    add_execution_market_data_args(parser)
     parser.add_argument("--execution-mask-cache-dir", default="cache/open_ledger_execution_masks")
     parser.add_argument("--no-execution-mask-cache", action="store_true")
     parser.add_argument("--rebuild-ohlc-matrix-cache", action="store_true")

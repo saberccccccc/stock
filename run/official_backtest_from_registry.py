@@ -24,6 +24,7 @@ if root_path in sys.path:
 # the project backtest package.
 sys.path.insert(0, root_path)
 
+from backtest.market_data_contract import add_execution_market_data_args
 from core.research_protocol import (
     RESEARCH_END_DATE,
     SPLIT_SPECS,
@@ -77,19 +78,7 @@ def parse_args(argv=None):
     parser.add_argument("--exit-hold-fracs", default="0")
     parser.add_argument("--switch-gap-fracs", default="0")
     parser.add_argument("--execution-mode", default="realistic", choices=("proxy", "realistic"))
-    parser.add_argument(
-        "--ohlc-backend",
-        default="legacy",
-        choices=("legacy", "csv", "monthly"),
-    )
-    parser.add_argument(
-        "--market-daily-store-root",
-        default="data/market_daily_candidate_v2",
-    )
-    parser.add_argument(
-        "--ohlc-monthly-cache-dir",
-        default="cache/ohlcv_monthly_v3_candidate",
-    )
+    add_execution_market_data_args(parser)
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--append-registry", action="store_true")

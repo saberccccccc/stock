@@ -1,0 +1,32 @@
+{
+  "schema": "market_data_call_site_policy_v1",
+  "formal_contract_entrypoints": [
+    "run/official_backtest_from_registry.py",
+    "run/sweep_open_price_ledger_params.py",
+    "run/backtest_retention_open_ledger.py",
+    "experiments/workflow.py",
+    "experiments/ledger_evidence.py",
+    "experiments/shadow_daily.py",
+    "run/run_daily_shadow.py"
+  ],
+  "artifact_only_consumers": [
+    "run/attribution_from_registry.py",
+    "run/scorecard_from_registry.py"
+  ],
+  "legacy_internal_import_allowlist": {
+    "backtest/open_ledger.py": "formal adapter with explicit legacy/csv/monthly dispatch",
+    "data/providers.py": "storage-neutral provider facade plus compatibility provider",
+    "data/market_daily_migration.py": "one-way CSV to Parquet migration adapter",
+    "data/market_data_profile.py": "read-only migration and cache audit",
+    "run/audit_market_daily_parity.py": "read-only CSV versus Parquet parity oracle",
+    "run/build_ohlc_matrix_cache.py": "legacy cache maintenance compatibility command",
+    "run/compare_alpha_open_returns.py": "historical research script",
+    "run/sweep_open_ledger_params.py": "historical reproducibility script"
+  },
+  "policy": {
+    "formal_default_backend": "legacy",
+    "candidate_backend": "monthly",
+    "default_switch_stage": "MD9",
+    "new_legacy_internal_imports": "forbidden_without_policy_update"
+  }
+}
