@@ -1119,3 +1119,5 @@ Append-only record of material engineering and governance changes. Experiment me
   replay requires its source manifest to contain frozen paths and fails closed
   otherwise.
 - Twenty-nine Workflow/Shadow/Contract tests and the call-site audit passed.
+- Added ADR 0011 for identity-bound manual promotion, legacy rollback and CSV
+  shadow-oracle semantics, superseding only ADR 0010's stale switching clauses.

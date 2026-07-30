@@ -262,3 +262,5 @@
   audit passed again.
 - Full regression after formal-entrypoint fallback removal passed 648 tests
   with the same single pre-existing Pandas FutureWarning.
+- Added ADR 0011 to govern policy-v2 promotion and supersede ADR 0010's stale
+  CSV rollback clause without rewriting ADR history.

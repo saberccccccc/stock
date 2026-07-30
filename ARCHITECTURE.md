@@ -206,6 +206,9 @@ Use single-run ledger scripts for diagnosis only. Official evidence uses registr
   current source files before accepting it. Promotion/rollback transitions
   preserve append-only from/to/actor/reason/time history. Formal workflows still
   freeze an explicit backend.
+- ADR 0011 supersedes ADR 0010 only for default-switch and rollback semantics:
+  legacy is the rollback target, CSV is the shadow oracle, and promotion is
+  manual and identity-bound.
 - Full dual-read reports freeze the actual monthly store/cache identity used by
   each split. Promotion rejects a changed store manifest, another cache root or
   paths escaping the project. Authority is therefore assigned by the v2 policy

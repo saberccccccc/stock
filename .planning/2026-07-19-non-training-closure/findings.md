@@ -201,3 +201,7 @@
   monthly replay instead requires its original frozen store/cache roots and
   fails closed if an old manifest omitted them; it never substitutes today's
   candidate silently.
+- ADR 0010 still called CSV the immediate rollback backend. Project rules make
+  ADR history append-only, so ADR 0011 now supersedes only those switch/rollback
+  clauses and records policy v2, identity-bound manual promotion, legacy
+  rollback and the required monthly recovery drill.
