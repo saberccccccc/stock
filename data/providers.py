@@ -17,6 +17,7 @@ from backtest.ohlc_matrix_cache import (
 )
 from backtest.execution_coverage import audit_execution_coverage
 from data.fundamental_factors import merge_to_daily_akshare
+from data.market_daily_store import NUMERIC_FIELDS, MarketDailyStore
 from data.rolling_samples import iter_rolling_samples
 from data.transform_contract import build_v14_transform_contract
 from experiments.recording import canonical_json_hash, fingerprint_path, sha256_file
@@ -205,6 +206,167 @@ class OhlcvMatrixProvider:
                 "date_end": meta["dates"][-1],
                 "fields": list(meta["fields"]),
             },
+        }
+
+
+class CsvMarketDailyBackend:
+    """Read requested legacy per-stock CSVs as the MD4 parity oracle."""
+
+    name = "csv"
+
+    def __init__(self, root: str | Path):
+        self.root = Path(root).resolve()
+        if not self.root.is_dir():
+            raise FileNotFoundError(self.root)
+
+    def load_long(
+        self,
+        *,
+        codes: Sequence[str],
+        fields: Sequence[str],
+        start_date: Any,
+        end_date: Any,
+    ) -> pd.DataFrame:
+        start = _date(start_date, "start_date")
+        end = _date(end_date, "end_date")
+        frames = []
+        for code in codes:
+            path = self.root / f"{code}.csv"
+            if not path.is_file():
+                continue
+            frame = pd.read_csv(path, usecols=["trade_date", *fields])
+            frame["trade_date"] = pd.to_datetime(
+                frame["trade_date"], format="mixed", errors="coerce"
+            ).dt.normalize()
+            frame = frame.loc[
+                frame["trade_date"].notna()
+                & (frame["trade_date"] >= start)
+                & (frame["trade_date"] <= end)
+            ].copy()
+            if frame.empty:
+                continue
+            frame["code"] = code
+            frames.append(frame[["trade_date", "code", *fields]])
+        if not frames:
+            return pd.DataFrame(columns=["trade_date", "code", *fields])
+        return pd.concat(frames, ignore_index=True).sort_values(
+            ["trade_date", "code"]
+        ).reset_index(drop=True)
+
+    def manifest(self) -> dict[str, Any]:
+        return {"backend": self.name, "root": str(self.root)}
+
+
+class ParquetMarketDailyBackend:
+    """Read active content-addressed partitions through Arrow filters."""
+
+    name = "parquet"
+
+    def __init__(self, root: str | Path):
+        self.root = Path(root).resolve()
+        self.store = MarketDailyStore(self.root)
+        self.store.load_manifest()
+
+    def load_long(
+        self,
+        *,
+        codes: Sequence[str],
+        fields: Sequence[str],
+        start_date: Any,
+        end_date: Any,
+    ) -> pd.DataFrame:
+        return self.store.load(
+            instrument_type="equity",
+            start_date=start_date,
+            end_date=end_date,
+            codes=codes,
+            fields=fields,
+        )
+
+    def manifest(self) -> dict[str, Any]:
+        return {"backend": self.name, "root": str(self.root), **self.store.active_state()}
+
+
+class MarketDailyProvider:
+    """Storage-neutral, DataView-bounded daily OHLCV provider."""
+
+    RAW_FIELDS = tuple(NUMERIC_FIELDS)
+    DERIVED_FIELDS = ("pre_close", "pct_chg")
+
+    def __init__(self, *, data_view: DataView, backend: Any):
+        self.data_view = data_view
+        self.backend = backend
+        if Path(self.backend.root).resolve() != self.data_view.physical_root:
+            raise ValueError("market-daily backend root does not match DataView physical_root")
+
+    def load(
+        self,
+        *,
+        codes: Sequence[str],
+        fields: Sequence[str],
+        start_date: Any,
+        end_date: Any,
+        money_scale: float = 1.0,
+    ) -> dict[str, pd.DataFrame]:
+        requested_range = DateRange.create(start_date, end_date, field="market_daily_request")
+        if requested_range.start < self.data_view.feature_warmup.start:
+            raise ValueError("market-daily request starts before declared feature warm-up")
+        if requested_range.end > self.data_view.max_data_date:
+            raise ValueError("market-daily request exceeds data view max_data_date")
+        normalized_codes = list(
+            dict.fromkeys(str(code).strip().upper() for code in codes if str(code).strip())
+        )
+        requested = tuple(dict.fromkeys(str(field).strip().lower() for field in fields))
+        unknown = sorted(set(requested) - set(self.RAW_FIELDS) - set(self.DERIVED_FIELDS))
+        if unknown:
+            raise ValueError(f"unknown market-daily fields: {unknown}")
+        raw_needed = set(requested) & set(self.RAW_FIELDS)
+        if set(requested) & set(self.DERIVED_FIELDS):
+            raw_needed.add("close")
+        long = self.backend.load_long(
+            codes=normalized_codes,
+            fields=sorted(raw_needed),
+            start_date=requested_range.start,
+            end_date=requested_range.end,
+        )
+        present_codes = [code for code in normalized_codes if code in set(long.get("code", []))]
+        frames = {}
+        if long.empty:
+            for field in sorted(raw_needed):
+                frame = pd.DataFrame(
+                    index=pd.DatetimeIndex([], name="trade_date"),
+                    columns=present_codes,
+                    dtype=float,
+                )
+                frames[field] = frame
+        else:
+            raw_fields = sorted(raw_needed)
+            wide = long.pivot(
+                index="trade_date",
+                columns="code",
+                values=raw_fields,
+            ).sort_index()
+            for field in raw_fields:
+                frame = wide[field]
+                frame = frame.reindex(columns=present_codes).sort_index()
+                frame.index = pd.DatetimeIndex(frame.index, name="trade_date")
+                if field == "money":
+                    frame = frame * float(money_scale)
+                frames[field] = frame
+        if "pre_close" in requested or "pct_chg" in requested:
+            frames["pre_close"] = frames["close"].shift(1)
+        if "pct_chg" in requested:
+            frames["pct_chg"] = (
+                frames["close"] / frames["pre_close"] - 1.0
+            ).replace([float("inf"), float("-inf")], float("nan"))
+        return {field: frames[field] for field in requested}
+
+    def manifest(self) -> dict[str, Any]:
+        return {
+            "schema_version": 1,
+            "provider": "market_daily_v1",
+            "data_view": self.data_view.manifest(),
+            "backend": self.backend.manifest(),
         }
 
 

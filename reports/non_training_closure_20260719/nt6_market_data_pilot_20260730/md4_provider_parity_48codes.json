@@ -1,0 +1,228 @@
+{
+  "code_count": 48,
+  "codes": [
+    "000001.SZ",
+    "600000.SH",
+    "300750.SZ",
+    "688981.SH",
+    "000546.SZ",
+    "000735.SZ",
+    "000932.SZ",
+    "001367.SZ",
+    "002119.SZ",
+    "002246.SZ",
+    "002379.SZ",
+    "002518.SZ",
+    "002648.SZ",
+    "002790.SZ",
+    "002925.SZ",
+    "300014.SZ",
+    "300150.SZ",
+    "300284.SZ",
+    "300420.SZ",
+    "300549.SZ",
+    "300676.SZ",
+    "300810.SZ",
+    "300938.SZ",
+    "301070.SZ",
+    "301216.SZ",
+    "301372.SZ",
+    "600031.SH",
+    "600197.SH",
+    "600363.SH",
+    "600538.SH",
+    "600690.SH",
+    "600838.SH",
+    "601018.SH",
+    "601658.SH",
+    "603043.SH",
+    "603203.SH",
+    "603380.SH",
+    "603682.SH",
+    "603915.SH",
+    "605289.SH",
+    "688098.SH",
+    "688237.SH",
+    "688383.SH",
+    "688590.SH",
+    "920010.BJ",
+    "920496.BJ",
+    "920992.BJ",
+    "000002.SZ"
+  ],
+  "codes_sha256": "71c33c9e1faf9376bb2d12fd20777183d4a00ea7d0736498a317760a9a027e67",
+  "csv_root": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\forward_raw",
+  "csv_seconds": 0.2950234999998429,
+  "fields": [
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "money",
+    "factor"
+  ],
+  "parquet_root": "C:\\Users\\x\\code\\stock_prediction\\deepseek_model_exp\\data\\market_daily_candidate_v2",
+  "parquet_seconds": 0.2894498000000567,
+  "physical_end": "2026-07-29",
+  "scan_end": "2026-07-29",
+  "scan_start": "2024-01-01",
+  "scan_strategy": "single_provider_read_then_split_slice",
+  "schema": "market_daily_provider_parity_v1",
+  "splits": [
+    {
+      "comparison": "exact_index_columns_values_dtypes_missing",
+      "end_date": "2024-12-31",
+      "fields": {
+        "close": {
+          "codes": 48,
+          "missing": 496,
+          "rows": 242,
+          "sha256": "79042078c9d0832de774722b6f4b0c75acb91c333f3f9c3baf6000d1bc695bf6"
+        },
+        "factor": {
+          "codes": 48,
+          "missing": 496,
+          "rows": 242,
+          "sha256": "2d4b40cb354d0ef6bfeb5ca1766149d6ba8eb7cedf74c6367cce86053a717407"
+        },
+        "high": {
+          "codes": 48,
+          "missing": 496,
+          "rows": 242,
+          "sha256": "70ef6868cbbbe314af908428ad7ea52b05cbf41520da3d2d79a4d8f9dafa24ad"
+        },
+        "low": {
+          "codes": 48,
+          "missing": 496,
+          "rows": 242,
+          "sha256": "7921a02158535cea402c86cd14abfa3cf8a1afb83f13c1d36227d655ecfc3d13"
+        },
+        "money": {
+          "codes": 48,
+          "missing": 496,
+          "rows": 242,
+          "sha256": "c13a78d3c55e4ad00e22b0e6561a73eb579c76ad7e372a04866803e1af53aa80"
+        },
+        "open": {
+          "codes": 48,
+          "missing": 496,
+          "rows": 242,
+          "sha256": "4556bf6d022a3af5c79e1c8fc23fb5e11fb4f1a2711d2d1e8e46d285599b1db2"
+        },
+        "volume": {
+          "codes": 48,
+          "missing": 496,
+          "rows": 242,
+          "sha256": "16f1b895bce0b955162985e6696e3a7ebda5c9aaacdcceec73a78a19096bde57"
+        }
+      },
+      "split": "val_2024",
+      "start_date": "2024-01-01",
+      "status": "passed"
+    },
+    {
+      "comparison": "exact_index_columns_values_dtypes_missing",
+      "end_date": "2025-12-31",
+      "fields": {
+        "close": {
+          "codes": 48,
+          "missing": 476,
+          "rows": 243,
+          "sha256": "2a098841caa4cba734c595f25633fb993f2678082aa340372c5e07395223ad52"
+        },
+        "factor": {
+          "codes": 48,
+          "missing": 476,
+          "rows": 243,
+          "sha256": "8316b4bb6754a87cf3eaf3929fbb899bea9fb4a5a3508481e19f3ab8e2e1c5da"
+        },
+        "high": {
+          "codes": 48,
+          "missing": 476,
+          "rows": 243,
+          "sha256": "a875ae3324a6e2931a87ab946aad98c7a320d7dc4da4cc0587cfab66edc6047f"
+        },
+        "low": {
+          "codes": 48,
+          "missing": 476,
+          "rows": 243,
+          "sha256": "4a6b69fd1ddef9c12ffc14e23af305df40ed942882c90f11406ac4e942857a04"
+        },
+        "money": {
+          "codes": 48,
+          "missing": 476,
+          "rows": 243,
+          "sha256": "b24a3e21bae48137bff11367cbcfe578fbbabafe9bc44d3e97ec6aef7a3c601e"
+        },
+        "open": {
+          "codes": 48,
+          "missing": 476,
+          "rows": 243,
+          "sha256": "6fb6409c5988f82bc9a6c6aed327177d473d66b8dc61e8bdf8788464c579a0dc"
+        },
+        "volume": {
+          "codes": 48,
+          "missing": 476,
+          "rows": 243,
+          "sha256": "75a74fab88935bb666cd710b9db9c90c1a1e8113656232c3771cb54a2f2b6146"
+        }
+      },
+      "split": "test_2025",
+      "start_date": "2025-01-01",
+      "status": "passed"
+    },
+    {
+      "comparison": "exact_index_columns_values_dtypes_missing",
+      "end_date": "2026-07-29",
+      "fields": {
+        "close": {
+          "codes": 48,
+          "missing": 17,
+          "rows": 137,
+          "sha256": "6f6d5a5d2f7cd8d3fa927278375dfbe3f2d912a3ce5da8ed10777ae107c52eaa"
+        },
+        "factor": {
+          "codes": 48,
+          "missing": 17,
+          "rows": 137,
+          "sha256": "c0544e40e29828daf2f6e6610a4e99a992402305463380395d206a46d7a52b0f"
+        },
+        "high": {
+          "codes": 48,
+          "missing": 17,
+          "rows": 137,
+          "sha256": "7246e9889841d3d05ad360e7812ce4ff9e286f2da6b4b4e770e1f68f323a8584"
+        },
+        "low": {
+          "codes": 48,
+          "missing": 17,
+          "rows": 137,
+          "sha256": "3c96ad2535011977797b77044d0b80e7d80cd7659a636deef818173b0663e966"
+        },
+        "money": {
+          "codes": 48,
+          "missing": 17,
+          "rows": 137,
+          "sha256": "08fad8e4c26c68ff4326cf9b39398fb2f51407b847fe7daa09aa3beae47c6f1c"
+        },
+        "open": {
+          "codes": 48,
+          "missing": 17,
+          "rows": 137,
+          "sha256": "ba9c19ce1eabd5eecab0bd119aff2acfb05b75c96374dc7caa8e36c8bff851eb"
+        },
+        "volume": {
+          "codes": 48,
+          "missing": 17,
+          "rows": 137,
+          "sha256": "35835be956152b377053f7be30facf08f87863c787c1b100beda6f9462f096fc"
+        }
+      },
+      "split": "forward_2026",
+      "start_date": "2026-01-01",
+      "status": "passed"
+    }
+  ],
+  "status": "passed"
+}

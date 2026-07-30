@@ -15,6 +15,7 @@ from typing import Any, Sequence
 
 import pandas as pd
 import pyarrow as pa
+import pyarrow.dataset as ds
 import pyarrow.parquet as pq
 
 
@@ -603,7 +604,6 @@ class MarketDailyStore:
         codes: Sequence[str] | None = None,
         fields: Sequence[str] = NUMERIC_FIELDS,
     ) -> pd.DataFrame:
-        manifest, _ = self.load_manifest()
         start = pd.Timestamp(start_date).normalize()
         end = pd.Timestamp(end_date).normalize()
         if end < start:
@@ -615,6 +615,37 @@ class MarketDailyStore:
         unknown = sorted(set(requested) - set(DAILY_FIELDS))
         if unknown:
             raise ValueError(f"unknown market-daily fields: {unknown}")
+        paths = self.partition_paths(
+            instrument_type=instrument_type,
+            start_date=start,
+            end_date=end,
+        )
+        if not paths:
+            return pd.DataFrame(columns=requested)
+        filters = None
+        if codes is not None:
+            selected = sorted({str(code).strip().upper() for code in codes})
+            if not selected:
+                return pd.DataFrame(columns=requested)
+            filters = ds.field("code").isin(selected)
+        dataset = ds.dataset([str(path) for path in paths], format="parquet")
+        frame = dataset.to_table(columns=requested, filter=filters).to_pandas()
+        frame["trade_date"] = pd.to_datetime(frame["trade_date"]).dt.normalize()
+        return frame.sort_values(["trade_date", "code"]).reset_index(drop=True)
+
+    def partition_paths(
+        self,
+        *,
+        instrument_type: str,
+        start_date: Any,
+        end_date: Any,
+    ) -> list[Path]:
+        """Resolve active partition paths for a bounded range."""
+        manifest, _ = self.load_manifest()
+        start = pd.Timestamp(start_date).normalize()
+        end = pd.Timestamp(end_date).normalize()
+        if end < start:
+            raise ValueError("end_date precedes start_date")
         paths = []
         for index_record in (manifest or {}).get("monthly_indexes", {}).values():
             if index_record["instrument_type"] != instrument_type:
@@ -627,13 +658,8 @@ class MarketDailyStore:
             for partition in month_index["partitions"].values():
                 date = pd.Timestamp(partition["trade_date"]).normalize()
                 if start <= date <= end:
-                    paths.append(self.root / partition["path"])
-        if not paths:
-            return pd.DataFrame(columns=requested)
-        tables = [pq.read_table(path, columns=requested) for path in sorted(paths)]
-        frame = pa.concat_tables(tables).to_pandas()
-        frame["trade_date"] = pd.to_datetime(frame["trade_date"]).dt.normalize()
-        if codes is not None:
-            selected = {str(code).strip().upper() for code in codes}
-            frame = frame.loc[frame["code"].isin(selected)]
-        return frame.sort_values(["trade_date", "code"]).reset_index(drop=True)
+                    path = (self.root / partition["path"]).resolve()
+                    if self.root not in path.parents or not path.is_file():
+                        raise FileNotFoundError(path)
+                    paths.append(path)
+        return sorted(paths)

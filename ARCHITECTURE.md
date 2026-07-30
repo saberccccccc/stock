@@ -163,6 +163,11 @@ Use single-run ledger scripts for diagnosis only. Official evidence uses registr
   writer: Tushare supplies the A-share cross-section, an interchangeable index
   client supplies four frozen broad indices, and each run records source,
   coverage and amount semantics. Neither module changes the formal backend.
+- `CsvMarketDailyBackend` and `ParquetMarketDailyBackend` now implement the same
+  long-form storage contract behind `MarketDailyProvider`. The provider enforces
+  DataView bounds and returns field-keyed date-by-code matrices compatible with
+  the existing OHLC facade. CSV remains the configured oracle until monthly
+  cache and ledger parity are complete.
 - ADR 0010 requires one physical market store with separate logical DataViews.
   CSV remains the default parity oracle until Provider, monthly-cache and full
   24-cell ledger equivalence gates pass.

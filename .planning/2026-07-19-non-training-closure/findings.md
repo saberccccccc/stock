@@ -84,3 +84,10 @@
   present in the migrated local CSV date. MD4 must compare requested/intersecting
   codes and expose universe additions separately; it must not assert equal global
   row counts between the legacy compatibility universe and the new authority.
+- MD4 exact parity is now proven over every one of the 5,332 legacy codes for
+  all seven stored numeric fields across Val 2024, Test 2025 and Forward through
+  2026-07-29. The authority migration did not change values or missingness.
+- Direct Arrow filtering plus wide pivot is not sufficient for repeated
+  full-universe backtests: the full MD4 read took about 396 seconds versus 418
+  seconds for CSV. Month-sharded dense matrices remain the correct MD5 runtime
+  layer; Parquet remains the updateable authority and arbitrary-query layer.

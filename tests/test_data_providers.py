@@ -10,11 +10,16 @@ from data.providers import (
     ExecutionConstraintProvider,
     ExternalMarketPITProvider,
     FundamentalPITProvider,
+    CsvMarketDailyBackend,
+    MarketDailyProvider,
     OhlcvMatrixProvider,
+    ParquetMarketDailyBackend,
     ProcessorContract,
     ProcessorKind,
     V14MemmapProvider,
 )
+from data.market_daily_store import MarketDailyStore
+from run.audit_market_daily_parity import build_parity_report
 
 
 def _write_stock(path):
@@ -87,6 +92,131 @@ def test_ohlcv_manifest_can_audit_without_rebuilding_mismatched_cache(tmp_path):
 
     assert manifest["cache"]["matches_data_view"] is False
     assert (cache / "ohlc_matrix_meta.json").read_bytes() == before
+
+
+def test_market_daily_csv_and_parquet_backends_are_exact(tmp_path):
+    csv_root = tmp_path / "csv"
+    parquet_root = tmp_path / "parquet"
+    csv_root.mkdir()
+    dates = ["2024-01-31", "2024-02-01"]
+    for code, offset in (("000001.SZ", 0.0), ("600000.SH", 10.0)):
+        frame = pd.DataFrame(
+            {
+                "trade_date": dates,
+                "code": code,
+                "open": [10.0 + offset, 11.0 + offset],
+                "high": [11.0 + offset, 12.0 + offset],
+                "low": [9.0 + offset, 10.0 + offset],
+                "close": [10.5 + offset, 11.5 + offset],
+                "volume": [100.0, 110.0],
+                "money": [1000.0, 1100.0],
+                "factor": [1.0, 1.0],
+            }
+        )
+        frame.to_csv(csv_root / f"{code}.csv", index=False)
+    combined = pd.concat(
+        [pd.read_csv(path) for path in sorted(csv_root.glob("*.csv"))],
+        ignore_index=True,
+    )
+    store = MarketDailyStore(parquet_root)
+    for _, day in combined.groupby("trade_date"):
+        store.commit_partition(day, instrument_type="equity", source="legacy_csv")
+
+    def view(root):
+        return DataView.create(
+            name="provider_parity",
+            physical_root=root,
+            feature_warmup_start="2024-01-01",
+            feature_warmup_end="2024-01-30",
+            task_start="2024-01-31",
+            task_end="2024-02-29",
+            evaluation_start="2024-01-31",
+            evaluation_end="2024-02-29",
+            max_data_date="2024-02-29",
+        )
+
+    codes = ["600000.SH", "missing", "000001.SZ", "600000.SH"]
+    fields = ["open", "close", "money", "pre_close", "pct_chg"]
+    csv = MarketDailyProvider(
+        data_view=view(csv_root), backend=CsvMarketDailyBackend(csv_root)
+    ).load(
+        codes=codes,
+        fields=fields,
+        start_date="2024-01-31",
+        end_date="2024-02-01",
+        money_scale=0.001,
+    )
+    parquet = MarketDailyProvider(
+        data_view=view(parquet_root), backend=ParquetMarketDailyBackend(parquet_root)
+    ).load(
+        codes=codes,
+        fields=fields,
+        start_date="2024-01-31",
+        end_date="2024-02-01",
+        money_scale=0.001,
+    )
+
+    assert csv["open"].columns.tolist() == ["600000.SH", "000001.SZ"]
+    for field in fields:
+        pd.testing.assert_frame_equal(csv[field], parquet[field], check_exact=True)
+
+
+def test_market_daily_provider_enforces_view_and_backend_root(tmp_path):
+    csv_root = tmp_path / "csv"
+    other = tmp_path / "other"
+    csv_root.mkdir()
+    other.mkdir()
+    _write_stock(csv_root / "000001.SZ.csv")
+
+    with pytest.raises(ValueError, match="backend root"):
+        MarketDailyProvider(
+            data_view=_view(csv_root),
+            backend=CsvMarketDailyBackend(other),
+        )
+    provider = MarketDailyProvider(
+        data_view=_view(csv_root), backend=CsvMarketDailyBackend(csv_root)
+    )
+    with pytest.raises(ValueError, match="max_data_date"):
+        provider.load(
+            codes=["000001.SZ"],
+            fields=["close"],
+            start_date="2024-12-31",
+            end_date="2025-01-02",
+        )
+
+
+def test_provider_parity_report_uses_physical_end_for_forward(tmp_path):
+    csv_root = tmp_path / "csv"
+    parquet_root = tmp_path / "parquet"
+    csv_root.mkdir()
+    frame = pd.DataFrame(
+        {
+            "trade_date": ["2026-01-05"],
+            "code": ["000001.SZ"],
+            "open": [10.0],
+            "high": [11.0],
+            "low": [9.0],
+            "close": [10.5],
+            "volume": [100.0],
+            "money": [1000.0],
+            "factor": [1.0],
+        }
+    )
+    frame.to_csv(csv_root / "000001.SZ.csv", index=False)
+    MarketDailyStore(parquet_root).commit_partition(
+        frame, instrument_type="equity", source="legacy_csv"
+    )
+
+    report = build_parity_report(
+        csv_root=csv_root,
+        parquet_root=parquet_root,
+        codes=["000001.SZ"],
+        splits=(("forward", "2026-01-01", "2026-12-31"),),
+    )
+
+    assert report["status"] == "passed"
+    assert report["physical_end"] == "2026-01-05"
+    assert report["splits"][0]["end_date"] == "2026-01-05"
 
 
 def test_data_view_manifest_separates_physical_and_logical_ranges(tmp_path):

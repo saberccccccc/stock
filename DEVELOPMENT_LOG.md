@@ -938,3 +938,18 @@ Append-only record of material engineering and governance changes. Experiment me
   observed value. Tushare index mode remains opt-in.
 - MD4 Provider dual-read parity is the next gate. No cache switch, ledger replay,
   training, Registry mutation or lifecycle transition ran.
+
+## 2026-07-30 - NT6 MD4 Provider Parity
+
+- Added CSV and Arrow/Parquet backends behind a bounded `MarketDailyProvider`
+  with the existing field-to-matrix return shape and derived-return semantics.
+- Exact parity passed first for 48 deterministic cross-board samples and then
+  for all 5,332 legacy codes across Val 2024, Test 2025 and Forward through
+  2026-07-29. Seven raw fields matched for index, columns, values, dtypes and
+  missing positions.
+- Reworked the audit after two 10-minute ceilings: one date-range scan replaces
+  three split scans, one multi-field pivot replaces seven pivots, and binary
+  hashes replace large CSV formatting. Only the completed audit is evidence.
+- Full-universe runtime was still 418.36 seconds for CSV and 395.83 seconds for
+  direct Parquet. MD5 monthly dense caches are therefore required before any
+  formal runtime switch. Registry, training and lifecycle remain unchanged.

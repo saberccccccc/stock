@@ -12,7 +12,8 @@
 | MD1 | complete | ADR 0010、`data/market_daily_store.py`、事务/锁/回滚测试 |
 | MD2 | complete | 17 个年度精确审计、全局活动链审计、`md2_migration_summary_20260730.md` |
 | MD3 | complete | Tushare 股票 + AkShare 宽基真实试跑、真实重放 no-op、全量哈希审计 |
-| MD4-MD9 | pending | 不得在前一阶段门禁未通过时抢跑 |
+| MD4 | complete | 48 只固定样本 + 5,332 只全量，Val/Test/Forward 七字段精确 parity |
+| MD5-MD9 | pending | 不得在前一阶段门禁未通过时抢跑 |
 
 ## 1. 目标
 

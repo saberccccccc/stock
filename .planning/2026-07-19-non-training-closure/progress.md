@@ -104,3 +104,20 @@
 - Daily completion now records a hash-verified root snapshot instead of scanning
   every historical Parquet file. Full partition audits remain explicit CLI
   acceptance/maintenance operations. MD4 Provider parity is next.
+- Completed MD4 with storage-neutral CSV and Arrow/Parquet backends behind one
+  DataView-bounded `MarketDailyProvider`. Its return contract matches the
+  existing field-to-date-by-code matrix API, including money scaling and
+  deterministic `pre_close`/`pct_chg` derivation.
+- The fixed 48-code Val/Test/Forward audit passed exact index, columns, values,
+  dtypes and missing-position comparison for all seven stored numeric fields.
+- The first two all-code attempts hit the 10-minute command ceiling. The audit
+  initially opened all 5,332 CSVs once per split, then still repeated seven
+  pivots and formatted large matrices as CSV solely for hashes. It now scans
+  the full date range once, performs one multi-field pivot and uses binary
+  index/column/dtype/value hashes. No incomplete report was accepted.
+- The optimized 5,332-code full audit completed and passed for 2024 Val, 2025
+  Test and Forward through 2026-07-29. CSV took 418.36 seconds and direct
+  Parquet 395.83 seconds for the complete 638-calendar-day request.
+- Direct Parquet is an authority/query backend, not yet a full-market backtest
+  acceleration layer. MD5 month-sharded matrices are required before runtime
+  promotion; the formal backend remains CSV.
