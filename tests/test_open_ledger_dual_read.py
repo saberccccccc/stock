@@ -20,7 +20,26 @@ def _args(report):
         ohlc_backend="monthly",
         ohlc_shadow_backend="csv",
         ohlc_shadow_report=str(report),
+        market_daily_store_root="store",
+        ohlc_monthly_cache_dir="cache",
     )
+
+
+def _mock_monthly_identity(monkeypatch):
+    class FakeCache:
+        def __init__(self, *, store_root, cache_root):
+            self.store_root = store_root
+            self.cache_root = cache_root
+
+        def active_identity(self, **kwargs):
+            return {
+                "schema": "monthly_ohlcv_active_identity_v1",
+                "store_root": self.store_root,
+                "cache_root": self.cache_root,
+                "months": [{"month": "2026-01"}],
+            }
+
+    monkeypatch.setattr(ledger, "MonthlyOhlcvCache", FakeCache)
 
 
 def test_dual_read_writes_exact_pass_report(tmp_path, monkeypatch):
@@ -31,6 +50,7 @@ def test_dual_read_writes_exact_pass_report(tmp_path, monkeypatch):
         return primary if args.ohlc_backend == "monthly" else shadow
 
     monkeypatch.setattr(ledger, "_load_execution_market_frames_once", fake_load)
+    _mock_monthly_identity(monkeypatch)
     report_path = tmp_path / "dual.json"
 
     result = ledger.load_execution_market_frames(
@@ -44,6 +64,7 @@ def test_dual_read_writes_exact_pass_report(tmp_path, monkeypatch):
     assert result is primary
     assert report["status"] == "passed"
     assert report["fields"]["open"]["missing"] == 0
+    assert report["monthly_identity"]["months"][0]["month"] == "2026-01"
 
 
 def test_dual_read_fails_closed_and_records_difference(tmp_path, monkeypatch):
@@ -55,6 +76,7 @@ def test_dual_read_fails_closed_and_records_difference(tmp_path, monkeypatch):
         return primary if args.ohlc_backend == "monthly" else shadow
 
     monkeypatch.setattr(ledger, "_load_execution_market_frames_once", fake_load)
+    _mock_monthly_identity(monkeypatch)
     report_path = tmp_path / "dual.json"
 
     with pytest.raises(ValueError, match="dual-read parity failed"):

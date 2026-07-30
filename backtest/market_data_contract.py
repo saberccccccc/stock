@@ -23,11 +23,23 @@ def configured_default_backend() -> str:
     return str(load_policy(BACKEND_POLICY_PATH)["active_backend"])
 
 
+def configured_candidate_paths() -> tuple[str, str]:
+    if not BACKEND_POLICY_PATH.is_file():
+        return DEFAULT_MARKET_DAILY_STORE_ROOT, DEFAULT_MONTHLY_CACHE_ROOT
+    from data.execution_market_backend_policy import load_policy
+
+    policy = load_policy(BACKEND_POLICY_PATH)
+    return (
+        str(policy["candidate_store_root"]),
+        str(policy["candidate_monthly_cache_root"]),
+    )
+
+
 @dataclass(frozen=True)
 class ExecutionMarketDataContract:
     backend: str | None = None
-    market_daily_store_root: str | Path = DEFAULT_MARKET_DAILY_STORE_ROOT
-    monthly_cache_root: str | Path = DEFAULT_MONTHLY_CACHE_ROOT
+    market_daily_store_root: str | Path | None = None
+    monthly_cache_root: str | Path | None = None
     shadow_backend: str | None = None
     shadow_report: str | Path | None = None
 
@@ -36,6 +48,17 @@ class ExecutionMarketDataContract:
         if backend not in OHLC_BACKENDS:
             raise ValueError(f"unknown OHLC backend: {backend}")
         object.__setattr__(self, "backend", backend)
+        configured_store, configured_cache = configured_candidate_paths()
+        object.__setattr__(
+            self,
+            "market_daily_store_root",
+            self.market_daily_store_root or configured_store,
+        )
+        object.__setattr__(
+            self,
+            "monthly_cache_root",
+            self.monthly_cache_root or configured_cache,
+        )
         shadow = str(self.shadow_backend or "").strip().lower() or None
         if shadow is not None:
             if {backend, shadow} != {"csv", "monthly"}:
@@ -95,6 +118,7 @@ class ExecutionMarketDataContract:
 
 
 def add_execution_market_data_args(parser, *, default_backend: str | None = None):
+    configured_store, configured_cache = configured_candidate_paths()
     parser.add_argument(
         "--ohlc-backend",
         choices=OHLC_BACKENDS,
@@ -103,11 +127,11 @@ def add_execution_market_data_args(parser, *, default_backend: str | None = None
     )
     parser.add_argument(
         "--market-daily-store-root",
-        default=DEFAULT_MARKET_DAILY_STORE_ROOT,
+        default=configured_store,
     )
     parser.add_argument(
         "--ohlc-monthly-cache-dir",
-        default=DEFAULT_MONTHLY_CACHE_ROOT,
+        default=configured_cache,
     )
     parser.add_argument("--ohlc-shadow-backend", choices=("csv", "monthly"), default=None)
     parser.add_argument("--ohlc-shadow-report", default=None)
@@ -118,10 +142,10 @@ def contract_from_args(args) -> ExecutionMarketDataContract:
     return ExecutionMarketDataContract(
         backend=getattr(args, "ohlc_backend", None),
         market_daily_store_root=getattr(
-            args, "market_daily_store_root", DEFAULT_MARKET_DAILY_STORE_ROOT
+            args, "market_daily_store_root", None
         ),
         monthly_cache_root=getattr(
-            args, "ohlc_monthly_cache_dir", DEFAULT_MONTHLY_CACHE_ROOT
+            args, "ohlc_monthly_cache_dir", None
         ),
         shadow_backend=getattr(args, "ohlc_shadow_backend", None),
         shadow_report=getattr(args, "ohlc_shadow_report", None),

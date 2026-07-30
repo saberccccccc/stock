@@ -16,13 +16,15 @@ if str(ROOT) not in sys.path:
 from data.market_daily_incremental_benchmark import (
     benchmark_daily_incremental_refresh,
 )
+from backtest.market_data_contract import configured_candidate_paths
 
 
 def parse_args(argv=None):
+    configured_store, _ = configured_candidate_paths()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--source-store-root",
-        default="data/market_daily_candidate_v2",
+        default=configured_store,
     )
     parser.add_argument("--month")
     parser.add_argument("--workspace-parent")

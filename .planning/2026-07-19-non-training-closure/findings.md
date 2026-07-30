@@ -185,3 +185,14 @@
   implementation uses legacy as active/rollback, monthly as candidate and CSV
   only as the six-field shadow oracle. The technical plan now matches that
   actual contract.
+- The v1 backend policy froze only the backend name while runner defaults
+  repeated candidate paths. Policy v2 now freezes candidate store/cache roots;
+  Contract and every MD8/MD9 runner consume those paths, and dual-read reports
+  include the actual monthly identity.
+- Promotion now rejects three additional failures: the active store manifest
+  changed after incremental evidence, a split used another cache root, or a
+  candidate path escapes the project. The real current manifest still exactly
+  matches the incremental benchmark identity.
+- The completion definition had stale requirements for a literal
+  `data/market_daily` directory and CSV rollback. It now defines authority via
+  policy v2 plus manifest and requires a `monthly -> legacy -> monthly` drill.

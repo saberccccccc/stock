@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 
-SCHEMA = "execution_market_backend_policy_v1"
+SCHEMA = "execution_market_backend_policy_v2"
 STATES = {"legacy_active", "dual_read_ready", "monthly_active", "rolled_back"}
 
 
@@ -26,6 +26,14 @@ def load_policy(path: str | Path) -> dict[str, Any]:
         raise ValueError("policy rollback_backend must remain legacy")
     if value.get("candidate_backend") != "monthly":
         raise ValueError("policy candidate_backend must remain monthly")
+    for field in ("candidate_store_root", "candidate_monthly_cache_root"):
+        candidate_path = Path(str(value.get(field, "")))
+        if (
+            not str(candidate_path).strip()
+            or candidate_path.is_absolute()
+            or ".." in candidate_path.parts
+        ):
+            raise ValueError(f"policy {field} must be a safe project-relative path")
     if value.get("shadow_backend") != "csv":
         raise ValueError("policy shadow_backend must remain csv")
     required = list(value.get("required_dual_read_splits", []))
@@ -145,6 +153,77 @@ def _performance_sources_match(
     )
 
 
+def _candidate_identity(
+    project_root: Path,
+    policy: Mapping[str, Any],
+    acceptance_path: Path,
+) -> dict[str, Any]:
+    store_root = (project_root / policy["candidate_store_root"]).resolve()
+    cache_root = (
+        project_root / policy["candidate_monthly_cache_root"]
+    ).resolve()
+    result = {
+        "status": "failed",
+        "store_root": str(store_root),
+        "cache_root": str(cache_root),
+        "passed": False,
+    }
+    if project_root not in store_root.parents or project_root not in cache_root.parents:
+        result["error"] = "candidate path resolves outside the project"
+        return result
+    if not cache_root.is_dir():
+        result["error"] = "candidate monthly cache root is missing"
+        return result
+    try:
+        acceptance = json.loads(
+            acceptance_path.read_text(encoding="utf-8-sig")
+        )
+        incremental_path = Path(acceptance["incremental"]["path"]).resolve()
+        incremental = json.loads(
+            incremental_path.read_text(encoding="utf-8-sig")
+        )
+        source = incremental["source"]
+        from data.market_daily_store import MarketDailyStore
+
+        active = MarketDailyStore(store_root).active_state()
+    except (OSError, ValueError, KeyError, TypeError) as exc:
+        result["error"] = f"{type(exc).__name__}: {exc}"
+        return result
+    source_root = Path(source["store_root"]).resolve()
+    result.update(
+        {
+            "active_manifest_sha256": active["manifest_sha256"],
+            "evidence_manifest_sha256": source["manifest_sha256"],
+            "evidence_store_root": str(source_root),
+        }
+    )
+    passed = (
+        source_root == store_root
+        and active["manifest_sha256"] == source["manifest_sha256"]
+    )
+    result["status"] = "passed" if passed else "failed"
+    result["passed"] = passed
+    return result
+
+
+def _dual_candidate_paths_match(
+    report_path: Path,
+    *,
+    store_root: Path,
+    cache_root: Path,
+) -> bool:
+    try:
+        report = json.loads(report_path.read_text(encoding="utf-8-sig"))
+        identity = report["monthly_identity"]
+        return (
+            Path(identity["store_root"]).resolve() == store_root
+            and Path(identity["cache_root"]).resolve() == cache_root
+            and bool(identity.get("months"))
+        )
+    except (OSError, ValueError, KeyError, TypeError):
+        return False
+
+
 def audit_promotion(project_root: str | Path, policy: Mapping[str, Any]) -> dict[str, Any]:
     root = Path(project_root).resolve()
     evidence = policy["evidence"]
@@ -190,8 +269,18 @@ def audit_promotion(project_root: str | Path, policy: Mapping[str, Any]) -> dict
     performance["passed"] = (
         performance["passed"] and performance["source_hashes_match"]
     )
+    checks["candidate_identity"] = _candidate_identity(
+        root,
+        policy,
+        performance_path,
+    )
+    candidate_store_root = (root / policy["candidate_store_root"]).resolve()
+    candidate_cache_root = (
+        root / policy["candidate_monthly_cache_root"]
+    ).resolve()
     dual = {}
     for split in policy["required_dual_read_splits"]:
+        report_path = root / evidence["dual_read_reports"][split]
         dual[split] = _read_status(
             root,
             evidence["dual_read_reports"][split],
@@ -200,6 +289,17 @@ def audit_promotion(project_root: str | Path, policy: Mapping[str, Any]) -> dict
                 "primary_backend": "monthly",
                 "shadow_backend": "csv",
             },
+        )
+        dual[split]["candidate_paths_match"] = (
+            dual[split]["passed"]
+            and _dual_candidate_paths_match(
+                report_path,
+                store_root=candidate_store_root,
+                cache_root=candidate_cache_root,
+            )
+        )
+        dual[split]["passed"] = (
+            dual[split]["passed"] and dual[split]["candidate_paths_match"]
         )
     checks["dual_read"] = dual
     passed = all(
@@ -212,6 +312,8 @@ def audit_promotion(project_root: str | Path, policy: Mapping[str, Any]) -> dict
         "status": "passed" if passed else "blocked",
         "active_backend": policy["active_backend"],
         "candidate_backend": policy["candidate_backend"],
+        "candidate_store_root": str(candidate_store_root),
+        "candidate_monthly_cache_root": str(candidate_cache_root),
         "checks": checks,
     }
 
@@ -256,10 +358,17 @@ def promote_policy(
         "changed_at": str(changed_at),
         "from_backend": "legacy",
         "to_backend": "monthly",
+        "candidate_store_root": str(policy["candidate_store_root"]),
+        "candidate_monthly_cache_root": str(
+            policy["candidate_monthly_cache_root"]
+        ),
+        "candidate_manifest_sha256": audit["checks"]["candidate_identity"][
+            "active_manifest_sha256"
+        ],
         "evidence_sha256": {
             name: item["sha256"]
             for name, item in checks.items()
-            if name != "dual_read"
+            if name not in {"dual_read", "candidate_identity"}
         },
         "dual_read_sha256": {
             split: item["sha256"]

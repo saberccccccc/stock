@@ -326,6 +326,15 @@ def load_execution_market_frames(
         start_date=start_date,
         end_date=end_date,
     )
+    monthly_args = args if backend == "monthly" else shadow_args
+    monthly_identity = MonthlyOhlcvCache(
+        store_root=monthly_args.market_daily_store_root,
+        cache_root=monthly_args.ohlc_monthly_cache_dir,
+    ).active_identity(
+        start_date=start_date,
+        end_date=end_date,
+        ensure_current=False,
+    )
     report = {
         "schema": "execution_market_dual_read_v1",
         "status": "passed",
@@ -334,6 +343,7 @@ def load_execution_market_frames(
         "start_date": str(pd.Timestamp(start_date).date()),
         "end_date": str(pd.Timestamp(end_date).date()),
         "requested_codes": len(codes),
+        "monthly_identity": monthly_identity,
         "fields": {},
     }
     try:

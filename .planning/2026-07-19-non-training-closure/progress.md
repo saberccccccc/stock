@@ -242,3 +242,16 @@
   0.674 GiB was available; no Python process remained afterward.
 - Full regression after closure orchestration and source re-hashing passed 643
   tests with the same single pre-existing Pandas FutureWarning.
+- Upgraded the backend policy schema to v2 and froze candidate store/cache
+  roots. Contract, benchmark, clean-matrix, dual-read and closure-controller
+  defaults now consume the policy instead of repeating path literals.
+- Added monthly store/cache identities to exact dual-read reports. Promotion
+  binds the current active manifest and rejects store updates, wrong cache
+  roots and project-path escapes.
+- Updated the NT6 completion definition to use policy/manifest authority and a
+  real monthly-to-legacy-to-monthly recovery drill.
+- Twenty-eight focused identity, policy, dual-read, runner and closure tests
+  passed. The real call-site audit also passed and controller dry-run froze the
+  expected candidate paths.
+- Full regression after the v2 candidate-identity contract passed 646 tests
+  with the same single pre-existing Pandas FutureWarning.

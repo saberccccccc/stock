@@ -197,21 +197,26 @@ Use single-run ledger scripts for diagnosis only. Official evidence uses registr
   frozen Val/Test/Forward baseline universes with the same 3 GiB resource gate.
   The launcher also reserves a measured 0.75 GiB task budget, so it requires
   3.75 GiB before launch rather than consuming the 3 GiB system reserve.
-- `configs/execution_market_backend_policy.json` is the atomic default/rollback
-  pointer. Promotion requires schema- and hash-verified MD6 parity, MD7
-  call-site audit, MD8 clean performance evidence and all three full dual-read
-  reports. MD8 acceptance freezes the SHA-256 of every source performance
-  report and the incremental benchmark; promotion re-hashes the current source
-  files before accepting it. Promotion/rollback transitions preserve append-only
-  from/to/actor/reason/time history. Formal workflows still freeze an explicit
-  backend.
+- `configs/execution_market_backend_policy.json` is the v2 atomic
+  default/rollback and candidate-identity pointer. It freezes the candidate
+  store and monthly-cache roots. Promotion requires schema- and hash-verified
+  MD6 parity, MD7 call-site audit, MD8 clean performance evidence and all three
+  full dual-read reports. MD8 acceptance freezes the SHA-256 of every source
+  performance report and the incremental benchmark; promotion re-hashes the
+  current source files before accepting it. Promotion/rollback transitions
+  preserve append-only from/to/actor/reason/time history. Formal workflows still
+  freeze an explicit backend.
+- Full dual-read reports freeze the actual monthly store/cache identity used by
+  each split. Promotion rejects a changed store manifest, another cache root or
+  paths escaping the project. Authority is therefore assigned by the v2 policy
+  and immutable manifest, not by a directory name containing `candidate`.
 - `run/close_nt6_market_backend.py` is the resumable MD8-MD9 controller. It
   advances incremental evidence, clean replay, acceptance and full dual-read in
   fixed order, honors the 3.75 GiB launch gate and stops at manual promotion;
   it never changes the active backend itself.
 - ADR 0010 requires one physical market store with separate logical DataViews.
-  CSV remains the default parity oracle until Provider, monthly-cache and full
-  24-cell ledger equivalence gates pass.
+  Legacy remains the formal default and CSV remains the direct parity oracle
+  until Provider, monthly-cache and full 24-cell ledger equivalence gates pass.
 - v14 memmap caches: rebuild only for data/feature/label semantic changes.
 - OHLC matrix cache: immutable daily execution inputs.
 - Historical ST contract: `data/raw/st_status_events.csv` plus its manifest;

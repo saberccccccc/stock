@@ -21,6 +21,7 @@ from data.nt6_market_backend_closure import (
     closure_paths,
     inspect_nt6_market_backend_closure,
 )
+from data.execution_market_backend_policy import load_policy
 
 
 DEFAULT_ROOT = (
@@ -97,12 +98,17 @@ def _inspect(args) -> dict:
 
 
 def _command_for_phase(args, phase: str) -> list[str] | None:
+    policy = load_policy(_resolve(args.policy))
+    candidate_store = str(_resolve(policy["candidate_store_root"]))
+    candidate_cache = str(
+        _resolve(policy["candidate_monthly_cache_root"])
+    )
     if phase == "incremental_benchmark":
         return [
             sys.executable,
             "run/benchmark_market_daily_incremental.py",
             "--source-store-root",
-            "data/market_daily_candidate_v2",
+            candidate_store,
             "--output",
             str(_resolve(args.incremental_evidence)),
         ]
@@ -112,6 +118,10 @@ def _command_for_phase(args, phase: str) -> list[str] | None:
             "run/run_open_ledger_backend_parity_matrix.py",
             "--output-root",
             str(_resolve(args.clean_matrix_root)),
+            "--market-daily-store-root",
+            candidate_store,
+            "--ohlc-monthly-cache-dir",
+            candidate_cache,
             "--min-free-memory-gib",
             str(args.min_free_memory_gib),
             "--estimated-peak-memory-gib",
@@ -134,6 +144,10 @@ def _command_for_phase(args, phase: str) -> list[str] | None:
             "run/run_market_data_dual_read_matrix.py",
             "--output-dir",
             str(_resolve(args.dual_read_root)),
+            "--market-daily-store-root",
+            candidate_store,
+            "--ohlc-monthly-cache-dir",
+            candidate_cache,
             "--min-free-memory-gib",
             str(args.min_free_memory_gib),
             "--estimated-peak-memory-gib",

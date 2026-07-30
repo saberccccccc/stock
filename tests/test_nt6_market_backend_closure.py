@@ -1,7 +1,10 @@
 import json
 import hashlib
 
+import pandas as pd
+
 from data.nt6_market_backend_closure import inspect_nt6_market_backend_closure
+from data.market_daily_store import MarketDailyStore
 
 
 def _write(path, value):
@@ -11,10 +14,12 @@ def _write(path, value):
 
 def _policy():
     return {
-        "schema": "execution_market_backend_policy_v1",
+        "schema": "execution_market_backend_policy_v2",
         "state": "legacy_active",
         "active_backend": "legacy",
         "candidate_backend": "monthly",
+        "candidate_store_root": "candidate_store",
+        "candidate_monthly_cache_root": "candidate_cache",
         "rollback_backend": "legacy",
         "shadow_backend": "csv",
         "required_dual_read_splits": [
@@ -35,9 +40,40 @@ def _policy():
 
 
 def _write_complete_evidence(root):
+    store_root = root / "candidate_store"
+    cache_root = root / "candidate_cache"
+    cache_root.mkdir()
+    store = MarketDailyStore(store_root)
+    store.commit_partition(
+        pd.DataFrame(
+            [
+                {
+                    "trade_date": "2026-07-01",
+                    "code": "000001.SZ",
+                    "open": 10.0,
+                    "high": 10.5,
+                    "low": 9.8,
+                    "close": 10.2,
+                    "volume": 1000.0,
+                    "money": 10000.0,
+                    "factor": 1.0,
+                }
+            ]
+        ),
+        instrument_type="equity",
+        source="test",
+    )
+    active = store.active_state()
     _write(
         root / "incremental.json",
-        {"schema": "market_daily_incremental_benchmark_v1", "status": "passed"},
+        {
+            "schema": "market_daily_incremental_benchmark_v1",
+            "status": "passed",
+            "source": {
+                "store_root": str(store_root.resolve()),
+                "manifest_sha256": active["manifest_sha256"],
+            },
+        },
     )
     _write(
         root / "matrix" / "matrix_status.json",
@@ -107,6 +143,11 @@ def _write_complete_evidence(root):
                 "status": "passed",
                 "primary_backend": "monthly",
                 "shadow_backend": "csv",
+                "monthly_identity": {
+                    "store_root": str(store_root.resolve()),
+                    "cache_root": str(cache_root.resolve()),
+                    "months": [{"month": "2026-07"}],
+                },
             },
         )
     _write(root / "policy.json", _policy())

@@ -1,8 +1,10 @@
 {
-  "schema": "execution_market_backend_policy_v1",
+  "schema": "execution_market_backend_policy_v2",
   "state": "legacy_active",
   "active_backend": "legacy",
   "candidate_backend": "monthly",
+  "candidate_store_root": "data/market_daily_candidate_v2",
+  "candidate_monthly_cache_root": "cache/ohlcv_monthly_v3_candidate",
   "rollback_backend": "legacy",
   "shadow_backend": "csv",
   "required_dual_read_splits": [

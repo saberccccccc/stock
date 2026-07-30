@@ -533,15 +533,15 @@ Arrow 分区裁剪
 
 以下条件全部满足才算完成：
 
-1. `data/market_daily` 是唯一权威日线库；
+1. `execution_market_backend_policy_v2` 已将 `monthly` 设为 active，并冻结唯一权威 store/cache 路径和活动 manifest；
 2. selection 和 Forward 使用同一物理库、不同逻辑 DataView；
 3. 每日更新只提交当天分区，不打开 5,000 个股票文件；
 4. OHLC cache 只刷新受影响月份；
-5. 正式入口不再直接依赖每股 CSV；
+5. 正式默认入口不再直接依赖每股 CSV；CSV 只保留为显式 shadow oracle；
 6. 24-cell ledger 行为严格等价；
 7. 16 GiB 机器资源门通过；
 8. manifest、benchmark、ADR、架构和开发日志齐全；
-9. CSV 回退经过演练；
+9. `monthly -> legacy -> monthly` 回退与恢复经过演练，转换历史和证据哈希完整；
 10. 旧 CSV 未经单独空间审计和用户批准不得删除。
 
 ## 14. 时间预算

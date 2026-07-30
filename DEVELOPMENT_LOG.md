@@ -1099,3 +1099,18 @@ Append-only record of material engineering and governance changes. Experiment me
   `ready_for_manual_promotion`; it has no automatic promotion code path.
 - The live run stopped before `clean_matrix` at 0.674 GiB available without
   spawning a child. Fifteen focused tests passed and no Python worker remained.
+
+## 2026-07-31 - NT6 Candidate Identity Contract
+
+- Upgraded `execution_market_backend_policy` to v2. The policy now freezes the
+  monthly candidate store and cache roots instead of relying on repeated path
+  literals.
+- Contract defaults and every MD8/MD9 runner now resolve candidate paths from
+  the policy. Full dual-read reports record the actual monthly identity used.
+- Promotion binds the active store manifest from incremental evidence and
+  rejects a later store update, another cache root or path traversal outside
+  the project.
+- Corrected the NT6 completion definition: authority is policy plus immutable
+  manifest, and the required recovery drill is monthly to legacy to monthly.
+- The current real manifest matches incremental evidence exactly. Twenty-eight
+  focused tests and the real market-data call-site audit passed.

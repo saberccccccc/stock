@@ -48,10 +48,12 @@ def test_execution_market_data_contract_rejects_legacy_dual_read():
 
 def test_configured_default_backend_reads_versioned_policy(tmp_path, monkeypatch):
     policy = {
-        "schema": "execution_market_backend_policy_v1",
+        "schema": "execution_market_backend_policy_v2",
         "state": "monthly_active",
         "active_backend": "monthly",
         "candidate_backend": "monthly",
+        "candidate_store_root": "data/custom_store",
+        "candidate_monthly_cache_root": "cache/custom_monthly",
         "rollback_backend": "legacy",
         "shadow_backend": "csv",
         "required_dual_read_splits": ["val_2024", "test_2025", "forward_2026"],
@@ -62,7 +64,10 @@ def test_configured_default_backend_reads_versioned_policy(tmp_path, monkeypatch
     monkeypatch.setattr(market_contract, "BACKEND_POLICY_PATH", path)
 
     assert market_contract.configured_default_backend() == "monthly"
-    assert ExecutionMarketDataContract().backend == "monthly"
+    contract = ExecutionMarketDataContract()
+    assert contract.backend == "monthly"
+    assert contract.market_daily_store_root == "data/custom_store"
+    assert contract.monthly_cache_root == "cache/custom_monthly"
 
 
 def test_market_data_call_site_policy_passes_for_repository():

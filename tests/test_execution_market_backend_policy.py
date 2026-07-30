@@ -1,6 +1,7 @@
 import json
 import hashlib
 
+import pandas as pd
 import pytest
 
 import backtest.market_data_contract as market_data_contract
@@ -11,14 +12,17 @@ from data.execution_market_backend_policy import (
     rollback_policy,
     write_policy_atomic,
 )
+from data.market_daily_store import MarketDailyStore
 
 
 def _policy():
     return {
-        "schema": "execution_market_backend_policy_v1",
+        "schema": "execution_market_backend_policy_v2",
         "state": "legacy_active",
         "active_backend": "legacy",
         "candidate_backend": "monthly",
+        "candidate_store_root": "candidate_store",
+        "candidate_monthly_cache_root": "candidate_cache",
         "rollback_backend": "legacy",
         "shadow_backend": "csv",
         "required_dual_read_splits": [
@@ -53,6 +57,45 @@ def _write_status(root, relative, status):
     path = root / relative
     value = {"status": status, "schema": SCHEMAS[relative]}
     if relative == "performance.json":
+        store_root = root / "candidate_store"
+        cache_root = root / "candidate_cache"
+        cache_root.mkdir(exist_ok=True)
+        store = MarketDailyStore(store_root)
+        if not store.current_path.is_file():
+            store.commit_partition(
+                pd.DataFrame(
+                    [
+                        {
+                            "trade_date": "2026-07-01",
+                            "code": "000001.SZ",
+                            "open": 10.0,
+                            "high": 10.5,
+                            "low": 9.8,
+                            "close": 10.2,
+                            "volume": 1000.0,
+                            "money": 10000.0,
+                            "factor": 1.0,
+                        }
+                    ]
+                ),
+                instrument_type="equity",
+                source="test",
+            )
+        active = store.active_state()
+        incremental_path = root / "incremental.json"
+        incremental_path.write_text(
+            json.dumps(
+                {
+                    "schema": "market_daily_incremental_benchmark_v1",
+                    "status": "passed",
+                    "source": {
+                        "store_root": str(store_root.resolve()),
+                        "manifest_sha256": active["manifest_sha256"],
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
         evidence_root = root / "performance_sources"
         source_paths = {
             "matrix_status": evidence_root / "matrix_status.json",
@@ -68,11 +111,12 @@ def _write_status(root, relative, status):
             "monthly_forward_2026_performance": (
                 evidence_root / "monthly" / "forward_2026" / "performance.json"
             ),
-            "incremental_benchmark": root / "incremental.json",
+            "incremental_benchmark": incremental_path,
         }
         for key, source_path in source_paths.items():
-            source_path.parent.mkdir(parents=True, exist_ok=True)
-            source_path.write_text(key, encoding="utf-8")
+            if key != "incremental_benchmark":
+                source_path.parent.mkdir(parents=True, exist_ok=True)
+                source_path.write_text(key, encoding="utf-8")
         value["gates"] = {
             key: True
             for key in (
@@ -90,7 +134,17 @@ def _write_status(root, relative, status):
         value["evidence_root"] = str(evidence_root)
         value["incremental"] = {"path": str(root / "incremental.json")}
     if relative.startswith("dual."):
-        value.update({"primary_backend": "monthly", "shadow_backend": "csv"})
+        value.update(
+            {
+                "primary_backend": "monthly",
+                "shadow_backend": "csv",
+                "monthly_identity": {
+                    "store_root": str((root / "candidate_store").resolve()),
+                    "cache_root": str((root / "candidate_cache").resolve()),
+                    "months": [{"month": "2026-07"}],
+                },
+            }
+        )
     path.write_text(json.dumps(value), encoding="utf-8")
 
 
@@ -166,12 +220,69 @@ def test_promotion_rejects_tampered_performance_source(tmp_path):
     ] is False
 
 
+def test_promotion_rejects_candidate_store_changed_after_evidence(tmp_path):
+    policy = _policy()
+    for relative in SCHEMAS:
+        _write_status(tmp_path, relative, "passed")
+    MarketDailyStore(tmp_path / "candidate_store").commit_partition(
+        pd.DataFrame(
+            [
+                {
+                    "trade_date": "2026-07-02",
+                    "code": "000001.SZ",
+                    "open": 10.2,
+                    "high": 10.6,
+                    "low": 10.0,
+                    "close": 10.4,
+                    "volume": 1100.0,
+                    "money": 11000.0,
+                    "factor": 1.0,
+                }
+            ]
+        ),
+        instrument_type="equity",
+        source="test",
+    )
+
+    audit = audit_promotion(tmp_path, policy)
+
+    assert audit["status"] == "blocked"
+    assert audit["checks"]["candidate_identity"]["passed"] is False
+
+
+def test_promotion_rejects_dual_read_from_another_cache(tmp_path):
+    policy = _policy()
+    for relative in SCHEMAS:
+        _write_status(tmp_path, relative, "passed")
+    report = tmp_path / "dual.test.json"
+    value = json.loads(report.read_text())
+    value["monthly_identity"]["cache_root"] = str(tmp_path / "other_cache")
+    report.write_text(json.dumps(value), encoding="utf-8")
+
+    audit = audit_promotion(tmp_path, policy)
+
+    assert audit["status"] == "blocked"
+    assert audit["checks"]["dual_read"]["test_2025"][
+        "candidate_paths_match"
+    ] is False
+
+
 def test_policy_atomic_write_round_trips(tmp_path):
     path = tmp_path / "policy.json"
     write_policy_atomic(path, _policy())
 
     assert load_policy(path)["active_backend"] == "legacy"
     assert not path.with_suffix(".json.tmp").exists()
+
+
+def test_policy_rejects_candidate_path_escape(tmp_path):
+    policy = _policy()
+    policy["candidate_store_root"] = "../other"
+    path = tmp_path / "policy.json"
+    path.write_text(json.dumps(policy), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="safe project-relative"):
+        load_policy(path)
 
 
 def test_promote_then_rollback_preserves_append_only_transition_history(

@@ -20,6 +20,7 @@ if ROOT_STR in sys.path:
 sys.path.insert(0, ROOT_STR)
 
 from core.research_protocol import get_split_spec
+from backtest.market_data_contract import configured_candidate_paths
 from run.audit_open_ledger_backend_parity import ARTIFACT_COLUMNS, compare_sweep_roots
 
 
@@ -146,6 +147,7 @@ def sweep_is_complete(root: Path) -> bool:
 
 
 def parse_args(argv=None):
+    configured_store, configured_cache = configured_candidate_paths()
     parser = argparse.ArgumentParser(
         description="Run fixed CSV/monthly 24-cell open-ledger parity."
     )
@@ -160,11 +162,11 @@ def parse_args(argv=None):
     parser.add_argument("--forward-data-dir", default="data/forward_raw")
     parser.add_argument(
         "--market-daily-store-root",
-        default="data/market_daily_candidate_v2",
+        default=configured_store,
     )
     parser.add_argument(
         "--ohlc-monthly-cache-dir",
-        default="cache/ohlcv_monthly_v3_candidate",
+        default=configured_cache,
     )
     parser.add_argument("--min-free-memory-gib", type=float, default=3.0)
     parser.add_argument("--estimated-peak-memory-gib", type=float, default=0.75)

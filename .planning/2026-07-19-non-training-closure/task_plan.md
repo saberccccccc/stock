@@ -29,6 +29,9 @@ benchmark now passes daily commit, affected-month refresh, warm-cache,
 partition-coverage, I/O and integrity gates. The migrated Parquet store remains
 a non-authoritative candidate until the clean 24-cell I/O matrix and MD9
 Val/Test/Forward dual-read evidence complete.
+The v2 backend policy freezes candidate store/cache paths, and promotion
+requires the current active manifest plus every full dual-read identity to
+match those paths exactly.
 NT3 dry-run remains the parity oracle and resumes only after NT6 performance
 work passes its behavior-equivalence gate.
 

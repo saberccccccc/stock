@@ -19,7 +19,10 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from alpha.io import load_alpha_rows
-from backtest.market_data_contract import ExecutionMarketDataContract
+from backtest.market_data_contract import (
+    ExecutionMarketDataContract,
+    configured_candidate_paths,
+)
 from backtest.open_ledger import infer_ohlc_load_window, load_execution_market_frames
 from core.research_protocol import get_split_spec
 from run.run_open_ledger_backend_parity_matrix import ALPHA_ROOT, SPLITS
@@ -51,14 +54,15 @@ def _report_passed(path):
 
 
 def parse_args(argv=None):
+    configured_store, configured_cache = configured_candidate_paths()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--research-data-dir", default="data/raw")
     parser.add_argument("--forward-data-dir", default="data/forward_raw")
     parser.add_argument(
-        "--market-daily-store-root", default="data/market_daily_candidate_v2"
+        "--market-daily-store-root", default=configured_store
     )
     parser.add_argument(
-        "--ohlc-monthly-cache-dir", default="cache/ohlcv_monthly_v3_candidate"
+        "--ohlc-monthly-cache-dir", default=configured_cache
     )
     parser.add_argument(
         "--output-dir",
