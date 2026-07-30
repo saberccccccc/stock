@@ -264,3 +264,12 @@
   with the same single pre-existing Pandas FutureWarning.
 - Added ADR 0011 to govern policy-v2 promotion and supersede ADR 0010's stale
   CSV rollback clause without rewriting ADR history.
+- Fixed the MD9 matrix's real-runtime alpha date normalization and added a
+  regression covering mixed string and pandas timestamp inputs.
+- Eighteen focused tests passed, followed by 649 full repository tests with the
+  same single pre-existing Pandas FutureWarning.
+- Resumed the closure controller from its persisted MD8 evidence. It skipped
+  the accepted clean matrix and completed Val 2024, Test 2025 and Forward 2026
+  dual-read reports in 94.4 seconds.
+- All dual-read and promotion-audit gates passed. The controller stopped at
+  `ready_for_manual_promotion` as designed; the active backend is still legacy.

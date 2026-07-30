@@ -12,6 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import psutil
+import pandas as pd
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -51,6 +52,16 @@ def _report_passed(path):
         return json.loads(path.read_text(encoding="utf-8-sig")).get("status") == "passed"
     except (OSError, ValueError):
         return False
+
+
+def _filter_alpha_rows(rows, *, start_date, end_date):
+    start = pd.Timestamp(start_date).normalize()
+    end = pd.Timestamp(end_date).normalize()
+    return [
+        row
+        for row in rows
+        if start <= pd.Timestamp(row["date"]).normalize() <= end
+    ]
 
 
 def parse_args(argv=None):
@@ -115,11 +126,11 @@ def main(argv=None):
             spec = get_split_spec(split)
             start, end, max_date = spec.command_dates()
             alpha_path = ALPHA_ROOT / split / "alpha_policy.jsonl"
-            rows = [
-                row
-                for row in load_alpha_rows(alpha_path)
-                if start <= str(row["date"].date()) <= end
-            ]
+            rows = _filter_alpha_rows(
+                load_alpha_rows(alpha_path),
+                start_date=start,
+                end_date=end,
+            )
             codes = sorted({code for row in rows for code in row["codes"]})
             load_start, load_end = infer_ohlc_load_window(
                 rows, max_data_date=max_date, execution_lag=0, lookback_days=160

@@ -205,3 +205,13 @@
   ADR history append-only, so ADR 0011 now supersedes only those switch/rollback
   clauses and records policy v2, identity-bound manual promotion, legacy
   rollback and the required monthly recovery drill.
+- The first real MD9 dual-read launch exposed a date representation mismatch:
+  `load_alpha_rows` returned ISO strings in this entry point while the matrix
+  runner assumed every value exposed `.date()`. The runner now normalizes both
+  strings and pandas timestamps before applying split boundaries.
+- The resumed controller reused the completed MD8 artifacts and completed all
+  three full dual-read splits. Val 2024, Test 2025 and Forward 2026 passed exact
+  equivalence, candidate-path matching and candidate-identity checks.
+- The combined promotion audit now passes every MD6-MD9 gate and the closure
+  status is `ready_for_manual_promotion`. The formal backend remains `legacy`;
+  no automatic transition occurred.

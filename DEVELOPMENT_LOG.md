@@ -1121,3 +1121,17 @@ Append-only record of material engineering and governance changes. Experiment me
 - Twenty-nine Workflow/Shadow/Contract tests and the call-site audit passed.
 - Added ADR 0011 for identity-bound manual promotion, legacy rollback and CSV
   shadow-oracle semantics, superseding only ADR 0010's stale switching clauses.
+
+## 2026-07-31 - NT6 Full Dual-Read Acceptance
+
+- Fixed the full dual-read matrix to normalize alpha dates before split
+  filtering. The real loader can provide ISO strings, while the runner had
+  incorrectly assumed pandas timestamps.
+- Added a mixed string/timestamp regression. Eighteen focused tests and all 649
+  repository tests passed; the only warning remains the existing Pandas
+  `groupby(observed=...)` FutureWarning.
+- Resumed the closure controller without repeating accepted MD8 work. Exact
+  monthly-versus-CSV dual-read passed for Val 2024, Test 2025 and Forward 2026,
+  including frozen candidate store/cache identity checks.
+- The identity-bound promotion audit passed and the controller stopped at
+  `ready_for_manual_promotion`. No automatic backend transition was performed.
