@@ -215,6 +215,19 @@ def test_audit_validates_active_manifest_graph(tmp_path):
     assert result["physical_hashes_verified"] is True
 
 
+def test_active_state_does_not_require_partition_scan(tmp_path, monkeypatch):
+    store = MarketDailyStore(tmp_path)
+    store.commit_partition(
+        _frame(), instrument_type="equity", source="tushare_daily"
+    )
+
+    monkeypatch.setattr("data.market_daily_store.pq.read_metadata", lambda path: (_ for _ in ()).throw(AssertionError(path)))
+    result = store.active_state()
+
+    assert result["generation"] == 1
+    assert result["coverage"]["equity"]["rows"] == 2
+
+
 def test_audit_rejects_corrupt_active_partition(tmp_path):
     store = MarketDailyStore(tmp_path)
     committed = store.commit_partition(

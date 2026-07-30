@@ -76,3 +76,11 @@
 - One-time migration produced one immutable generation per trading day. This is
   acceptable evidence history for the candidate; normal daily ingestion creates
   only one new generation, and query cost follows the 199 active month indexes.
+- Tushare `index_daily` requires `ts_code`; the current account permits one call
+  per minute, so four serial broad-index requests are not an efficient default.
+  The accepted MD3 composition is Tushare for the full A-share daily cross-section
+  and AkShare for the four existing broad-index symbols.
+- The real 2026-07-29 Tushare cross-section has 5,524 rows versus the 5,313 codes
+  present in the migrated local CSV date. MD4 must compare requested/intersecting
+  codes and expose universe additions separately; it must not assert equal global
+  row counts between the legacy compatibility universe and the new authority.

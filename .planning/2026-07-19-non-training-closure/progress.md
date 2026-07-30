@@ -87,3 +87,20 @@
   including immutable history and migration progress, is 561,081,706 bytes.
 - Added corruption tests for active partitions and month indexes. CSV remains
   the parity oracle and rollback path; MD3 is the next implementation unit.
+- Completed MD3 with an isolated real-data pilot for 2026-07-29. Tushare daily
+  supplied 5,524 equities and AkShare supplied the four frozen broad indices;
+  both active coverages end on the requested date.
+- The first real pilot correctly failed before any commit because this Tushare
+  account permits only one `index_daily` request per minute and the endpoint
+  requires one index code. The production default now composes Tushare equity
+  with the project's established AkShare broad-index API; Tushare index mode
+  remains explicit for higher-quota accounts.
+- AkShare broad-index history does not expose turnover amount. Index `money`
+  is therefore stored as zero with the mandatory progress semantic
+  `source_unavailable_filled_zero`; it must not be consumed as observed amount.
+- Replaying the same real date under a fresh progress manifest returned
+  `already_present` for both partitions and left generation 2 and manifest hash
+  unchanged. The physical-hash audit passed for both active partitions.
+- Daily completion now records a hash-verified root snapshot instead of scanning
+  every historical Parquet file. Full partition audits remain explicit CLI
+  acceptance/maintenance operations. MD4 Provider parity is next.

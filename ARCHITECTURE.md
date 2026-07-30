@@ -158,6 +158,11 @@ Use single-run ledger scripts for diagnosis only. Official evidence uses registr
   daily store. It validates one-date partitions, writes deterministic Parquet
   payloads, preserves revisions by content hash, verifies immutable manifests
   and changes the active generation only through `CURRENT`.
+- `data/market_daily_migration.py` performs resumable year/month migration and
+  exact CSV parity audits. `data/market_daily_update.py` is the MD3 candidate
+  writer: Tushare supplies the A-share cross-section, an interchangeable index
+  client supplies four frozen broad indices, and each run records source,
+  coverage and amount semantics. Neither module changes the formal backend.
 - ADR 0010 requires one physical market store with separate logical DataViews.
   CSV remains the default parity oracle until Provider, monthly-cache and full
   24-cell ledger equivalence gates pass.

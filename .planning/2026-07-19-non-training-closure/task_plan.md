@@ -22,8 +22,8 @@ resuming, or tuning any model training job.
 - [ ] NT8: close Registry, reports, documentation, archive, and tests.
 - [ ] NT9: issue one GO/HOLD/STOP decision and a pre-registered next-study draft.
 
-Current implementation unit: NT6 MD3 daily Parquet incremental update. MD0-MD2
-are complete; the migrated Parquet store remains a non-authoritative candidate.
+Current implementation unit: NT6 MD4 Provider dual-read parity. MD0-MD3 are
+complete; the migrated Parquet store remains a non-authoritative candidate.
 NT3 dry-run remains the parity oracle and resumes only after NT6 performance
 work passes its behavior-equivalence gate.
 

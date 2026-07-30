@@ -920,3 +920,21 @@ Append-only record of material engineering and governance changes. Experiment me
 - Focused MD0, MD1 and compatibility tests passed 23/23; the full suite passed
   576 tests with one pre-existing pandas FutureWarning. No full migration,
   matrix rebuild, ledger replay, training or lifecycle transition ran.
+
+## 2026-07-30 - NT6 MD2 And MD3
+
+- Migrated 13,313,700 legacy CSV rows from 2010-01-04 through 2026-07-29 into
+  4,023 daily candidate Parquet partitions. All 17 annual exact comparisons and
+  the complete CURRENT/root/month-index/partition hash audit passed.
+- Added a resumable direct daily writer with strict prevalidation, progress
+  locking, explicit revisions, partial-failure evidence and lightweight active
+  state snapshots. The formal CSV backend remains unchanged.
+- A real isolated 2026-07-29 pilot committed 5,524 Tushare equity rows and four
+  AkShare broad indices in about six seconds. A fresh-progress replay was a
+  content no-op and retained the same active manifest hash.
+- Tushare `index_daily` is code-specific and rate-limited to one call per minute
+  for the current account. AkShare is therefore the default broad-index client;
+  its unavailable amount is explicitly recorded as a zero placeholder, not an
+  observed value. Tushare index mode remains opt-in.
+- MD4 Provider dual-read parity is the next gate. No cache switch, ledger replay,
+  training, Registry mutation or lifecycle transition ran.

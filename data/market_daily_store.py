@@ -307,6 +307,19 @@ class MarketDailyStore:
         index = self._load_month_index(index_record)
         return index.get("partitions", {}).get(date.strftime("%Y%m%d"))
 
+    def active_state(self) -> dict[str, Any]:
+        """Return the hash-verified active root state without scanning partitions."""
+        manifest, manifest_path = self.load_manifest()
+        if manifest is None or manifest_path is None:
+            raise ValueError("market-daily store has no active manifest")
+        return {
+            "manifest": manifest_path.relative_to(self.root).as_posix(),
+            "manifest_sha256": _sha256_file(manifest_path),
+            "generation": int(manifest["generation"]),
+            "coverage": manifest.get("coverage", {}),
+            "active_months": len(manifest.get("monthly_indexes", {})),
+        }
+
     def audit(self, *, verify_physical_hashes: bool = True) -> dict[str, Any]:
         """Validate the complete active manifest graph without loading bar values."""
         manifest, manifest_path = self.load_manifest()
@@ -410,11 +423,8 @@ class MarketDailyStore:
 
         return {
             "status": "passed",
-            "manifest": manifest_path.relative_to(self.root).as_posix(),
-            "manifest_sha256": _sha256_file(manifest_path),
-            "generation": int(manifest["generation"]),
+            **self.active_state(),
             "coverage": expected_coverage,
-            "active_months": len(audited_months),
             "active_partitions": active_partitions,
             "active_rows": active_rows,
             "active_bytes": active_bytes,

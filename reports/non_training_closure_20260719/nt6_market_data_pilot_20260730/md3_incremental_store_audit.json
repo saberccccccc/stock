@@ -1,0 +1,27 @@
+{
+  "active_bytes": 170446,
+  "active_months": 2,
+  "active_partitions": 2,
+  "active_rows": 5528,
+  "coverage": {
+    "equity": {
+      "date_end": "2026-07-29",
+      "date_start": "2026-07-29",
+      "months": 1,
+      "partitions": 1,
+      "rows": 5524
+    },
+    "index": {
+      "date_end": "2026-07-29",
+      "date_start": "2026-07-29",
+      "months": 1,
+      "partitions": 1,
+      "rows": 4
+    }
+  },
+  "generation": 2,
+  "manifest": "manifests/manifest-14294f842388bf096e06b726b85cf3eeb399d73d6d0c907ba3e7b8f914124689.json",
+  "manifest_sha256": "14294f842388bf096e06b726b85cf3eeb399d73d6d0c907ba3e7b8f914124689",
+  "physical_hashes_verified": true,
+  "status": "passed"
+}
