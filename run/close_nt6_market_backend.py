@@ -164,7 +164,12 @@ def main(argv=None):
     status["commands"] = []
     required_gib = args.min_free_memory_gib + args.estimated_peak_memory_gib
 
-    while status["status"] != "ready_for_manual_promotion":
+    terminal_statuses = {
+        "ready_for_manual_promotion",
+        "recovery_drill_required",
+        "completed",
+    }
+    while status["status"] not in terminal_statuses:
         phase = status["next_phase"]
         command = _command_for_phase(args, phase)
         if command is None:

@@ -25,9 +25,9 @@
     "run/sweep_open_ledger_params.py": "historical reproducibility script"
   },
   "policy": {
-    "formal_default_backend": "legacy",
+    "formal_default_backend": "monthly",
     "candidate_backend": "monthly",
-    "default_switch_stage": "MD9",
+    "default_switch_stage": "MD9_completed",
     "new_legacy_internal_imports": "forbidden_without_policy_update"
   }
 }

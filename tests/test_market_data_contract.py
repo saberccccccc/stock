@@ -11,8 +11,8 @@ from data.market_data_access_audit import audit_market_data_call_sites
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_execution_market_data_contract_is_explicit_and_legacy_by_default():
-    contract = ExecutionMarketDataContract()
+def test_execution_market_data_contract_supports_explicit_legacy_rollback():
+    contract = ExecutionMarketDataContract(backend="legacy")
 
     assert contract.backend == "legacy"
     assert contract.cli_args()[1] == "legacy"
@@ -66,6 +66,7 @@ def test_configured_default_backend_reads_versioned_policy(tmp_path, monkeypatch
     assert market_contract.configured_default_backend() == "monthly"
     contract = ExecutionMarketDataContract()
     assert contract.backend == "monthly"
+    assert contract.manifest()["data_role"] == "monthly_authoritative"
     assert contract.market_daily_store_root == "data/custom_store"
     assert contract.monthly_cache_root == "cache/custom_monthly"
 
@@ -74,8 +75,8 @@ def test_market_data_call_site_policy_passes_for_repository():
     result = audit_market_data_call_sites(ROOT)
 
     assert result["status"] == "passed"
-    assert result["formal_default_backend"] == "legacy"
-    assert result["default_switch_stage"] == "MD9"
+    assert result["formal_default_backend"] == "monthly"
+    assert result["default_switch_stage"] == "MD9_completed"
     assert result["unregistered_legacy_imports"] == []
     assert all(row["status"] == "ok" for row in result["formal_contract_entrypoints"])
     assert all(row["status"] == "ok" for row in result["artifact_only_consumers"])

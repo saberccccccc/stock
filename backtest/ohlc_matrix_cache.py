@@ -65,10 +65,15 @@ def cache_paths(cache_dir):
 
 def _read_trade_dates(path):
     try:
-        frame = pd.read_csv(path, usecols=["trade_date"], parse_dates=["trade_date"])
+        frame = pd.read_csv(path, usecols=["trade_date"])
     except Exception:
         return []
-    return pd.to_datetime(frame["trade_date"]).dropna().dt.normalize().tolist()
+    dates = pd.to_datetime(
+        frame["trade_date"],
+        format="mixed",
+        errors="coerce",
+    )
+    return dates.dropna().dt.normalize().tolist()
 
 
 def _read_ohlc_frame(path):
@@ -76,10 +81,13 @@ def _read_ohlc_frame(path):
         path,
         usecols=lambda col: str(col).strip().lower()
         in {"trade_date", *RAW_FIELDS},
-        parse_dates=["trade_date"],
     )
     frame.columns = frame.columns.str.strip().str.lower()
-    frame["trade_date"] = pd.to_datetime(frame["trade_date"]).dt.normalize()
+    frame["trade_date"] = pd.to_datetime(
+        frame["trade_date"],
+        format="mixed",
+        errors="coerce",
+    ).dt.normalize()
     frame = frame.dropna(subset=["trade_date"])
     return frame.sort_values("trade_date")
 

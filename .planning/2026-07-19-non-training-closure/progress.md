@@ -273,3 +273,20 @@
   dual-read reports in 94.4 seconds.
 - All dual-read and promotion-audit gates passed. The controller stopped at
   `ready_for_manual_promotion` as designed; the active backend is still legacy.
+- Performed the initial governed promotion and a real monthly read for
+  `000001.SZ` over 2026-06-01 through 2026-06-05; all five opens were present.
+- Rolled back through the official policy manager. The first legacy smoke
+  exposed mixed-format date parsing in the compatibility matrix cache, while
+  still returning correct data through its CSV fallback.
+- Added mixed-date parsing and regression coverage. Twenty-one focused tests
+  passed, and the real legacy matrix was rebuilt for 5,332 equities across
+  4,023 dates. The repeated smoke then used the matrix and matched monthly.
+- Updated post-switch call-site governance to monthly, regenerated its audit
+  and restored monthly using the new evidence hash.
+- Extended the read-only closure inspector to verify the historical recovery
+  sequence, promotion identity and the final transition against current audit
+  hashes. The live closure status is now `completed`.
+- Marked NT6 complete in the active plan. The next fixed non-training unit is
+  NT3 formal-baseline replay; no model training or tuning ran during NT6.
+- Final post-switch regression passed 651 tests with the same single existing
+  Pandas FutureWarning.

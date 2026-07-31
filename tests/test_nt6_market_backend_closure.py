@@ -4,6 +4,7 @@ import hashlib
 import pandas as pd
 
 from data.nt6_market_backend_closure import inspect_nt6_market_backend_closure
+from data.execution_market_backend_policy import promote_policy, rollback_policy
 from data.market_daily_store import MarketDailyStore
 
 
@@ -182,4 +183,55 @@ def test_closure_stops_at_manual_promotion_gate(tmp_path):
     assert result["status"] == "ready_for_manual_promotion"
     assert result["next_phase"] == "manual_promotion"
     assert result["promotion_audit"]["status"] == "passed"
+    assert result["recovery_drill"]["status"] == "incomplete"
     assert result["automatic_promotion"] is False
+
+
+def test_closure_requires_and_recognizes_full_recovery_drill(tmp_path):
+    _write_complete_evidence(tmp_path)
+    initial = _inspect(tmp_path)
+    policy_path = tmp_path / "policy.json"
+    policy = json.loads(policy_path.read_text(encoding="utf-8"))
+
+    policy = promote_policy(
+        policy,
+        initial["promotion_audit"],
+        actor="tester",
+        reason="initial promotion",
+        changed_at="2026-07-31T00:00:00+00:00",
+    )
+    _write(policy_path, policy)
+    promoted = _inspect(tmp_path)
+    assert promoted["status"] == "recovery_drill_required"
+    assert promoted["next_phase"] == "rollback_recovery_drill"
+
+    policy = rollback_policy(
+        policy,
+        actor="tester",
+        reason="recovery rollback",
+        changed_at="2026-07-31T00:01:00+00:00",
+    )
+    _write(policy_path, policy)
+    rolled_back = _inspect(tmp_path)
+    policy = promote_policy(
+        policy,
+        rolled_back["promotion_audit"],
+        actor="tester",
+        reason="recovery restoration",
+        changed_at="2026-07-31T00:02:00+00:00",
+    )
+    _write(policy_path, policy)
+
+    completed = _inspect(tmp_path)
+
+    assert completed["status"] == "completed"
+    assert completed["next_phase"] == "complete"
+    assert completed["recovery_drill"] == {
+        "status": "passed",
+        "passed": True,
+        "sequence_matches": True,
+        "promotion_identity_matches": True,
+        "final_evidence_matches": True,
+        "final_state_matches": True,
+        "transition_count": 3,
+    }

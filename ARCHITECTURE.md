@@ -159,24 +159,26 @@ Use single-run ledger scripts for diagnosis only. Official evidence uses registr
   payloads, preserves revisions by content hash, verifies immutable manifests
   and changes the active generation only through `CURRENT`.
 - `data/market_daily_migration.py` performs resumable year/month migration and
-  exact CSV parity audits. `data/market_daily_update.py` is the MD3 candidate
+  exact CSV parity audits. `data/market_daily_update.py` is the MD3 governed
   writer: Tushare supplies the A-share cross-section, an interchangeable index
   client supplies four frozen broad indices, and each run records source,
-  coverage and amount semantics. Neither module changes the formal backend.
+  coverage and amount semantics. Backend authority changes only through the
+  execution-market policy manager.
 - `CsvMarketDailyBackend` and `ParquetMarketDailyBackend` now implement the same
   long-form storage contract behind `MarketDailyProvider`. The provider enforces
   DataView bounds and returns field-keyed date-by-code matrices compatible with
-  the existing OHLC facade. CSV remains the configured oracle until monthly
-  cache and ledger parity are complete.
+  the existing OHLC facade. Monthly is the formal backend; CSV remains an
+  explicit read-only parity oracle.
 - `backtest/monthly_ohlcv_cache.py` is the MD5 execution-read layer. Each month
   is bound to one immutable source month-index hash, written through a staged
   content-addressed generation and selected by an atomic CURRENT pointer.
   Cross-month derived fields are computed after stitching. Basic OHLC/volume
   masks remain distinct from full ST, listing-age and price-limit eligibility.
-- MD6 keeps execution storage selection explicit: `legacy` is the unchanged
-  formal default, `csv` is the direct parity oracle, and `monthly` is the
-  candidate. Both ledger CLIs record the selected backend; monthly realistic
+- Execution storage selection remains explicit: `monthly` is the governed
+  formal default, `legacy` is the rollback backend, and `csv` is the direct
+  parity oracle. Both ledger CLIs record the selected backend; monthly realistic
   masks bind their cache key to each active immutable monthly generation.
+  Contract manifests describe this role as `monthly_authoritative`.
 - `run/run_open_ledger_backend_parity_matrix.py` freezes the one-candidate,
   three-split, four-stress, two-capital 24-cell contract and resumes only
   incomplete sweep roots. `run/audit_open_ledger_backend_parity.py` compares
@@ -204,8 +206,8 @@ Use single-run ledger scripts for diagnosis only. Official evidence uses registr
   full dual-read reports. MD8 acceptance freezes the SHA-256 of every source
   performance report and the incremental benchmark; promotion re-hashes the
   current source files before accepting it. Promotion/rollback transitions
-  preserve append-only from/to/actor/reason/time history. Formal workflows still
-  freeze an explicit backend.
+  preserve append-only from/to/actor/reason/time history. The active state is
+  `monthly_active`; formal workflows still freeze an explicit backend.
 - ADR 0011 supersedes ADR 0010 only for default-switch and rollback semantics:
   legacy is the rollback target, CSV is the shadow oracle, and promotion is
   manual and identity-bound.
@@ -215,11 +217,12 @@ Use single-run ledger scripts for diagnosis only. Official evidence uses registr
   and immutable manifest, not by a directory name containing `candidate`.
 - `run/close_nt6_market_backend.py` is the resumable MD8-MD9 controller. It
   advances incremental evidence, clean replay, acceptance and full dual-read in
-  fixed order, honors the 3.75 GiB launch gate and stops at manual promotion;
-  it never changes the active backend itself.
+  fixed order, honors the 3.75 GiB launch gate, stops for manual transitions and
+  recognizes the completed recovery drill; it never changes the active backend
+  itself.
 - ADR 0010 requires one physical market store with separate logical DataViews.
-  Legacy remains the formal default and CSV remains the direct parity oracle
-  until Provider, monthly-cache and full 24-cell ledger equivalence gates pass.
+  Those Provider, monthly-cache and full 24-cell equivalence gates passed before
+  monthly promotion. Legacy and CSV remain rollback and parity facilities.
 - v14 memmap caches: rebuild only for data/feature/label semantic changes.
 - OHLC matrix cache: immutable daily execution inputs.
 - Historical ST contract: `data/raw/st_status_events.csv` plus its manifest;

@@ -17,23 +17,20 @@ resuming, or tuning any model training job.
 - [ ] NT3: replay the formal baseline through the fixed 24-cell contract.
 - [ ] NT4: qualify and fairly replay existing candidates only.
 - [ ] NT5: complete APM, risk, portfolio, and execution attribution.
-- [ ] NT6: optimize backtest runtime with strict behavioral parity.
+- [x] NT6: optimize backtest runtime with strict behavioral parity.
 - [ ] NT7: run prepared-only Shadow replay and failure drills.
 - [ ] NT8: close Registry, reports, documentation, archive, and tests.
 - [ ] NT9: issue one GO/HOLD/STOP decision and a pre-registered next-study draft.
 
-Current implementation unit: NT6 MD8 clean ledger evidence. MD0-MD7 are
-complete, including exact 24-cell CSV/monthly ledger equivalence and governed
-Workflow/Shadow call-site consolidation. The isolated full-scale incremental
-benchmark now passes daily commit, affected-month refresh, warm-cache,
-partition-coverage, I/O and integrity gates. The migrated Parquet store remains
-a non-authoritative candidate until the clean 24-cell I/O matrix and MD9
-Val/Test/Forward dual-read evidence complete.
-The v2 backend policy freezes candidate store/cache paths, and promotion
-requires the current active manifest plus every full dual-read identity to
-match those paths exactly.
-NT3 dry-run remains the parity oracle and resumes only after NT6 performance
-work passes its behavior-equivalence gate.
+NT6 is complete. The v2 policy now activates the identity-bound monthly backend;
+MD8 clean performance acceptance, Val/Test/Forward full dual-read, the 24-cell
+equivalence matrix and the monthly-to-legacy-to-monthly recovery drill all
+passed. CSV remains the read-only oracle and the 5,332 legacy stock files were
+not deleted.
+
+Next fixed implementation unit: resume NT3 formal-baseline replay through the
+same 24-cell contract. NT6 artifacts and backend policy are frozen inputs, not a
+new parameter-search surface.
 
 ## Constraints
 

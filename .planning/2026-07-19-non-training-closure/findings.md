@@ -215,3 +215,19 @@
 - The combined promotion audit now passes every MD6-MD9 gate and the closure
   status is `ready_for_manual_promotion`. The formal backend remains `legacy`;
   no automatic transition occurred.
+- The first real rollback smoke returned correct data but exposed an inefficient
+  fallback: the legacy matrix builder could not parse CSV files mixing date-only
+  and midnight timestamp strings under current pandas parsing rules.
+- Legacy cache ingestion now parses mixed date formats explicitly and coerces
+  malformed rows to missing. A real rebuild covered 5,332 equities and 4,023
+  trading dates, after which the rollback smoke loaded the requested five rows
+  directly from the matrix cache with the same first open price as monthly.
+- Post-switch governance previously still declared legacy as the formal
+  default, and the closure controller did not recognize a completed manual
+  transition. The call-site policy now declares monthly at `MD9_completed`;
+  the controller has separate ready, recovery-required and completed terminal
+  states.
+- Completion requires both a historical identity-consistent
+  promote/rollback/promote sequence and a final promotion bound to the current
+  evidence hashes. The live closure report passes both checks with five
+  append-only transitions.

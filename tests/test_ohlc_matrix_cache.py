@@ -97,3 +97,32 @@ def test_ohlc_matrix_cache_invalidates_when_source_changes(tmp_path):
         pd.Timestamp("2025-01-02"),
         pd.Timestamp("2025-01-03"),
     ]
+
+
+def test_ohlc_matrix_cache_accepts_mixed_trade_date_formats(tmp_path):
+    data_dir = tmp_path / "raw"
+    cache_dir = tmp_path / "matrix"
+    data_dir.mkdir()
+    (data_dir / "000001.SZ.csv").write_text(
+        "trade_date,open,high,low,close,volume,money\n"
+        "2025-01-02,10,11,9,10.5,1000,100\n"
+        "2025-01-03 00:00:00,11,12,10,11.5,1200,120\n"
+        "invalid,12,13,11,12.5,1400,140\n",
+        encoding="utf-8",
+    )
+
+    meta = build_ohlc_matrix_cache(data_dir, cache_dir, progress_every=0)
+    frames = load_ohlcv_fields_from_matrix_cache(
+        data_dir,
+        cache_dir,
+        ["000001.SZ"],
+        fields=("open", "close"),
+        progress_every=0,
+    )
+
+    assert meta["dates"] == ["2025-01-02", "2025-01-03"]
+    assert frames["open"].index.tolist() == [
+        pd.Timestamp("2025-01-02"),
+        pd.Timestamp("2025-01-03"),
+    ]
+    assert frames["close"].iloc[:, 0].tolist() == [10.5, 11.5]

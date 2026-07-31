@@ -4,7 +4,10 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from backtest.market_data_contract import ExecutionMarketDataContract
+from backtest.market_data_contract import (
+    ExecutionMarketDataContract,
+    configured_default_backend,
+)
 from experiments.recording import sha256_file
 from experiments.shadow_daily import (
     _replay_market_data_contract,
@@ -182,7 +185,7 @@ def test_prepared_lifecycle_rejects_formal_observation_but_allows_replay(tmp_pat
     validated = validate_daily_shadow_run(run_dir)
     assert manifest.is_file()
     assert validated["recorded_to_lifecycle"] is False
-    assert validated["market_data"]["backend"] == "legacy"
+    assert validated["market_data"]["backend"] == configured_default_backend()
 
 
 def test_historical_monthly_replay_requires_frozen_candidate_paths():

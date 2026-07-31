@@ -102,7 +102,7 @@ class ExecutionMarketDataContract:
                 if self.backend == "legacy"
                 else "csv_parity_oracle"
                 if self.backend == "csv"
-                else "monthly_candidate"
+                else "monthly_authoritative"
             ),
             "market_daily_store_root": (
                 display(self.market_daily_store_root) if self.backend == "monthly" else ""
@@ -123,7 +123,10 @@ def add_execution_market_data_args(parser, *, default_backend: str | None = None
         "--ohlc-backend",
         choices=OHLC_BACKENDS,
         default=default_backend or configured_default_backend(),
-        help="Execution-data backend. legacy remains the formal default until MD9.",
+        help=(
+            "Execution-data backend. The governed policy selects the formal "
+            "default; legacy remains the rollback backend."
+        ),
     )
     parser.add_argument(
         "--market-daily-store-root",

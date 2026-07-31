@@ -1,25 +1,127 @@
 {
-  "schema": "execution_market_backend_policy_v2",
-  "state": "legacy_active",
-  "active_backend": "legacy",
+  "active_backend": "monthly",
   "candidate_backend": "monthly",
-  "candidate_store_root": "data/market_daily_candidate_v2",
   "candidate_monthly_cache_root": "cache/ohlcv_monthly_v3_candidate",
-  "rollback_backend": "legacy",
-  "shadow_backend": "csv",
+  "candidate_store_root": "data/market_daily_candidate_v2",
+  "evidence": {
+    "behavior_parity": "reports/non_training_closure_20260719/nt6_market_data_pilot_20260730/md6_ledger_backend_parity/matrix_status.json",
+    "call_site_audit": "reports/non_training_closure_20260719/nt6_market_data_pilot_20260730/md7_call_site_consolidation/call_site_audit.json",
+    "dual_read_reports": {
+      "forward_2026": "reports/non_training_closure_20260719/nt6_market_data_pilot_20260730/md9_dual_read_observation/dual_read.forward_2026.json",
+      "test_2025": "reports/non_training_closure_20260719/nt6_market_data_pilot_20260730/md9_dual_read_observation/dual_read.test_2025.json",
+      "val_2024": "reports/non_training_closure_20260719/nt6_market_data_pilot_20260730/md9_dual_read_observation/dual_read.val_2024.json"
+    },
+    "performance_acceptance": "reports/non_training_closure_20260719/nt6_market_data_pilot_20260730/md8_performance_acceptance/clean_acceptance.json"
+  },
+  "last_transition": {
+    "action": "promote",
+    "actor": "codex",
+    "candidate_manifest_sha256": "b9596fda3b803cd639d4bfd6ead9fd458cf8c7dc4ef67e9c454b2a25e9ee692a",
+    "candidate_monthly_cache_root": "cache/ohlcv_monthly_v3_candidate",
+    "candidate_store_root": "data/market_daily_candidate_v2",
+    "changed_at": "2026-07-30T18:59:36+00:00",
+    "dual_read_sha256": {
+      "forward_2026": "880e41c3797dcbd1415a11fb4c27120b623fbb2ecaebc5fabd577fe5b6e8f823",
+      "test_2025": "25a328f7ee3a12887c6dc2cfc806beac3edb992215bd522a7c417bbe060d2771",
+      "val_2024": "7c36b8cb906b8bd3daed31334c7338dce0feaf0023bb40b7fd14049805d26406"
+    },
+    "evidence_sha256": {
+      "behavior_parity": "3ef4f5cdbd70e0b09d80be7cac83de24c0a71e19360150c61f01a76ec8662ab4",
+      "call_site_audit": "faa9c5e85e3b0085272ae06e6a41395bde8360f3be5b7d13bcb5add60d12b7e3",
+      "performance_acceptance": "be125e01e452774b5c315938016aab485f1ea01c820be0a6dbb24a044d48c98e"
+    },
+    "from_backend": "legacy",
+    "reason": "Restore monthly backend with current MD9-completed call-site audit hash",
+    "to_backend": "monthly"
+  },
   "required_dual_read_splits": [
     "val_2024",
     "test_2025",
     "forward_2026"
   ],
-  "evidence": {
-    "behavior_parity": "reports/non_training_closure_20260719/nt6_market_data_pilot_20260730/md6_ledger_backend_parity/matrix_status.json",
-    "performance_acceptance": "reports/non_training_closure_20260719/nt6_market_data_pilot_20260730/md8_performance_acceptance/clean_acceptance.json",
-    "call_site_audit": "reports/non_training_closure_20260719/nt6_market_data_pilot_20260730/md7_call_site_consolidation/call_site_audit.json",
-    "dual_read_reports": {
-      "val_2024": "reports/non_training_closure_20260719/nt6_market_data_pilot_20260730/md9_dual_read_observation/dual_read.val_2024.json",
-      "test_2025": "reports/non_training_closure_20260719/nt6_market_data_pilot_20260730/md9_dual_read_observation/dual_read.test_2025.json",
-      "forward_2026": "reports/non_training_closure_20260719/nt6_market_data_pilot_20260730/md9_dual_read_observation/dual_read.forward_2026.json"
+  "rollback_backend": "legacy",
+  "schema": "execution_market_backend_policy_v2",
+  "shadow_backend": "csv",
+  "state": "monthly_active",
+  "transition_history": [
+    {
+      "action": "promote",
+      "actor": "codex",
+      "candidate_manifest_sha256": "b9596fda3b803cd639d4bfd6ead9fd458cf8c7dc4ef67e9c454b2a25e9ee692a",
+      "candidate_monthly_cache_root": "cache/ohlcv_monthly_v3_candidate",
+      "candidate_store_root": "data/market_daily_candidate_v2",
+      "changed_at": "2026-07-30T18:51:35+00:00",
+      "dual_read_sha256": {
+        "forward_2026": "880e41c3797dcbd1415a11fb4c27120b623fbb2ecaebc5fabd577fe5b6e8f823",
+        "test_2025": "25a328f7ee3a12887c6dc2cfc806beac3edb992215bd522a7c417bbe060d2771",
+        "val_2024": "7c36b8cb906b8bd3daed31334c7338dce0feaf0023bb40b7fd14049805d26406"
+      },
+      "evidence_sha256": {
+        "behavior_parity": "3ef4f5cdbd70e0b09d80be7cac83de24c0a71e19360150c61f01a76ec8662ab4",
+        "call_site_audit": "c3bb71de380f067a62d2cc2aa33b8eed42a5d8cac65c1d9da6a9ed277b2a676e",
+        "performance_acceptance": "be125e01e452774b5c315938016aab485f1ea01c820be0a6dbb24a044d48c98e"
+      },
+      "from_backend": "legacy",
+      "reason": "NT6 governed monthly backend recovery drill: initial promotion after MD6-MD9 acceptance",
+      "to_backend": "monthly"
+    },
+    {
+      "action": "rollback",
+      "actor": "codex",
+      "changed_at": "2026-07-30T18:51:58+00:00",
+      "from_backend": "monthly",
+      "reason": "NT6 recovery drill: verify legacy rollback after successful monthly smoke",
+      "to_backend": "legacy"
+    },
+    {
+      "action": "promote",
+      "actor": "codex",
+      "candidate_manifest_sha256": "b9596fda3b803cd639d4bfd6ead9fd458cf8c7dc4ef67e9c454b2a25e9ee692a",
+      "candidate_monthly_cache_root": "cache/ohlcv_monthly_v3_candidate",
+      "candidate_store_root": "data/market_daily_candidate_v2",
+      "changed_at": "2026-07-30T18:55:58+00:00",
+      "dual_read_sha256": {
+        "forward_2026": "880e41c3797dcbd1415a11fb4c27120b623fbb2ecaebc5fabd577fe5b6e8f823",
+        "test_2025": "25a328f7ee3a12887c6dc2cfc806beac3edb992215bd522a7c417bbe060d2771",
+        "val_2024": "7c36b8cb906b8bd3daed31334c7338dce0feaf0023bb40b7fd14049805d26406"
+      },
+      "evidence_sha256": {
+        "behavior_parity": "3ef4f5cdbd70e0b09d80be7cac83de24c0a71e19360150c61f01a76ec8662ab4",
+        "call_site_audit": "c3bb71de380f067a62d2cc2aa33b8eed42a5d8cac65c1d9da6a9ed277b2a676e",
+        "performance_acceptance": "be125e01e452774b5c315938016aab485f1ea01c820be0a6dbb24a044d48c98e"
+      },
+      "from_backend": "legacy",
+      "reason": "NT6 recovery drill complete: restore accepted monthly backend after verified legacy rollback",
+      "to_backend": "monthly"
+    },
+    {
+      "action": "rollback",
+      "actor": "codex",
+      "changed_at": "2026-07-30T18:59:36+00:00",
+      "from_backend": "monthly",
+      "reason": "Refresh NT6 recovery restoration against post-switch monthly call-site governance",
+      "to_backend": "legacy"
+    },
+    {
+      "action": "promote",
+      "actor": "codex",
+      "candidate_manifest_sha256": "b9596fda3b803cd639d4bfd6ead9fd458cf8c7dc4ef67e9c454b2a25e9ee692a",
+      "candidate_monthly_cache_root": "cache/ohlcv_monthly_v3_candidate",
+      "candidate_store_root": "data/market_daily_candidate_v2",
+      "changed_at": "2026-07-30T18:59:36+00:00",
+      "dual_read_sha256": {
+        "forward_2026": "880e41c3797dcbd1415a11fb4c27120b623fbb2ecaebc5fabd577fe5b6e8f823",
+        "test_2025": "25a328f7ee3a12887c6dc2cfc806beac3edb992215bd522a7c417bbe060d2771",
+        "val_2024": "7c36b8cb906b8bd3daed31334c7338dce0feaf0023bb40b7fd14049805d26406"
+      },
+      "evidence_sha256": {
+        "behavior_parity": "3ef4f5cdbd70e0b09d80be7cac83de24c0a71e19360150c61f01a76ec8662ab4",
+        "call_site_audit": "faa9c5e85e3b0085272ae06e6a41395bde8360f3be5b7d13bcb5add60d12b7e3",
+        "performance_acceptance": "be125e01e452774b5c315938016aab485f1ea01c820be0a6dbb24a044d48c98e"
+      },
+      "from_backend": "legacy",
+      "reason": "Restore monthly backend with current MD9-completed call-site audit hash",
+      "to_backend": "monthly"
     }
-  }
+  ]
 }

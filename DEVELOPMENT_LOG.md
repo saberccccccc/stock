@@ -1135,3 +1135,32 @@ Append-only record of material engineering and governance changes. Experiment me
   including frozen candidate store/cache identity checks.
 - The identity-bound promotion audit passed and the controller stopped at
   `ready_for_manual_promotion`. No automatic backend transition was performed.
+
+## 2026-07-31 - NT6 Rollback Recovery Hardening
+
+- The governed monthly promotion and real five-day market-data smoke passed.
+  The subsequent official rollback restored the legacy default and returned
+  identical data, but initially fell back from its matrix cache to CSV.
+- Root cause was mixed `YYYY-MM-DD` and `YYYY-MM-DD 00:00:00` values in legacy
+  CSV inputs under strict pandas date inference. Matrix ingestion now uses
+  explicit mixed-format parsing and drops malformed date rows.
+- Added regression coverage and rebuilt the real compatibility matrix for
+  5,332 equities and 4,023 trading dates. The repeated legacy smoke loaded the
+  requested range from the matrix cache without fallback.
+
+## 2026-07-31 - NT6 Market Backend Completion
+
+- Switched post-MD9 call-site governance from legacy to monthly and regenerated
+  the passing call-site audit. Legacy remains the rollback backend and CSV the
+  explicit read-only oracle.
+- Extended the closure state machine with `recovery_drill_required` and
+  `completed` states. Completion verifies an identity-consistent historical
+  promotion/rollback/re-promotion sequence and requires the final promotion to
+  match all current evidence hashes.
+- Refreshed the restoration transition against the new call-site audit. The
+  live policy is `monthly_active`, the recovery history contains five
+  append-only transitions, and the closure report is `completed`.
+- The active plan now marks NT6 complete. Existing stock CSV files remain
+  intact; archive or deletion still requires a separate audit and approval.
+- Final post-switch regression passed all 651 tests. The sole warning is the
+  pre-existing pandas `groupby(observed=...)` FutureWarning.
